@@ -364,7 +364,7 @@ class GameType(Enum):
     celeste_blackout_solo = 360
     celeste_cheat_mode = 361
     custom_ccomm = 362
-
+    celeste_beta = 363
 
     def __str__(self):
         return self.short_name
@@ -513,6 +513,7 @@ MANUAL_GAME_GROUPS = {
         "name": "Celeste",
         "variants": [
             (GameType.celeste, "Lockout", "Celeste"),
+            (GameType.celeste_beta, "Lockout (Beta)", "Celeste Lockout (beta)"),
             (GameType.celeste_blackout, "Co-op Blackout", "Celeste Blackout"),
             (GameType.celeste_blackout_solo, "Solo Blackout", "Celeste Solo Blackout"),
             (GameType.celeste_cn, "Normal - CN", "Celeste CN"),
