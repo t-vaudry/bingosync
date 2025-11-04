@@ -419,7 +419,7 @@ var AdditionalSettingsPanel = (function(){
             var startTime = null;
             for (var i = chatPanel.chatData.length - 1; i >= 0; i--) {
                 var msg = chatPanel.chatData[i];
-                if (msg.type === "goal" && !msg.remove && board.getSquare(msg.slot, msg.color)) {
+                if (msg.type === "goal" && !msg.remove && board.getSquare(msg.square.slot, msg.color)) {
                     order.push(msg);
                     checkers.add(msg.player.uuid);
                 }
@@ -430,15 +430,15 @@ var AdditionalSettingsPanel = (function(){
                     break;
                 }
             }
+            order.reverse();
             for (var i = 0; i < order.length; i++) {
                 var msg = order[i];
-                var square = board.getSquare(msg.slot);
-                var minutes = (msg.timestamp - startTime) / 1000 / 60;
+                var square = board.getSquare(msg.square.slot);
+                var minutes = (msg.timestamp - startTime) / 60;
                 var text = `#${i + 1}, ${minutes.toFixed(1)}m`;
                 var elem = $('<div class="postgame-summary"></div>').text(text);
-                square.append(elem);
+                square.$square.find(".text-container").append(elem);
             }
-            order.reverse();
         } else {
             $(".postgame-summary").remove();
         }

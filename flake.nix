@@ -122,7 +122,7 @@
                   (umask 077; head /dev/urandom | md5sum | cut -d' ' -f1 >/var/lib/bingosync/secret)
                 fi
                 export SECRET_KEY="$(cat /var/lib/bingosync/secret)"
-                python manage.py collectstatic --noinput
+                python manage.py collectstatic --noinput --clear
                 python manage.py migrate
                 gunicorn --bind unix:${cfg.httpSocket} --umask 0o111 --threads ${builtins.toString cfg.threads} --capture-output bingosync.wsgi:application
               '';
