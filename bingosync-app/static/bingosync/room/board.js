@@ -210,6 +210,11 @@ var Board = (function(){
         return false;
     };
 
+    Board.prototype.squareHasColor = function(slot, color) {
+        var square = this.getSquare(slot);
+        return squareHasColor(square, color);
+    };
+
     Board.prototype.hideSquares = function(override=null) {
         // hack to get new boards to work properly
         if (override !== null) {

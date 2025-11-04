@@ -97,9 +97,12 @@ var ChatPanel = (function(){
         this.chatHistoryUrl = chatHistoryUrl;
 
         this.$chatSend.on("click", this.onSend.bind(this));
+
+        this.chatData = [];
     };
 
     ChatPanel.prototype.appendChatMessage = function(message, messageType) {
+        this.chatData.push(message);
         var entry = $("<div>", {"class": messageType, html: message});
         var setting = this.$chatSettings.find("#" + messageType + "-toggle");
         entry.toggle(setting.prop("checked"));
@@ -130,6 +133,7 @@ var ChatPanel = (function(){
         }
         for(var i = 0; i < result.events.length; i++) {
             var chatJson = result.events[i];
+            this.chatData.push(chatJson);
             var message = processChatJson(chatJson);
             var entry = $("<div>", {"class": chatJson["type"] + "-entry", html: message});
             this.$chatHistory.append(entry);

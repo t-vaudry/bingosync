@@ -583,3 +583,14 @@
 .asteriskField {
     display: none;
 }
+
+.postgame-summary {
+  background-color: black;
+  border: 1px solid white;
+  border-radius: 5px;
+  font-size: 75%;
+  line-height: 130%;
+  margin: auto;
+  max-width: fit-content;
+  padding: 1px 3px;
+}

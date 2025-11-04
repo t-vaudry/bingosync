@@ -6,6 +6,7 @@ var AdditionalSettingsPanel = (function(){
         this.$highlightsCheckbox = $additionalSettings.find("#highlighter-toggle");
         this.$blackoutCheckbox = $additionalSettings.find("#blackoutview-toggle");
         this.$fullwidthCheckbox = $additionalSettings.find("#fullwidth-toggle");
+        this.$summaryCheckbox = $additionalSettings.find("#summary-toggle");
 
         this.$board = $board;
 
@@ -25,6 +26,10 @@ var AdditionalSettingsPanel = (function(){
 
         this.$fullwidthCheckbox.on("change", function() {
             additionalSettingsPanel.toggleFullWidth(this.checked);
+        });
+
+        this.$summaryCheckbox.on("change", function() {
+            additionalSettingsPanel.toggleSummary(this.checked);
         });
 
         this.$additionalSettings.find("#additional-settings-collapse").on("mousedown", function() {
@@ -405,6 +410,38 @@ var AdditionalSettingsPanel = (function(){
 
     AdditionalSettingsPanel.prototype.toggleFullWidth = function(checked) {
         $(".row.m-b-l").children().attr("class", checked ? "row" : "col-md-6");
+    };
+
+    AdditionalSettingsPanel.prototype.toggleSummary = function(checked) {
+        if (checked) {
+            var order = [];
+            var checkers = new Set();
+            var startTime = null;
+            for (var i = chatPanel.chatData.length - 1; i >= 0; i--) {
+                var msg = chatPanel.chatData[i];
+                if (msg.type === "goal" && !msg.remove && board.getSquare(msg.slot, msg.color)) {
+                    order.push(msg);
+                    checkers.add(msg.player.uuid);
+                }
+                if (msg.type === "revealed" && checkers.has(msg.player.uuid)) {
+                    startTime = msg.timestamp;
+                }
+                if (msg.type === "new-card") {
+                    break;
+                }
+            }
+            for (var i = 0; i < order.length; i++) {
+                var msg = order[i];
+                var square = board.getSquare(msg.slot);
+                var minutes = (msg.timestamp - startTime) / 1000 / 60;
+                var text = `#${i + 1}, ${minutes.toFixed(1)}m`;
+                var elem = $('<div class="postgame-summary"></div>').text(text);
+                square.append(elem);
+            }
+            order.reverse();
+        } else {
+            $(".postgame-summary").remove();
+        }
     };
 
     return AdditionalSettingsPanel;
