@@ -73,6 +73,7 @@
 <script>
     var chatPanel;
     var board;
+    var additionalSettingsPanel;
     $(document).ready(function() {
         ROOM_SETTINGS = JSON.parse('{{ room.settings|jsonify|escapejs }}');
         var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
@@ -96,7 +97,7 @@
         var playersPanel = new PlayersPanel($("#players-panel"));
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
 
-        var additionalSettingsPanel = undefined;
+        additionalSettingsPanel = undefined;
 
         // Celeste Long New is the current name of the category extensions
         if (ROOM_SETTINGS.game == "Celeste" || ROOM_SETTINGS.game == "Celeste Long New" || ROOM_SETTINGS.game == "Custom"){
