@@ -5,6 +5,7 @@ var AdditionalSettingsPanel = (function(){
         this.$additionalSettings = $additionalSettings;
         this.$highlightsCheckbox = $additionalSettings.find("#highlighter-toggle");
         this.$blackoutCheckbox = $additionalSettings.find("#blackoutview-toggle");
+        this.$fullwidthCheckbox = $additionalSettings.find("#fullwidth-toggle");
 
         this.$board = $board;
 
@@ -20,6 +21,10 @@ var AdditionalSettingsPanel = (function(){
 
         this.$blackoutCheckbox.on("change", function() {
             additionalSettingsPanel.toggleBlackoutView(this.checked);
+        });
+
+        this.$fullwidthCheckbox.on("change", function() {
+            additionalSettingsPanel.toggleFullWidth(this.checked);
         });
 
         this.$additionalSettings.find("#additional-settings-collapse").on("mousedown", function() {
@@ -396,6 +401,10 @@ var AdditionalSettingsPanel = (function(){
         else {
             disableBAV();
         }
+    };
+
+    AdditionalSettingsPanel.prototype.toggleFullWidth = function(checked) {
+        $(".row.m-b-l").children().attr("class", checked ? "row" : "col-md-6");
     };
 
     return AdditionalSettingsPanel;
