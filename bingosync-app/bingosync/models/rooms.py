@@ -70,7 +70,7 @@ class Room(models.Model):
 
     @property
     def games(self):
-        return Game.objects.filter(room=self)
+        return Game.objects.filter(room=self).order_by("created_date").all()
 
     @property
     def players(self):
