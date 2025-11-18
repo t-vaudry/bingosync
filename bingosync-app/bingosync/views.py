@@ -5,6 +5,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.template import loader
+from django.views.decorators.clickjacking import xframe_options_exempt
 
 import json
 import requests
@@ -115,6 +116,7 @@ def room_view(request, encoded_room_uuid):
             join_form.initial['passphrase'] = request.GET['password']
         return _join_room(request, join_form, room)
 
+@xframe_options_exempt
 def room_stream(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
     params = {
