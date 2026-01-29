@@ -7,6 +7,7 @@ var AdditionalSettingsPanel = (function(){
         this.$blackoutCheckbox = $additionalSettings.find("#blackoutview-toggle");
         this.$fullwidthCheckbox = $additionalSettings.find("#fullwidth-toggle");
         this.$summaryCheckbox = $additionalSettings.find("#summary-toggle");
+        this.$fogpersistCheckbox = $additionalSettings.find("#fog-persist-toggle");
 
         this.$board = $board;
 
@@ -30,6 +31,10 @@ var AdditionalSettingsPanel = (function(){
 
         this.$summaryCheckbox.on("change", function() {
             additionalSettingsPanel.toggleSummary(this.checked);
+        });
+
+        this.$fogpersistCheckbox.on("change", function() {
+            additionalSettingsPanel.toggleFogPersist(this.checked);
         });
 
         this.$additionalSettings.find("#additional-settings-collapse").on("mousedown", function() {
@@ -410,6 +415,11 @@ var AdditionalSettingsPanel = (function(){
 
     AdditionalSettingsPanel.prototype.toggleFullWidth = function(checked) {
         $(".row.m-b-l").children().attr("class", checked ? "row" : "col-md-6");
+    };
+
+    AdditionalSettingsPanel.prototype.toggleFogPersist = function(checked) {
+        board.fogPersist = checked;
+        board.hideSquares();
     };
 
     AdditionalSettingsPanel.prototype.toggleSummary = function(checked) {
