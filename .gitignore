@@ -71,3 +71,7 @@ bingosync-app/tools
 *.sqlite
 /static/
 bingo/**
+
+# Docker environment files
+.env
+.env.local

@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies
+# Tornado is already in the main requirements.txt
+RUN pip install --upgrade pip && \
+    pip install tornado~=6.2 redis
+
+# Copy application
+COPY . /app/
+
+# Expose port
+EXPOSE 8888
+
+# Default command (can be overridden in docker-compose)
+CMD ["python", "app.py"]
