@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bingosync-postgres
+    environment:
+      POSTGRES_DB: bingosync
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bingosync-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: bingosync-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bingosync-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Django Application
+  django:
+    build:
+      context: ./bingosync-app
+      dockerfile: Dockerfile
+    container_name: bingosync-django
+    command: gunicorn bingosync.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/bingosync
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Django Settings
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DEBUG: ${DEBUG:-0}
+      
+      # Internal API
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      
+      # WebSocket
+      SOCKETS_DOMAIN: ${SOCKETS_DOMAIN:-tornado:8888}
+      
+      # Optional Settings
+      DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - static_files:/app/static
+      - media_files:/app/media
+    networks:
+      - bingosync-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Tornado WebSocket Server
+  tornado:
+    build:
+      context: ./bingosync-websocket
+      dockerfile: Dockerfile
+    container_name: bingosync-tornado
+    command: python app.py
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/bingosync
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Internal API
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      
+      # WebSocket Settings
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      
+      # Optional Settings
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    networks:
+      - bingosync-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.24-alpine
+    container_name: bingosync-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Configuration
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      
+      # Static and media files
+      - static_files:/static:ro
+      - media_files:/media:ro
+      
+      # SSL certificates (optional, for HTTPS)
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - bingosync-network
+    depends_on:
+      - django
+      - tornado
+    restart: unless-stopped
+
+# Persistent volumes for data storage
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_files:
+    driver: local
+  media_files:
+    driver: local
+
+# Internal network for service communication
+networks:
+  bingosync-network:
+    driver: bridge
