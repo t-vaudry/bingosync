@@ -143,7 +143,19 @@ class RoomForm(forms.Form):
 
         return cleaned_data
 
-    def create_room(self):
+    def create_room(self, user=None):
+        """
+        Create a new room with the specified settings.
+        
+        Args:
+            user: Optional authenticated User instance
+        
+        Returns:
+            Room instance
+        
+        Raises:
+            ValidationError: If authenticated user is already in another room
+        """
         room_name = self.cleaned_data["room_name"]
         passphrase = self.cleaned_data["passphrase"]
         nickname = self.cleaned_data["nickname"]
@@ -157,6 +169,14 @@ class RoomForm(forms.Form):
         fog_of_war = self.cleaned_data["fog_of_war"]
 
         # Note: room_name and nickname are already sanitized and filtered in clean_* methods
+
+        # Check if authenticated user is already in a room
+        if user and user.is_authenticated:
+            if user.current_room:
+                raise ValidationError(
+                    f"You are already in room '{user.current_room.name}'. "
+                    f"Please leave that room before creating another."
+                )
 
         if not seed:
             seed = "" if game_type.uses_seed else "0"
@@ -173,6 +193,11 @@ class RoomForm(forms.Form):
 
             creator = Player(room=room, name=nickname, is_spectator=is_spectator)
             creator.save()
+
+            # Set current_room for authenticated users
+            if user and user.is_authenticated:
+                user.current_room = room
+                user.save()
 
             room.update_active()
         return room
@@ -236,16 +261,41 @@ class JoinRoomForm(forms.Form):
             if not hashers.check_password(passphrase, room.passphrase):
                 raise forms.ValidationError("Incorrect Password")
 
-    def create_player(self):
+    def create_player(self, user=None):
+        """
+        Create a player for the room.
+        
+        Args:
+            user: Optional authenticated User instance
+        
+        Returns:
+            Player instance
+        
+        Raises:
+            ValidationError: If authenticated user is already in another room
+        """
         room = Room.get_for_encoded_uuid(self.cleaned_data["encoded_room_uuid"])
         nickname = self.cleaned_data["player_name"]
         is_spectator = self.cleaned_data["is_spectator"]
 
         # Note: nickname is already sanitized and filtered in clean_player_name method
 
+        # Check if authenticated user is already in a room
+        if user and user.is_authenticated:
+            if user.current_room and user.current_room != room:
+                raise ValidationError(
+                    f"You are already in room '{user.current_room.name}'. "
+                    f"Please leave that room before joining another."
+                )
+
         with transaction.atomic():
             player = Player(room=room, name=nickname, is_spectator=is_spectator)
             player.save()
+
+            # Set current_room for authenticated users
+            if user and user.is_authenticated:
+                user.current_room = room
+                user.save()
 
             room.update_active()
 

@@ -49,10 +49,15 @@ def rooms(request):
         form = RoomForm(request.POST)
         if form.is_valid():
             try:
-                room = form.create_room()
+                # Pass the authenticated user to create_room
+                user = request.user if request.user.is_authenticated else None
+                room = form.create_room(user=user)
                 creator = room.creator
                 _save_session_player(request.session, creator)
                 return redirect_params("room_view", encoded_room_uuid=room.encoded_uuid, params={'password': form.cleaned_data['passphrase']})
+            except ValidationError as e:
+                # Handle one-room-per-user validation error
+                form.add_error(None, str(e))
             except GeneratorException as e:
                 form.add_error(None, str(e))
         else:
@@ -172,9 +177,17 @@ def room_view(request, encoded_room_uuid):
         if request.method == "POST":
             join_form = JoinRoomForm(request.POST)
             if join_form.is_valid():
-                player = join_form.create_player()
-                _save_session_player(request.session, player)
-                return redirect_params("room_view", encoded_room_uuid=encoded_room_uuid, params={'password': join_form.cleaned_data['passphrase']})
+                try:
+                    # Pass the authenticated user to create_player
+                    user = request.user if request.user.is_authenticated else None
+                    player = join_form.create_player(user=user)
+                    _save_session_player(request.session, player)
+                    return redirect_params("room_view", encoded_room_uuid=encoded_room_uuid, params={'password': join_form.cleaned_data['passphrase']})
+                except ValidationError as e:
+                    # Handle one-room-per-user validation error
+                    join_form.add_error(None, str(e))
+                    room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
+                    return _join_room(request, join_form, room)
             else:
                 room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
                 return _join_room(request, join_form, room)
@@ -418,6 +431,12 @@ def room_feed(request, encoded_room_uuid):
 
 def room_disconnect(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
+    
+    # Clear current_room for authenticated users
+    if request.user.is_authenticated and request.user.current_room == room:
+        request.user.current_room = None
+        request.user.save()
+    
     _clear_session_player(request.session, room)
     return redirect("rooms")
 
@@ -499,9 +518,14 @@ def join_room_api(request):
     })
     join_form = JoinRoomForm(form_data)
     if join_form.is_valid():
-        player = join_form.create_player()
-        _save_session_player(request.session, player)
-        return redirect("get_socket_key", encoded_room_uuid=room.encoded_uuid)
+        try:
+            # Pass the authenticated user to create_player
+            user = request.user if request.user.is_authenticated else None
+            player = join_form.create_player(user=user)
+            _save_session_player(request.session, player)
+            return redirect("get_socket_key", encoded_room_uuid=room.encoded_uuid)
+        except ValidationError as e:
+            return JsonResponse({"error": str(e)}, status=400)
     else:
         return HttpResponse(join_form.errors.as_json(), content_type="application/json", status=400)
 

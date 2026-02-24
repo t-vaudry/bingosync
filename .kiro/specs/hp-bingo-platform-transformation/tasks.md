@@ -410,7 +410,7 @@ Create password reset functionality via email.
 
 ---
 
-- [ ] 2.5 Enforce One Room Per User
+- [x] 2.5 Enforce One Room Per User
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 2.1
