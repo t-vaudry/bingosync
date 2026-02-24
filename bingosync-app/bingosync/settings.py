@@ -26,7 +26,16 @@ IS_PROD = os.getenv('DEBUG', '').lower() not in ('1', 'yes')
 SECRET_KEY = os.getenv("SECRET_KEY", None if IS_PROD else '1234')
 ADMINS = os.getenv("ADMINS")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
-DB_STRING = os.getenv("DB_STRING", 'sqlite:///db.sqlite')
+
+# PostgreSQL-only database configuration
+# DATABASE_URL is required and must point to a PostgreSQL database
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it to a valid PostgreSQL connection string. "
+        "Example: postgresql://user:password@localhost:5432/bingosync"
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not IS_PROD
@@ -99,9 +108,10 @@ WSGI_APPLICATION = 'bingosync.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
+# PostgreSQL 15+ is required
 
 DATABASES = {
-    'default': dj_database_url.parse(DB_STRING)
+    'default': dj_database_url.parse(DATABASE_URL)
 }
 
 

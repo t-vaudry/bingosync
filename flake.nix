@@ -107,7 +107,7 @@
                 {
                   DOMAIN = cfg.domain;
                   SOCKETS_DOMAIN = cfg.socketsDomain;
-                  DB_STRING = builtins.replaceStrings ["%"] ["%%"] cfg.databaseUrl;
+                  DATABASE_URL = builtins.replaceStrings ["%"] ["%%"] cfg.databaseUrl;
                   STATIC_ROOT = cfg.staticPath;
                   WS_SOCK = cfg.wsSocket;
                   HTTP_SOCK = cfg.httpSocket;

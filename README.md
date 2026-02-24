@@ -25,3 +25,19 @@ traffic to the django and tornado servers. I use [postgres](http://www.postgresq
 for the database. Conveniently, this machine is the same one that I run 
 [bingobot](https://github.com/kbuzsaki/bingobot) off of. Maybe there's some 
 opportunity for integration there in the future :)
+
+#### Database Requirements
+
+This platform requires **PostgreSQL 15 or later** as the database backend. SQLite is not supported.
+
+**Environment Configuration:**
+
+You must set the `DATABASE_URL` environment variable to a valid PostgreSQL connection string:
+
+```bash
+export DATABASE_URL="postgresql://username:password@localhost:5432/bingosync"
+```
+
+**Docker Deployment:**
+
+The included `docker-compose.yml` automatically configures PostgreSQL. See the deployment documentation for details.

@@ -161,7 +161,7 @@ The `.env` file contains all environment variables. Key settings:
 
 - `DEBUG=1`: Enable Django debug mode
 - `SECRET_KEY`: Django secret key (change for production)
-- `DB_STRING`: PostgreSQL connection string
+- `DATABASE_URL`: PostgreSQL connection string (required)
 - `DJANGO_LOG_LEVEL`: Logging verbosity (DEBUG, INFO, WARNING, ERROR)
 
 To modify settings:

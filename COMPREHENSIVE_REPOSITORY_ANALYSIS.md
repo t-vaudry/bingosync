@@ -3,7 +3,7 @@
 **Analysis Date:** February 22, 2026  
 **Repository:** Bingosync - Collaborative Bingo Board Platform for Speedrunning  
 **Primary Language:** Python (Django), JavaScript, Tornado  
-**Database:** PostgreSQL (production), SQLite (development)
+**Database:** PostgreSQL 15+ (required)
 
 ---
 
@@ -72,8 +72,7 @@ Bingosync enables speedrunners to collaboratively work on "bingo boards" - grids
 |-------|-----------|---------------|
 | **Backend Framework** | Django | ~4.1 |
 | **WebSocket Server** | Tornado | ~6.2 |
-| **Database** | PostgreSQL | Production (via dj-database-url) |
-| **Database (Dev)** | SQLite | Development default |
+| **Database** | PostgreSQL | 15+ required (via dj-database-url) |
 | **Runtime** | Python | 3.x |
 | **Generator Runtime** | Node.js | For JavaScript generators |
 | **Frontend** | jQuery | Legacy, no modern framework |
@@ -280,7 +279,7 @@ bingosync/
 # Required
 - Python 3.x
 - Node.js (for generators)
-- PostgreSQL (production) or SQLite (dev)
+- PostgreSQL 15+
 
 # Optional
 - Nix package manager (for NixOS deployment)
@@ -302,7 +301,7 @@ pip install -r requirements.txt
 # 4. Set environment variables (development)
 export DEBUG=1
 export SECRET_KEY=your-secret-key-here
-export DB_STRING=sqlite:///db.sqlite
+export DATABASE_URL=postgresql://user:password@localhost:5432/bingosync
 
 # 5. Run migrations
 cd bingosync-app
@@ -338,7 +337,7 @@ services.bingosync = {
 # 1. Set production environment variables
 export DEBUG=0
 export SECRET_KEY=<generate-secure-key>
-export DB_STRING=postgresql://user:pass@host/db
+export DATABASE_URL=postgresql://user:pass@host/db
 export DOMAIN=bingosync.com
 export SOCKETS_DOMAIN=sockets.bingosync.com
 export STATIC_ROOT=/var/www/static
@@ -391,7 +390,7 @@ python manage.py test bingosync.generators.test_generator
 |----------|----------|---------|-------------|
 | `DEBUG` | No | `0` (prod) | Enable debug mode |
 | `SECRET_KEY` | Yes (prod) | `1234` (dev) | Django secret key |
-| `DB_STRING` | No | `sqlite:///db.sqlite` | Database connection URL |
+| `DATABASE_URL` | Yes | None | PostgreSQL connection URL (required) |
 | `DOMAIN` | Yes (prod) | `localhost` | Main domain |
 | `SOCKETS_DOMAIN` | Yes (prod) | `127.0.0.1:8888` | WebSocket domain |
 | `STATIC_ROOT` | No | `../static` | Static files directory |
