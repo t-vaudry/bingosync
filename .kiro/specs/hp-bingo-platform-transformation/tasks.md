@@ -163,7 +163,7 @@ Add security headers to all HTTP responses.
 
 ---
 
-- [ ] 1.8 Validate WebSocket Origins
+- [x] 1.8 Validate WebSocket Origins
   **Priority:** P0 (Security)
   **Estimated Time:** 3 hours
   **Dependencies:** None

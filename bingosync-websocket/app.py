@@ -28,6 +28,13 @@ IS_PROD = os.getenv('DEBUG', '').lower() not in ('1', 'yes')
 PORT = int(os.getenv('WS_PORT', '8888'))
 SOCK = os.getenv('WS_SOCK', None)
 
+# Allowed hosts for WebSocket origin validation
+# Mirrors Django's ALLOWED_HOSTS configuration
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+if "DOMAIN" in os.environ:
+    domain = os.environ["DOMAIN"]
+    ALLOWED_HOSTS.append(domain)
+
 # Internal API authentication secret
 # Used to authenticate requests from Django to Tornado
 INTERNAL_API_SECRET = os.getenv('INTERNAL_API_SECRET')
@@ -333,7 +340,31 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
         return "Socket(" + str(self.last_pong) + ")"
 
     def check_origin(self, origin):
-        return True
+        """
+        Validate WebSocket connection origin against allowed hosts.
+        
+        Returns True if the origin is allowed, False otherwise.
+        Logs rejected connections for security monitoring.
+        """
+        try:
+            # Parse the origin URL to extract the hostname
+            parsed_origin = urllib.parse.urlparse(origin)
+            origin_host = parsed_origin.hostname
+            
+            # Check if the origin host is in ALLOWED_HOSTS
+            if origin_host in ALLOWED_HOSTS:
+                return True
+            
+            # Log rejected connection
+            ip_address = self.request.remote_ip
+            print(f"WebSocket connection rejected: Origin '{origin}' (host: {origin_host}) not in ALLOWED_HOSTS. IP: {ip_address}")
+            return False
+            
+        except Exception as e:
+            # Log parsing errors and reject the connection
+            ip_address = self.request.remote_ip
+            print(f"WebSocket connection rejected: Failed to parse origin '{origin}'. Error: {e}. IP: {ip_address}")
+            return False
     
     def open(self):
         """
