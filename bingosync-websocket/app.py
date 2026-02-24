@@ -3,7 +3,12 @@ import tornado.web
 import tornado.websocket
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httpserver import HTTPServer
-from tornado.netutil import bind_unix_socket, Resolver
+from tornado.netutil import Resolver
+try:
+    from tornado.netutil import bind_unix_socket
+except ImportError:
+    # bind_unix_socket not available on Windows
+    bind_unix_socket = None
 import urllib.parse
 
 from collections import defaultdict
@@ -22,6 +27,22 @@ requests_unixsocket.monkeypatch()
 IS_PROD = os.getenv('DEBUG', '').lower() not in ('1', 'yes')
 PORT = int(os.getenv('WS_PORT', '8888'))
 SOCK = os.getenv('WS_SOCK', None)
+
+# Internal API authentication secret
+# Used to authenticate requests from Django to Tornado
+INTERNAL_API_SECRET = os.getenv('INTERNAL_API_SECRET')
+if not INTERNAL_API_SECRET:
+    raise ValueError(
+        "INTERNAL_API_SECRET environment variable is required. "
+        "This secret is used to authenticate internal API calls from Django. "
+        "Generate a secure random string (32+ characters) using: "
+        "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    )
+if len(INTERNAL_API_SECRET) < 32:
+    raise ValueError(
+        "INTERNAL_API_SECRET must be at least 32 characters long for security. "
+        "Current length: " + str(len(INTERNAL_API_SECRET))
+    )
 
 if 'HTTP_SOCK' in os.environ:
     BASE_DJANGO_URL = f"http+unix://{urllib.parse.quote_plus(os.environ['HTTP_SOCK'])}/"
@@ -103,6 +124,40 @@ def format_defaultdict(ddict):
         return {key: format_defaultdict(ddict[key]) for key in ddict}
     else:
         return ddict
+
+
+def validate_internal_request(request_handler):
+    """
+    Validate that a request comes from Django using the shared secret.
+    
+    Returns True if the request is authenticated, False otherwise.
+    """
+    auth_header = request_handler.request.headers.get('X-Internal-Secret')
+    return auth_header == INTERNAL_API_SECRET
+
+
+class InternalAPIHandler(tornado.web.RequestHandler):
+    """
+    Base handler for internal API endpoints that require authentication.
+    
+    Validates the X-Internal-Secret header before processing requests.
+    """
+    
+    def prepare(self):
+        """
+        Called before each request method.
+        
+        Validates the internal API secret and returns 401 if invalid.
+        """
+        if not validate_internal_request(self):
+            self.set_status(401)
+            self.write({
+                'error': 'Unauthorized',
+                'message': 'Invalid or missing X-Internal-Secret header'
+            })
+            self.finish()
+            # Prevent the actual request handler from running
+            raise tornado.web.Finish()
 
 
 class WebSocketRateLimiter:
@@ -250,7 +305,7 @@ class SocketRouter:
 
 ROUTER = SocketRouter()
 
-class MainHandler(tornado.web.RequestHandler):
+class MainHandler(InternalAPIHandler):
 
     def get(self):
         self.write("Hello, world")
@@ -261,7 +316,7 @@ class MainHandler(tornado.web.RequestHandler):
         ROUTER.send_to_room(room_uuid, data)
 
 
-class ConnectedHandler(tornado.web.RequestHandler):
+class ConnectedHandler(InternalAPIHandler):
 
     def get(self):
         data = {room: list(players.keys()) for room, players in ROUTER.sockets_by_room.items()}
@@ -337,6 +392,8 @@ if __name__ == "__main__":
         print("Listening on port: " + str(PORT))
         application.listen(PORT)
     else:
+        if bind_unix_socket is None:
+            raise RuntimeError("Unix sockets are not supported on this platform (Windows)")
         print("Listening on socket: " + str(SOCK))
         server = HTTPServer(application)
         mysock = bind_unix_socket(SOCK, mode=0o666)

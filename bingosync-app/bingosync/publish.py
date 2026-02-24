@@ -2,6 +2,7 @@ import requests
 import json
 
 from bingosync.settings import SOCKETS_PUBLISH_URL
+from bingosync.util import get_internal_api_headers
 
 def publish_goal_event(goal_event):
     data = goal_event.to_json()
@@ -29,5 +30,5 @@ def publish_new_card_event(new_card_event):
 
 def _publish_json(data, room):
     data["room"] = room.encoded_uuid
-    requests.put(SOCKETS_PUBLISH_URL, data=json.dumps(data))
+    requests.put(SOCKETS_PUBLISH_URL, data=json.dumps(data), headers=get_internal_api_headers())
 

@@ -97,7 +97,7 @@ Enable CSRF protection on all state-changing API endpoints.
 
 ---
 
-- [ ] 1.5 Configure Secure Cookies
+- [x] 1.5 Configure Secure Cookies
   **Priority:** P0 (Security)
   **Estimated Time:** 2 hours
   **Dependencies:** None
@@ -118,7 +118,7 @@ Set secure cookie flags for production environment.
 ---
 
 
-- [ ] 1.6 Implement Django-Tornado Shared Secret Authentication
+- [x] 1.6 Implement Django-Tornado Shared Secret Authentication
   **Priority:** P0 (Security)
   **Estimated Time:** 4 hours
   **Dependencies:** None

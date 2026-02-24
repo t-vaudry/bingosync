@@ -18,4 +18,16 @@ def decode_uuid(encoded_uuid):
 def generate_encoded_uuid():
     return encode_uuid(uuid.uuid4())
 
+def get_internal_api_headers():
+    """
+    Get headers for internal API requests to Tornado.
+    
+    Includes the X-Internal-Secret header for authentication.
+    """
+    from bingosync.settings import INTERNAL_API_SECRET
+    return {
+        'X-Internal-Secret': INTERNAL_API_SECRET,
+        'Content-Type': 'application/json'
+    }
+
 ANON_UUID = uuid.UUID("ec832ac3-e151-47da-aec3-3350563b25ba")

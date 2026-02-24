@@ -28,6 +28,26 @@ SECRET_KEY = os.getenv("SECRET_KEY", None if IS_PROD else '1234')
 ADMINS = os.getenv("ADMINS")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
+# Internal API authentication secret
+# Used for Django-Tornado communication
+INTERNAL_API_SECRET = os.getenv("INTERNAL_API_SECRET")
+if not INTERNAL_API_SECRET and not IS_TEST:
+    raise ValueError(
+        "INTERNAL_API_SECRET environment variable is required. "
+        "This secret is used to authenticate internal API calls between Django and Tornado. "
+        "Generate a secure random string (32+ characters) using: "
+        "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    )
+if INTERNAL_API_SECRET and len(INTERNAL_API_SECRET) < 32 and not IS_TEST:
+    raise ValueError(
+        "INTERNAL_API_SECRET must be at least 32 characters long for security. "
+        "Current length: " + str(len(INTERNAL_API_SECRET))
+    )
+
+# Use a test secret for testing
+if IS_TEST and not INTERNAL_API_SECRET:
+    INTERNAL_API_SECRET = 'test-secret-for-testing-purposes-only-32-chars'
+
 # PostgreSQL-only database configuration
 # DATABASE_URL is required and must point to a PostgreSQL database
 DATABASE_URL = os.getenv("DATABASE_URL")

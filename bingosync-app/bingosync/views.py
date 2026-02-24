@@ -455,8 +455,9 @@ def check_socket_key(request, socket_key):
         raise Http404("Invalid socket key")
 
 def reconcile_connections(request):
+    from bingosync.util import get_internal_api_headers
     connected_url = SOCKETS_PUBLISH_URL + "/connected"
-    response = requests.get(connected_url)
+    response = requests.get(connected_url, headers=get_internal_api_headers())
     connected_rooms = response.json()
 
     active_rooms = Room.get_listed_rooms()
