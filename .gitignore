@@ -80,3 +80,6 @@ bingo/**
 # Docker environment files
 .env
 .env.local
+
+# Documentation (implementation notes, not user-facing docs)
+docs/

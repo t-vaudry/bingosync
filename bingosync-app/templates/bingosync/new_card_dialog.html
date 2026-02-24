@@ -12,6 +12,7 @@
             </div>
             <div class="modal-body">
                 <form id="new-card-form" class="form-horizontal">
+                    {% csrf_token %}
                     {% crispy new_card_form %}
                 </form>
             </div>

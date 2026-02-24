@@ -217,7 +217,6 @@ def room_settings(request, encoded_room_uuid):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
-@csrf_exempt
 def new_card(request):
     data = json.loads(request.body.decode("utf8"))
 
@@ -328,7 +327,6 @@ def room_disconnect(request, encoded_room_uuid):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
-@csrf_exempt
 def goal_selected(request):
     data = parse_body_json_or_400(request, required_keys=["room", "slot", "color", "remove_color"])
 
@@ -347,7 +345,6 @@ def goal_selected(request):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
-@csrf_exempt
 def chat_message(request):
     data = parse_body_json_or_400(request, required_keys=["room", "text"])
 
@@ -362,7 +359,6 @@ def chat_message(request):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
-@csrf_exempt
 def select_color(request):
     data = parse_body_json_or_400(request, required_keys=["room", "color"])
 
@@ -376,7 +372,6 @@ def select_color(request):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
-@csrf_exempt
 def board_revealed(request):
     data = parse_body_json_or_400(request, required_keys=["room"])
 
@@ -390,7 +385,6 @@ def board_revealed(request):
 
 @handle_ratelimit
 @ratelimit_login
-@csrf_exempt
 def join_room_api(request):
     # grab data from input json
     try:

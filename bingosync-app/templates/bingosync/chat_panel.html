@@ -10,6 +10,7 @@
                 </div>
             </div>
             <form>
+                {% csrf_token %}
                 <div class="chat-input-container">
                     <input type="text" class="chat-input form-control" autocomplete="off" />
                     <input type="submit" class="chat-send btn btn-default" value="Send"/>

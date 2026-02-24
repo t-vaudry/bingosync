@@ -76,7 +76,7 @@ Add rate limiting to all public HTTP endpoints using django-ratelimit.
 
 ---
 
-- [ ] 1.4 Enable CSRF Protection
+- [x] 1.4 Enable CSRF Protection
   **Priority:** P0 (Security)
   **Estimated Time:** 3 hours
   **Dependencies:** None

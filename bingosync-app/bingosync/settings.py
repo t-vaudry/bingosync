@@ -22,6 +22,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 IS_PROD = os.getenv('DEBUG', '').lower() not in ('1', 'yes')
+IS_TEST = len(sys.argv) > 1 and sys.argv[1] == "test"
 
 SECRET_KEY = os.getenv("SECRET_KEY", None if IS_PROD else '1234')
 ADMINS = os.getenv("ADMINS")
@@ -30,7 +31,7 @@ SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 # PostgreSQL-only database configuration
 # DATABASE_URL is required and must point to a PostgreSQL database
 DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+if not DATABASE_URL and not IS_TEST:
     raise ValueError(
         "DATABASE_URL environment variable is required. "
         "Please set it to a valid PostgreSQL connection string. "
@@ -39,8 +40,6 @@ if not DATABASE_URL:
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not IS_PROD
-
-IS_TEST = len(sys.argv) > 1 and sys.argv[1] == "test"
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 CSRF_TRUSTED_ORIGINS = []
@@ -83,6 +82,16 @@ MIDDLEWARE = (
     'bingosync.middleware.InvalidRequestMiddleware',
 )
 
+# CSRF Protection Settings
+# Enable secure CSRF cookies in production
+if IS_PROD:
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
 ROOT_URLCONF = 'bingosync.urls'
 
 TEMPLATES = [
@@ -111,9 +120,18 @@ WSGI_APPLICATION = 'bingosync.wsgi.application'
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 # PostgreSQL 15+ is required
 
-DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL)
-}
+if IS_TEST:
+    # Use SQLite for tests if DATABASE_URL is not provided
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+else:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
+    }
 
 
 # Internationalization
