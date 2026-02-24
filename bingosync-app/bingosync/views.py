@@ -23,6 +23,12 @@ from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
 from bingosync.publish import publish_goal_event, publish_chat_event, publish_color_event, publish_revealed_event
 from bingosync.publish import publish_connection_event, publish_new_card_event
 from bingosync.util import generate_encoded_uuid, ANON_UUID, encode_uuid
+from bingosync.decorators import (
+    ratelimit_login,
+    ratelimit_registration,
+    ratelimit_authenticated_action,
+    handle_ratelimit
+)
 
 from crispy_forms.layout import Layout, Field
 
@@ -35,6 +41,8 @@ def redirect_params(url, params=None, **kwargs):
         response['Location'] += '?' + query_string
     return response
 
+@handle_ratelimit
+@ratelimit_registration
 def rooms(request):
     if request.method == "POST":
         form = RoomForm(request.POST)
@@ -66,6 +74,8 @@ def rooms(request):
     }
     return render(request, "bingosync/index.html", params)
 
+@handle_ratelimit
+@ratelimit_login
 def room_view(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
     try:
@@ -205,6 +215,8 @@ def room_settings(request, encoded_room_uuid):
     panel = loader.get_template("bingosync/room_settings_panel.html").render({"game": room.current_game, "room": room}, request)
     return JsonResponse({"panel": panel, "settings": room.settings})
 
+@handle_ratelimit
+@ratelimit_authenticated_action
 @csrf_exempt
 def new_card(request):
     data = json.loads(request.body.decode("utf8"))
@@ -314,6 +326,8 @@ def room_disconnect(request, encoded_room_uuid):
     _clear_session_player(request.session, room)
     return redirect("rooms")
 
+@handle_ratelimit
+@ratelimit_authenticated_action
 @csrf_exempt
 def goal_selected(request):
     data = parse_body_json_or_400(request, required_keys=["room", "slot", "color", "remove_color"])
@@ -331,6 +345,8 @@ def goal_selected(request):
     publish_goal_event(goal_event)
     return HttpResponse("Recieved data: " + str(data))
 
+@handle_ratelimit
+@ratelimit_authenticated_action
 @csrf_exempt
 def chat_message(request):
     data = parse_body_json_or_400(request, required_keys=["room", "text"])
@@ -344,6 +360,8 @@ def chat_message(request):
     publish_chat_event(chat_event)
     return HttpResponse("Recieved data: " + str(data))
 
+@handle_ratelimit
+@ratelimit_authenticated_action
 @csrf_exempt
 def select_color(request):
     data = parse_body_json_or_400(request, required_keys=["room", "color"])
@@ -356,6 +374,8 @@ def select_color(request):
     publish_color_event(color_event)
     return HttpResponse("Received data: ", str(data))
 
+@handle_ratelimit
+@ratelimit_authenticated_action
 @csrf_exempt
 def board_revealed(request):
     data = parse_body_json_or_400(request, required_keys=["room"])
@@ -368,6 +388,8 @@ def board_revealed(request):
     publish_revealed_event(revealed_event)
     return HttpResponse("Received data: " + str(data))
 
+@handle_ratelimit
+@ratelimit_login
 @csrf_exempt
 def join_room_api(request):
     # grab data from input json

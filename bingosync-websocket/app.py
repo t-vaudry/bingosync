@@ -14,6 +14,7 @@ import requests
 import pprint
 import os
 import socket
+import time
 
 import requests_unixsocket
 requests_unixsocket.monkeypatch()
@@ -40,6 +41,11 @@ DEFAULT_RETRY_COUNT = 5
 
 # whether we should clean up the broadcast sockets dictionary as people disconnect
 CLEANUP_SOCKETS_DICT_ON_DISCONNECT = True
+
+# Rate limiting configuration for WebSocket connections
+# 20 connections per minute per IP address
+WS_RATE_LIMIT_CONNECTIONS = 20
+WS_RATE_LIMIT_WINDOW = 60  # seconds
 
 # https://lovelace.cluster.earlham.edu/mounts/lovelace/software/anaconda3/envs/qiime2-amplicon-2024.2/lib/python3.8/site-packages/jupyter_server/utils.py
 class UnixSocketResolver(Resolver):
@@ -97,6 +103,70 @@ def format_defaultdict(ddict):
         return {key: format_defaultdict(ddict[key]) for key in ddict}
     else:
         return ddict
+
+
+class WebSocketRateLimiter:
+    """
+    Rate limiter for WebSocket connections.
+    
+    Tracks connection attempts per IP address and enforces a limit of
+    20 connections per minute per IP.
+    """
+    
+    def __init__(self, max_connections=WS_RATE_LIMIT_CONNECTIONS, window_seconds=WS_RATE_LIMIT_WINDOW):
+        self.max_connections = max_connections
+        self.window_seconds = window_seconds
+        # Dictionary mapping IP -> list of connection timestamps
+        self.connection_attempts = defaultdict(list)
+    
+    def is_rate_limited(self, ip_address):
+        """
+        Check if an IP address has exceeded the rate limit.
+        
+        Returns True if rate limited, False otherwise.
+        """
+        now = time.time()
+        
+        # Clean up old connection attempts outside the window
+        self.connection_attempts[ip_address] = [
+            timestamp for timestamp in self.connection_attempts[ip_address]
+            if now - timestamp < self.window_seconds
+        ]
+        
+        # Check if we've exceeded the limit
+        if len(self.connection_attempts[ip_address]) >= self.max_connections:
+            return True
+        
+        # Record this connection attempt
+        self.connection_attempts[ip_address].append(now)
+        return False
+    
+    def cleanup_old_entries(self):
+        """
+        Periodically clean up old entries to prevent memory growth.
+        Called by periodic callback.
+        """
+        now = time.time()
+        ips_to_remove = []
+        
+        for ip_address, timestamps in self.connection_attempts.items():
+            # Remove timestamps outside the window
+            self.connection_attempts[ip_address] = [
+                timestamp for timestamp in timestamps
+                if now - timestamp < self.window_seconds
+            ]
+            
+            # If no recent attempts, mark for removal
+            if not self.connection_attempts[ip_address]:
+                ips_to_remove.append(ip_address)
+        
+        # Remove IPs with no recent attempts
+        for ip_address in ips_to_remove:
+            del self.connection_attempts[ip_address]
+
+
+# Global rate limiter instance
+WS_RATE_LIMITER = WebSocketRateLimiter()
 
 class SocketRouter:
 
@@ -209,6 +279,23 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
 
     def check_origin(self, origin):
         return True
+    
+    def open(self):
+        """
+        Called when a new WebSocket connection is opened.
+        
+        Checks rate limiting before allowing the connection.
+        """
+        # Get the client's IP address
+        ip_address = self.request.remote_ip
+        
+        # Check if this IP is rate limited
+        if WS_RATE_LIMITER.is_rate_limited(ip_address):
+            print(f"Rate limit exceeded for WebSocket connection from {ip_address}")
+            self.close(code=1008, reason="Rate limit exceeded. Too many connection attempts.")
+            return
+        
+        print(f"WebSocket connection opened from {ip_address}")
 
     def send(self, message):
         try:
@@ -242,6 +329,7 @@ application = tornado.web.Application([
 def periodic_ping():
     ROUTER.ping_all()
     ROUTER.kill_dead_sockets()
+    WS_RATE_LIMITER.cleanup_old_entries()
 
 if __name__ == "__main__":
     print("Starting application!")
