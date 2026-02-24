@@ -12,6 +12,7 @@ import urllib.parse
 from bingosync.models.game_type import GameType
 from bingosync.models.colors import Color, CompositeColor
 from bingosync.models.events import Event, GoalEvent, ColorEvent, RevealedEvent, ConnectionEventType, ConnectionEvent
+from bingosync.models.enums import Role
 from bingosync.util import ANON_UUID, encode_uuid, decode_uuid
 
 
@@ -264,6 +265,27 @@ class Player(models.Model):
     color_value = models.IntegerField("Color", default=Color.player_default().value, choices=Color.player_choices())
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
     is_spectator = models.BooleanField("Is Spectator", default=False)
+    
+    # Role system fields
+    role = models.CharField(
+        "Role",
+        max_length=20,
+        choices=Role.choices,
+        default=Role.PLAYER
+    )
+    is_also_player = models.BooleanField(
+        "Is Also Player",
+        default=False,
+        help_text="For Gamemaster role: allows GM to mark squares"
+    )
+    monitoring_player = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='counters',
+        help_text="For Counter role: the player being monitored"
+    )
 
     @staticmethod
     def get_for_encoded_uuid(encoded_player_uuid):
@@ -306,7 +328,10 @@ class Player(models.Model):
             "uuid": self.encoded_uuid,
             "name": self.name,
             "color": self.color.name,
-            "is_spectator": self.is_spectator
+            "is_spectator": self.is_spectator,
+            "role": self.role,
+            "is_also_player": self.is_also_player,
+            "monitoring_player_uuid": self.monitoring_player.encoded_uuid if self.monitoring_player else None
         }
 
 ANON_PLAYER = Player(uuid=ANON_UUID, name="Anonymous", is_spectator=True)

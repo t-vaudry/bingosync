@@ -432,7 +432,7 @@ Enforce that users can only be in one room at a time.
 ---
 
 
-- [ ] 2.6 Create Role Enum and Model Fields
+- [x] 2.6 Create Role Enum and Model Fields
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 1.1
