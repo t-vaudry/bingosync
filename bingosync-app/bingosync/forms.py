@@ -10,6 +10,16 @@ from bingosync.generators import InvalidBoardException
 from bingosync.models import Room, GameType, LockoutMode, Game, Player, FilteredPattern
 from bingosync.goals_converter import download_and_get_converted_goal_list, DEFAULT_DOWNLOAD_URL
 from bingosync.widgets import GroupedSelect
+from bingosync.validators import (
+    validate_room_name,
+    validate_player_name,
+    validate_seed,
+    validate_board_size,
+    validate_passphrase,
+    validate_no_html_tags,
+    validate_no_script_tags,
+    sanitize_text_input,
+)
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Field
@@ -31,18 +41,40 @@ CUSTOM_JSON_PLACEHOLDER_TEXT = """Paste the board as a JSON list of goals, e.g:
   ... ]"""
 
 class RoomForm(forms.Form):
-    room_name = forms.CharField(label="Room Name", max_length=ROOM_NAME_MAX_LENGTH)
-    passphrase = forms.CharField(label="Password", widget=forms.PasswordInput())
-    nickname = forms.CharField(label="Nickname", max_length=PLAYER_NAME_MAX_LENGTH)
+    room_name = forms.CharField(
+        label="Room Name",
+        max_length=ROOM_NAME_MAX_LENGTH,
+        validators=[validate_room_name, validate_no_html_tags, validate_no_script_tags]
+    )
+    passphrase = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(),
+        validators=[validate_passphrase]
+    )
+    nickname = forms.CharField(
+        label="Nickname",
+        max_length=PLAYER_NAME_MAX_LENGTH,
+        validators=[validate_player_name, validate_no_html_tags, validate_no_script_tags]
+    )
     game_type = forms.ChoiceField(label="Game", choices=GameType.game_choices())
     variant_type = forms.ChoiceField(label="Variant", choices=GameType.variant_choices(), widget=GroupedSelect,
                            help_text="No other variants available", required=False)
     custom_json = forms.CharField(label="Board", widget=forms.Textarea(attrs={'rows': 6, 'placeholder': CUSTOM_JSON_PLACEHOLDER_TEXT}), required=False)
     lockout_mode = forms.ChoiceField(label="Mode", choices=LockoutMode.choices())
-    seed = forms.CharField(label="Seed", widget=forms.NumberInput(attrs={"min": 0}),
-                           help_text="Leave blank for a random seed", required=False)
-    size = forms.CharField(label="Board Size", widget=forms.NumberInput(attrs={"min": 1}),
-                           help_text="Leave blank for the generator's default size (usually 5)", required=False)
+    seed = forms.CharField(
+        label="Seed",
+        widget=forms.NumberInput(attrs={"min": 0}),
+        help_text="Leave blank for a random seed",
+        required=False,
+        validators=[validate_seed]
+    )
+    size = forms.CharField(
+        label="Board Size",
+        widget=forms.NumberInput(attrs={"min": 1}),
+        help_text="Leave blank for the generator's default size (usually 5)",
+        required=False,
+        validators=[validate_board_size]
+    )
     is_spectator = forms.BooleanField(label="Create as Spectator", required=False)
     hide_card = forms.BooleanField(label="Hide Card Initially", required=False)
     fog_of_war = forms.BooleanField(label="Fog of War", required=False)
@@ -59,23 +91,67 @@ class RoomForm(forms.Form):
         self.helper['variant_type'].wrap(Field, wrapper_class='hidden')
         self.helper['custom_json'].wrap(Field, wrapper_class='hidden')
 
+    def clean_room_name(self):
+        """Clean and sanitize room name."""
+        room_name = self.cleaned_data.get('room_name', '')
+        # Sanitize input
+        room_name = sanitize_text_input(room_name)
+        # Apply profanity filter
+        room_name = FilteredPattern.filter_string(room_name)
+        return room_name
+
+    def clean_nickname(self):
+        """Clean and sanitize nickname."""
+        nickname = self.cleaned_data.get('nickname', '')
+        # Sanitize input
+        nickname = sanitize_text_input(nickname)
+        # Apply profanity filter
+        nickname = FilteredPattern.filter_string(nickname)
+        return nickname
+
+    def clean_seed(self):
+        """Clean and validate seed."""
+        seed = self.cleaned_data.get('seed', '')
+        if seed:
+            # Additional validation is done by the validator
+            return str(seed).strip()
+        return seed
+
+    def clean_size(self):
+        """Clean and validate board size."""
+        size = self.cleaned_data.get('size', '')
+        if size:
+            # Additional validation is done by the validator
+            return str(size).strip()
+        return size
+
     def clean(self):
         cleaned_data = super(RoomForm, self).clean()
+
+        # Only proceed if we have the required fields
+        game_type_value = cleaned_data.get("game_type")
+        if not game_type_value:
+            return cleaned_data
 
         try:
             # variant_type is not sent if the game only has 1 variant, so use it if
             # it's present but fall back to the regular game_type otherwise
-            if "variant_type" in cleaned_data:
+            if "variant_type" in cleaned_data and cleaned_data["variant_type"]:
                 cleaned_data["game_type"] = str(int(cleaned_data["variant_type"]))
-        except ValueError:
+                game_type_value = cleaned_data["game_type"]
+        except (ValueError, TypeError):
             pass
 
-        game_type = GameType.for_value(int(cleaned_data.get("game_type", "0")))
+        try:
+            game_type = GameType.for_value(int(game_type_value))
+        except (ValueError, TypeError):
+            # If we can't convert to int, skip custom board validation
+            return cleaned_data
         generator = game_type.generator_instance()
 
         custom_json = cleaned_data.get("custom_json", "")
         try:
-            cleaned_data["custom_board"] = generator.validate_custom_json(custom_json, size=cleaned_data['size'] or 5)
+            cleaned_data["custom_board"] = generator.validate_custom_json(custom_json, size=cleaned_data.get('size') or 5)
         except InvalidBoardException as e:
             raise forms.ValidationError(e)
 
@@ -94,9 +170,7 @@ class RoomForm(forms.Form):
         hide_card = self.cleaned_data["hide_card"]
         fog_of_war = self.cleaned_data["fog_of_war"]
 
-        # apply filtered word blacklist
-        room_name = FilteredPattern.filter_string(room_name)
-        nickname = FilteredPattern.filter_string(nickname)
+        # Note: room_name and nickname are already sanitized and filtered in clean_* methods
 
         if not seed:
             seed = "" if game_type.uses_seed else "0"
@@ -122,8 +196,16 @@ class JoinRoomForm(forms.Form):
     room_name = make_read_only_char_field(label="Room Name", max_length=ROOM_NAME_MAX_LENGTH)
     creator_name = make_read_only_char_field(label="Creator", max_length=PLAYER_NAME_MAX_LENGTH)
     game_name = make_read_only_char_field(label="Game")
-    player_name = forms.CharField(label="Nickname", max_length=PLAYER_NAME_MAX_LENGTH)
-    passphrase = forms.CharField(label="Password", widget=forms.PasswordInput(render_value=True))
+    player_name = forms.CharField(
+        label="Nickname",
+        max_length=PLAYER_NAME_MAX_LENGTH,
+        validators=[validate_player_name, validate_no_html_tags, validate_no_script_tags]
+    )
+    passphrase = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(render_value=True),
+        validators=[validate_passphrase]
+    )
     is_spectator = forms.BooleanField(label="Join as Spectator", required=False)
 
     def __init__(self, *args, **kwargs):
@@ -149,6 +231,15 @@ class JoinRoomForm(forms.Form):
         encoded_room_uuid = self.cleaned_data["encoded_room_uuid"]
         return Room.get_for_encoded_uuid(encoded_room_uuid)
 
+    def clean_player_name(self):
+        """Clean and sanitize player name."""
+        player_name = self.cleaned_data.get('player_name', '')
+        # Sanitize input
+        player_name = sanitize_text_input(player_name)
+        # Apply profanity filter
+        player_name = FilteredPattern.filter_string(player_name)
+        return player_name
+
     def clean(self):
         cleaned_data = super(JoinRoomForm, self).clean()
         encoded_room_uuid = cleaned_data.get("encoded_room_uuid")
@@ -163,6 +254,8 @@ class JoinRoomForm(forms.Form):
         room = Room.get_for_encoded_uuid(self.cleaned_data["encoded_room_uuid"])
         nickname = self.cleaned_data["player_name"]
         is_spectator = self.cleaned_data["is_spectator"]
+
+        # Note: nickname is already sanitized and filtered in clean_player_name method
 
         with transaction.atomic():
             player = Player(room=room, name=nickname, is_spectator=is_spectator)
