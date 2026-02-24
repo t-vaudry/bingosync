@@ -1,6 +1,8 @@
 from django import forms
 from django.db import transaction
 from django.contrib.auth import hashers
+from django.core.exceptions import ValidationError
+from django.contrib.auth.password_validation import validate_password
 
 import json
 import logging
@@ -8,6 +10,7 @@ import random
 
 from bingosync.generators import InvalidBoardException
 from bingosync.models import Room, GameType, LockoutMode, Game, Player, FilteredPattern
+from bingosync.models.user import User
 from bingosync.goals_converter import download_and_get_converted_goal_list, DEFAULT_DOWNLOAD_URL
 from bingosync.widgets import GroupedSelect
 from bingosync.validators import (
@@ -283,3 +286,103 @@ class GoalListConverterForm(forms.Form):
 
     def get_goal_list(self):
         return self.json_str
+
+
+class UserRegistrationForm(forms.Form):
+    """Form for user registration with username, email, and password."""
+    
+    username = forms.CharField(
+        label="Username",
+        max_length=150,
+        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.",
+        validators=[validate_no_html_tags, validate_no_script_tags]
+    )
+    email = forms.EmailField(
+        label="Email",
+        max_length=254,
+        help_text="Required. Enter a valid email address."
+    )
+    password = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(),
+        help_text="Your password must contain at least 8 characters."
+    )
+    password_confirm = forms.CharField(
+        label="Confirm Password",
+        widget=forms.PasswordInput(),
+        help_text="Enter the same password as before, for verification."
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super(UserRegistrationForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper(self)
+        self.helper.form_tag = False
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-md-3'
+        self.helper.field_class = 'col-md-9'
+    
+    def clean_username(self):
+        """Validate and sanitize username."""
+        username = self.cleaned_data.get('username', '')
+        
+        # Sanitize input
+        username = sanitize_text_input(username)
+        
+        # Apply profanity filter
+        username = FilteredPattern.filter_string(username)
+        
+        # Check if username already exists
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError("A user with that username already exists.")
+        
+        return username
+    
+    def clean_email(self):
+        """Validate email address."""
+        email = self.cleaned_data.get('email', '')
+        
+        # Check if email is already registered
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError("A user with that email address already exists.")
+        
+        return email.lower()
+    
+    def clean_password(self):
+        """Validate password strength."""
+        password = self.cleaned_data.get('password', '')
+        
+        # Use Django's built-in password validators
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            # Re-raise with the error messages
+            raise ValidationError(list(e.messages))
+        
+        return password
+    
+    def clean(self):
+        """Validate that passwords match."""
+        cleaned_data = super(UserRegistrationForm, self).clean()
+        password = cleaned_data.get('password')
+        password_confirm = cleaned_data.get('password_confirm')
+        
+        if password and password_confirm and password != password_confirm:
+            raise ValidationError("The two password fields didn't match.")
+        
+        return cleaned_data
+    
+    def create_user(self):
+        """Create a new user with hashed password."""
+        username = self.cleaned_data['username']
+        email = self.cleaned_data['email']
+        password = self.cleaned_data['password']
+        
+        # Create user with Django's built-in User model (uses PBKDF2 by default)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+        
+        logger.info("New user registered: %s", username)
+        return user

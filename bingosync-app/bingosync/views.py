@@ -15,7 +15,7 @@ import urllib.parse
 
 from bingosync.settings import SOCKETS_URL, SOCKETS_PUBLISH_URL, IS_PROD
 from bingosync.generators import InvalidBoardException, GeneratorException
-from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm
+from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm, UserRegistrationForm
 from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
 from bingosync.models.events import Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent, NewCardEvent
@@ -73,6 +73,39 @@ def rooms(request):
         "variants": ALL_VARIANTS,
     }
     return render(request, "bingosync/index.html", params)
+
+@handle_ratelimit
+@ratelimit_registration
+def register(request):
+    """User registration view."""
+    if request.method == "POST":
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            try:
+                user = form.create_user()
+                logger.info("User registered successfully: %s", user.username)
+                # Redirect to login page after successful registration
+                return redirect_params("login", params={'registered': 'true'})
+            except Exception as e:
+                logger.error("Error creating user: %s", str(e), exc_info=True)
+                form.add_error(None, "An error occurred during registration. Please try again.")
+    else:
+        form = UserRegistrationForm()
+    
+    params = {
+        "form": form,
+    }
+    return render(request, "bingosync/register.html", params)
+
+def login(request):
+    """User login view (placeholder for task 2.3)."""
+    # This is a placeholder view for task 2.3
+    # For now, just show a simple message
+    registered = request.GET.get('registered') == 'true'
+    params = {
+        "registered": registered,
+    }
+    return render(request, "bingosync/login.html", params)
 
 @handle_ratelimit
 @ratelimit_login

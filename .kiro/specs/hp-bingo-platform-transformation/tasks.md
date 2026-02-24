@@ -338,7 +338,7 @@ Extend Django's User model with statistics fields for tracking gameplay.
 
 ---
 
-- [ ] 2.2 Implement User Registration
+- [x] 2.2 Implement User Registration
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.1

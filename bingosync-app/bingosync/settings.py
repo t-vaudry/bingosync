@@ -96,6 +96,25 @@ INSTALLED_APPS = (
 # Custom User Model
 AUTH_USER_MODEL = 'bingosync.User'
 
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
 MIDDLEWARE = (
     'bingosync.middleware.RequestLoggingMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -124,11 +143,16 @@ if IS_PROD:
 # Enforce HTTPS in production
 if IS_PROD:
     SECURE_SSL_REDIRECT = True
+else:
+    SECURE_SSL_REDIRECT = False  # Explicitly disable in dev/test
 
 # HSTS (HTTP Strict Transport Security)
 # Tells browsers to only access the site via HTTPS for 1 year
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+if IS_PROD:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+else:
+    SECURE_HSTS_SECONDS = 0  # Disable HSTS in dev/test
 
 # Prevent MIME type sniffing
 SECURE_CONTENT_TYPE_NOSNIFF = True

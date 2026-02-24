@@ -1,0 +1,35 @@
+{% extends "bingosync/base.html" %}
+{% load static %}
+
+{% block page_head_meta_description %}
+    <meta name="description" content="Login to your Bingosync account">
+{% endblock %}
+
+{% block page_content %}
+    <div style="max-width: 600px; margin: 0 auto">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Login to Bingosync</h3>
+            </div>
+            <div class="panel-body">
+                {% if registered %}
+                    <div class="alert alert-success">
+                        <strong>Registration successful!</strong> Your account has been created. Login functionality will be implemented in task 2.3.
+                    </div>
+                {% endif %}
+                
+                <p>Login functionality will be implemented in task 2.3.</p>
+                
+                <p class="text-center">
+                    <a href="{% url 'rooms' %}" class="btn btn-primary">Return to Home</a>
+                </p>
+                
+                <hr>
+                
+                <p class="text-center">
+                    Don't have an account? <a href="{% url 'register' %}">Register here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

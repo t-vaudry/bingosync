@@ -14,6 +14,11 @@ class Migration(migrations.Migration):
         ('bingosync', '0002_game_type_default_hp_cos'),
     ]
 
+    # Run this migration before admin migrations
+    run_before = [
+        ('admin', '0001_initial'),
+    ]
+
     operations = [
         migrations.CreateModel(
             name='User',
