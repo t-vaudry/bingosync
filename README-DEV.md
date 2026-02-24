@@ -1,48 +1,41 @@
 # Bingosync Development Environment
 
-This guide will help you set up a complete Docker-based development environment for Bingosync.
+Docker-based development environment for Bingosync. We use `pyproject.toml` with `uv` for fast dependency management.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+- **Docker Desktop** (includes Docker Compose)
+  - [Download for Windows/Mac](https://docs.docker.com/get-docker/)
 
-- **Docker** (version 20.10 or higher)
-  - [Install Docker Desktop](https://docs.docker.com/get-docker/) for Mac/Windows
-  - [Install Docker Engine](https://docs.docker.com/engine/install/) for Linux
-- **Docker Compose** (version 2.0 or higher)
-  - Included with Docker Desktop
-  - [Install separately](https://docs.docker.com/compose/install/) if needed
-
-Verify your installation:
+Verify installation:
 ```bash
 docker --version
-docker-compose --version  # or: docker compose version
+docker compose version
 ```
 
 ## Quick Start
 
-1. **Clone the repository** (if you haven't already):
+1. **Create environment file**:
    ```bash
-   git clone <repository-url>
-   cd bingosync
+   copy .env.example .env
    ```
 
-2. **Run the setup script**:
+2. **Build and start services**:
    ```bash
-   chmod +x dev-setup.sh
-   ./dev-setup.sh
+   docker compose -f docker-compose.dev.yml up -d --build
    ```
 
-   This script will:
-   - Check for Docker installation
-   - Create a `.env` file from `.env.example`
-   - Build Docker images
-   - Start PostgreSQL and Redis
-   - Run database migrations
-   - Prompt you to create a superuser account
-   - Start all services
+3. **Run migrations**:
+   ```bash
+   docker compose -f docker-compose.dev.yml exec django python manage.py migrate
+   ```
 
-3. **Access the application**:
+4. **Create superuser**:
+   ```bash
+   docker compose -f docker-compose.dev.yml exec django python manage.py createsuperuser
+   ```
+
+5. **Access the application**:
    - Django app: http://localhost:8000
    - Django admin: http://localhost:8000/admin
    - WebSocket server: ws://localhost:8888
@@ -62,97 +55,97 @@ The development environment includes:
 
 ```bash
 # Start all services
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Stop all services
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 
 # Restart a specific service
-docker-compose -f docker-compose.dev.yml restart django
+docker compose -f docker-compose.dev.yml restart django
 
 # Stop and remove all containers, volumes, and images
-docker-compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml down -v
 ```
 
 ### Viewing Logs
 
 ```bash
 # View logs from all services
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose.dev.yml logs -f
 
 # View logs from a specific service
-docker-compose -f docker-compose.dev.yml logs -f django
+docker compose -f docker-compose.dev.yml logs -f django
 
 # View last 100 lines
-docker-compose -f docker-compose.dev.yml logs --tail=100 django
+docker compose -f docker-compose.dev.yml logs --tail=100 django
 ```
 
 ### Database Operations
 
 ```bash
 # Run migrations
-docker-compose -f docker-compose.dev.yml exec django python manage.py migrate
+docker compose -f docker-compose.dev.yml exec django python manage.py migrate
 
 # Create migrations
-docker-compose -f docker-compose.dev.yml exec django python manage.py makemigrations
+docker compose -f docker-compose.dev.yml exec django python manage.py makemigrations
 
 # Create a superuser
-docker-compose -f docker-compose.dev.yml exec django python manage.py createsuperuser
+docker compose -f docker-compose.dev.yml exec django python manage.py createsuperuser
 
 # Access PostgreSQL shell
-docker-compose -f docker-compose.dev.yml exec postgres psql -U bingosync -d bingosync
+docker compose -f docker-compose.dev.yml exec postgres psql -U bingosync -d bingosync
 
 # Reset database (WARNING: destroys all data)
-docker-compose -f docker-compose.dev.yml down -v
-docker-compose -f docker-compose.dev.yml up -d postgres
-docker-compose -f docker-compose.dev.yml exec django python manage.py migrate
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up -d postgres
+docker compose -f docker-compose.dev.yml exec django python manage.py migrate
 ```
 
 ### Django Management
 
 ```bash
 # Django shell
-docker-compose -f docker-compose.dev.yml exec django python manage.py shell
+docker compose -f docker-compose.dev.yml exec django python manage.py shell
 
 # Collect static files
-docker-compose -f docker-compose.dev.yml exec django python manage.py collectstatic --noinput
+docker compose -f docker-compose.dev.yml exec django python manage.py collectstatic --noinput
 
 # Run a custom management command
-docker-compose -f docker-compose.dev.yml exec django python manage.py <command>
+docker compose -f docker-compose.dev.yml exec django python manage.py <command>
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-docker-compose -f docker-compose.dev.yml exec django python manage.py test
+docker compose -f docker-compose.dev.yml exec django python manage.py test
 
 # Run specific test file
-docker-compose -f docker-compose.dev.yml exec django python manage.py test bingosync.tests.test_views
+docker compose -f docker-compose.dev.yml exec django python manage.py test bingosync.tests.test_views
 
 # Run with verbose output
-docker-compose -f docker-compose.dev.yml exec django python manage.py test --verbosity=2
+docker compose -f docker-compose.dev.yml exec django python manage.py test --verbosity=2
 
 # Run tests in parallel
-docker-compose -f docker-compose.dev.yml exec django python manage.py test --parallel
+docker compose -f docker-compose.dev.yml exec django python manage.py test --parallel
 ```
 
 ### Rebuilding Containers
 
-If you modify `requirements.txt` or Dockerfiles:
+If you modify `pyproject.toml` or Dockerfiles:
 
 ```bash
 # Rebuild all images
-docker-compose -f docker-compose.dev.yml build
+docker compose -f docker-compose.dev.yml build
 
 # Rebuild a specific service
-docker-compose -f docker-compose.dev.yml build django
+docker compose -f docker-compose.dev.yml build django
 
 # Rebuild without cache
-docker-compose -f docker-compose.dev.yml build --no-cache
+docker compose -f docker-compose.dev.yml build --no-cache
 
 # Rebuild and restart
-docker-compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 ## Environment Configuration
@@ -166,7 +159,7 @@ The `.env` file contains all environment variables. Key settings:
 
 To modify settings:
 1. Edit `.env` file
-2. Restart the affected service: `docker-compose -f docker-compose.dev.yml restart django`
+2. Restart the affected service: `docker compose -f docker-compose.dev.yml restart django`
 
 ## Troubleshooting
 
@@ -176,7 +169,6 @@ If you see "port is already allocated" errors:
 
 ```bash
 # Check what's using the port (example for port 8000)
-lsof -i :8000  # macOS/Linux
 netstat -ano | findstr :8000  # Windows
 
 # Stop the conflicting service or change the port in docker-compose.dev.yml
@@ -186,33 +178,26 @@ netstat -ano | findstr :8000  # Windows
 
 ```bash
 # Check if PostgreSQL is running
-docker-compose -f docker-compose.dev.yml ps postgres
+docker compose -f docker-compose.dev.yml ps postgres
 
 # Check PostgreSQL logs
-docker-compose -f docker-compose.dev.yml logs postgres
+docker compose -f docker-compose.dev.yml logs postgres
 
 # Restart PostgreSQL
-docker-compose -f docker-compose.dev.yml restart postgres
+docker compose -f docker-compose.dev.yml restart postgres
 
 # Wait for PostgreSQL to be ready
-docker-compose -f docker-compose.dev.yml exec postgres pg_isready -U bingosync
-```
-
-### Permission Denied on dev-setup.sh
-
-```bash
-# Make the script executable
-chmod +x dev-setup.sh
+docker compose -f docker-compose.dev.yml exec postgres pg_isready -U bingosync
 ```
 
 ### Container Keeps Restarting
 
 ```bash
 # Check container logs for errors
-docker-compose -f docker-compose.dev.yml logs django
+docker compose -f docker-compose.dev.yml logs django
 
 # Check container status
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 
 # Inspect container
 docker inspect bingosync-django
@@ -224,32 +209,34 @@ If things are completely broken:
 
 ```bash
 # Stop everything and remove volumes
-docker-compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml down -v
 
 # Remove all related images
-docker images | grep bingosync | awk '{print $3}' | xargs docker rmi -f
+docker images | findstr bingosync
 
 # Start fresh
-./dev-setup.sh
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 ### Python Package Issues
 
 If you need to install additional packages:
 
-1. Add to `requirements.txt`
+1. Add to `pyproject.toml` under `dependencies`
 2. Rebuild the container:
    ```bash
-   docker-compose -f docker-compose.dev.yml build django
-   docker-compose -f docker-compose.dev.yml up -d django
+   docker compose -f docker-compose.dev.yml build django
+   docker compose -f docker-compose.dev.yml up -d django
    ```
+
+We use `uv` for fast dependency installation (10-100x faster than pip).
 
 ## Development Workflow
 
 1. **Make code changes**: Edit files in `bingosync-app/` or `bingosync-websocket/`
 2. **Changes auto-reload**: Django's development server will automatically reload
-3. **View logs**: `docker-compose -f docker-compose.dev.yml logs -f django`
-4. **Run tests**: `docker-compose -f docker-compose.dev.yml exec django python manage.py test`
+3. **View logs**: `docker compose -f docker-compose.dev.yml logs -f django`
+4. **Run tests**: `docker compose -f docker-compose.dev.yml exec django python manage.py test`
 5. **Commit changes**: Use git as normal
 
 ## Accessing Services from Host

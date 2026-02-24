@@ -26,6 +26,12 @@ for the database. Conveniently, this machine is the same one that I run
 [bingobot](https://github.com/kbuzsaki/bingobot) off of. Maybe there's some 
 opportunity for integration there in the future :)
 
+#### Getting Started
+
+See [README-DEV.md](README-DEV.md) for development setup instructions.
+
+We use `pyproject.toml` with `uv` for fast dependency management (10-100x faster than pip).
+
 #### Database Requirements
 
 This platform requires **PostgreSQL 15 or later** as the database backend. SQLite is not supported.

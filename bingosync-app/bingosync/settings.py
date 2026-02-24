@@ -45,8 +45,9 @@ IS_TEST = len(sys.argv) > 1 and sys.argv[1] == "test"
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 CSRF_TRUSTED_ORIGINS = []
 if "DOMAIN" in os.environ:
-    ALLOWED_HOSTS.append(os.environ["DOMAIN"])
-    CSRF_TRUSTED_ORIGINS = [f"https://{os.environ["DOMAIN"]}", f"http://{os.environ["DOMAIN"]}"]
+    domain = os.environ["DOMAIN"]
+    ALLOWED_HOSTS.append(domain)
+    CSRF_TRUSTED_ORIGINS = [f"https://{domain}", f"http://{domain}"]
 if "HTTP_SOCK" in os.environ:
     ALLOWED_HOSTS.append(urllib.parse.quote_plus(os.environ['HTTP_SOCK']))
 

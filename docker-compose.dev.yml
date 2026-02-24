@@ -33,13 +33,13 @@ services:
 
   django:
     build:
-      context: ./bingosync-app
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: bingosync-app/Dockerfile.dev
     container_name: bingosync-django
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./bingosync-app:/app
-      - ./requirements.txt:/app/requirements.txt
+      - ./pyproject.toml:/app/pyproject.toml
     ports:
       - "8000:8000"
     env_file:
@@ -51,15 +51,17 @@ services:
         condition: service_healthy
     stdin_open: true
     tty: true
+    working_dir: /app
 
   websocket:
     build:
-      context: ./bingosync-websocket
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: bingosync-websocket/Dockerfile.dev
     container_name: bingosync-websocket
     command: python app.py
     volumes:
       - ./bingosync-websocket:/app
+      - ./pyproject.toml:/app/pyproject.toml
     ports:
       - "8888:8888"
     env_file:
