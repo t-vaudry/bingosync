@@ -83,3 +83,5 @@ bingo/**
 
 # Documentation (implementation notes, not user-facing docs)
 docs/
+bingosync-app/pyproject.toml
+bingosync-websocket/pyproject.toml

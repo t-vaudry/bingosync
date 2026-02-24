@@ -54,7 +54,9 @@ if len(INTERNAL_API_SECRET) < 32:
 if 'HTTP_SOCK' in os.environ:
     BASE_DJANGO_URL = f"http+unix://{urllib.parse.quote_plus(os.environ['HTTP_SOCK'])}/"
 else:
-    BASE_DJANGO_URL = f"http://{os.environ['DOMAIN']}/" if IS_PROD else "http://localhost:8000/"
+    # In Docker, use the service name for internal communication
+    DJANGO_HOST = os.getenv('DJANGO_INTERNAL_HOST', 'localhost:8000')
+    BASE_DJANGO_URL = f"http://{os.environ['DOMAIN']}/" if IS_PROD else f"http://{DJANGO_HOST}/"
 BASE_API_URL = BASE_DJANGO_URL + "api/"
 
 SOCKET_VERIFICATION_URL = BASE_API_URL + "socket/"

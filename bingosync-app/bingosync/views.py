@@ -218,6 +218,12 @@ def room_settings(request, encoded_room_uuid):
 @handle_ratelimit
 @ratelimit_authenticated_action
 def new_card(request):
+    if request.method != 'PUT':
+        return HttpResponseBadRequest("Method not allowed")
+    
+    if not request.body:
+        return HttpResponseBadRequest("Empty request body")
+    
     data = json.loads(request.body.decode("utf8"))
 
     room = Room.get_for_encoded_uuid(data["room"])

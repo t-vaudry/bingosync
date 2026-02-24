@@ -143,7 +143,7 @@ CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")  # Minimize inline scripts where 
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
 CSP_IMG_SRC = ("'self'", "data:")
 CSP_FONT_SRC = ("'self'",)
-CSP_CONNECT_SRC = ("'self'",)
+# CSP_CONNECT_SRC is set dynamically after SOCKETS_URL is configured
 CSP_FRAME_ANCESTORS = ("'none'",)  # Equivalent to X-Frame-Options: DENY
 
 ROOT_URLCONF = 'bingosync.urls'
@@ -284,7 +284,16 @@ else:
 if "WS_SOCK" in os.environ:
     SOCKETS_PUBLISH_URL = f"http+unix://{urllib.parse.quote_plus(os.environ['WS_SOCK'])}"
 else:
-    SOCKETS_PUBLISH_URL = "http://" + INTERNAL_SOCKETS_URL
+    # In Docker, use the service name for internal communication
+    SOCKETS_PUBLISH_HOST = os.getenv("SOCKETS_PUBLISH_HOST", INTERNAL_SOCKETS_URL)
+    SOCKETS_PUBLISH_URL = "http://" + SOCKETS_PUBLISH_HOST
+
+# Update CSP to allow WebSocket connections
+SOCKETS_DOMAIN = os.getenv("SOCKETS_DOMAIN", INTERNAL_SOCKETS_URL)
+if IS_PROD:
+    CSP_CONNECT_SRC = ("'self'", f"wss://{SOCKETS_DOMAIN}")
+else:
+    CSP_CONNECT_SRC = ("'self'", f"ws://{SOCKETS_DOMAIN}")
 
 
 # crispy forms confiuguration
