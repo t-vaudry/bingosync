@@ -24,7 +24,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IS_PROD = os.getenv('DEBUG', '').lower() not in ('1', 'yes')
 IS_TEST = len(sys.argv) > 1 and sys.argv[1] == "test"
 
-SECRET_KEY = os.getenv("SECRET_KEY", None if IS_PROD else '1234')
+# SECRET_KEY: Use environment variable in production, default for dev/test
+if IS_TEST:
+    SECRET_KEY = '1234-test-secret-key'
+else:
+    SECRET_KEY = os.getenv("SECRET_KEY", None if IS_PROD else '1234')
 ADMINS = os.getenv("ADMINS")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
@@ -98,6 +102,7 @@ MIDDLEWARE = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'bingosync.middleware.SecurityHeadersMiddleware',  # Add CSP headers
     'bingosync.middleware.NotAuthenticatedMiddleware',
     'bingosync.middleware.InvalidRequestMiddleware',
 )
@@ -111,6 +116,35 @@ if IS_PROD:
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Security Headers
+# Enforce HTTPS in production
+if IS_PROD:
+    SECURE_SSL_REDIRECT = True
+
+# HSTS (HTTP Strict Transport Security)
+# Tells browsers to only access the site via HTTPS for 1 year
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# Prevent MIME type sniffing
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Enable browser XSS filter
+SECURE_BROWSER_XSS_FILTER = True
+
+# Prevent site from being embedded in frames (clickjacking protection)
+X_FRAME_OPTIONS = 'DENY'
+
+# Content Security Policy (CSP) Headers
+# These will be added via middleware
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")  # Minimize inline scripts where possible
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:")
+CSP_FONT_SRC = ("'self'",)
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)  # Equivalent to X-Frame-Options: DENY
 
 ROOT_URLCONF = 'bingosync.urls'
 

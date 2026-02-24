@@ -141,7 +141,7 @@ Implement shared secret authentication between Django and Tornado servers for in
 
 ---
 
-- [ ] 1.7 Add Security Headers
+- [x] 1.7 Add Security Headers
   **Priority:** P0 (Security)
   **Estimated Time:** 3 hours
   **Dependencies:** None
