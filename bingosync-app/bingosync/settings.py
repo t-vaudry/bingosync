@@ -77,6 +77,36 @@ if "HTTP_SOCK" in os.environ:
 EMAIL_HOST = "localhost"
 EMAIL_PORT = 25
 
+# Email Configuration for Password Reset
+# For development, emails will be printed to console
+# For production, configure these environment variables:
+# - EMAIL_BACKEND: Email backend to use (default: console for dev, smtp for prod)
+# - EMAIL_HOST: SMTP server hostname (e.g., smtp.gmail.com)
+# - EMAIL_PORT: SMTP server port (default: 587 for TLS)
+# - EMAIL_HOST_USER: SMTP username
+# - EMAIL_HOST_PASSWORD: SMTP password
+# - EMAIL_USE_TLS: Use TLS encryption (recommended: True)
+# - DEFAULT_FROM_EMAIL: Email address to send from
+
+if DEBUG:
+    # In development, print emails to console instead of sending
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # In production, use SMTP
+    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+    EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bingosync.com')
+
+# Password reset token expiry (in seconds)
+# Default: 86400 seconds = 24 hours
+PASSWORD_RESET_TIMEOUT = 86400
+
 
 # Application definition
 

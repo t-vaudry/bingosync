@@ -387,7 +387,7 @@ Create login and logout functionality using username and password.
 
 ---
 
-- [ ] 2.4 Implement Password Reset
+- [x] 2.4 Implement Password Reset
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.3

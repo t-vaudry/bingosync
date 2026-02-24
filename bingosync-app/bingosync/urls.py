@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.urls import re_path as url
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 
 from bingosync import views, settings
 
@@ -23,6 +24,33 @@ urlpatterns = [
     url(r'^register/$', views.register, name='register'),
     url(r'^login/$', views.login, name='login'),
     url(r'^logout/$', views.logout, name='logout'),
+    
+    # Password reset URLs
+    url(r'^password-reset/$', 
+        auth_views.PasswordResetView.as_view(
+            template_name='bingosync/password_reset_form.html',
+            email_template_name='bingosync/password_reset_email.html',
+            subject_template_name='bingosync/password_reset_subject.txt',
+            success_url='/password-reset/done/'
+        ),
+        name='password_reset'),
+    url(r'^password-reset/done/$', 
+        auth_views.PasswordResetDoneView.as_view(
+            template_name='bingosync/password_reset_done.html'
+        ),
+        name='password_reset_done'),
+    url(r'^password-reset-confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,32})/$', 
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name='bingosync/password_reset_confirm.html',
+            success_url='/password-reset-complete/'
+        ),
+        name='password_reset_confirm'),
+    url(r'^password-reset-complete/$', 
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name='bingosync/password_reset_complete.html'
+        ),
+        name='password_reset_complete'),
+    
     url(r'^room/(?P<encoded_room_uuid>.+)/board$', views.room_board, name='room_board'),
     url(r'^room/(?P<encoded_room_uuid>.+)/scores$', views.room_scores, name='room_scores'),
     url(r'^room/(?P<encoded_room_uuid>.+)/scores2$', views.room_scores2, name='room_scores2'),
