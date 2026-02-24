@@ -615,7 +615,7 @@ Create Nginx configuration for reverse proxy.
 
 ## Phase 3: Advanced Features (Weeks 9-12)
 
-- [ ] 3.1 Merge Fog of War Branch
+- [x] 3.1 Merge Fog of War Branch
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.6
