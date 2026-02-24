@@ -294,7 +294,7 @@ Test the HP CoS generator thoroughly to ensure it works correctly with Bingosync
 
 ---
 
-- [ ] 1.14 Game Generator Simplification - Update Models
+- [x] 1.14 Game Generator Simplification - Update Models
   **Priority:** P2 (Code Quality)
   **Estimated Time:** 3 hours
   **Dependencies:** Task 1.13

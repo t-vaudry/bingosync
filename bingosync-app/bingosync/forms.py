@@ -56,9 +56,9 @@ class RoomForm(forms.Form):
         max_length=PLAYER_NAME_MAX_LENGTH,
         validators=[validate_player_name, validate_no_html_tags, validate_no_script_tags]
     )
-    game_type = forms.ChoiceField(label="Game", choices=GameType.game_choices())
-    variant_type = forms.ChoiceField(label="Variant", choices=GameType.variant_choices(), widget=GroupedSelect,
-                           help_text="No other variants available", required=False)
+    # Hidden fields - automatically set to HP CoS (value 50)
+    game_type = forms.CharField(widget=forms.HiddenInput(), initial='50', required=False)
+    variant_type = forms.CharField(widget=forms.HiddenInput(), initial='50', required=False)
     custom_json = forms.CharField(label="Board", widget=forms.Textarea(attrs={'rows': 6, 'placeholder': CUSTOM_JSON_PLACEHOLDER_TEXT}), required=False)
     lockout_mode = forms.ChoiceField(label="Mode", choices=LockoutMode.choices())
     seed = forms.CharField(
@@ -87,8 +87,7 @@ class RoomForm(forms.Form):
         self.helper.form_class = 'form-horizontal'
         self.helper.label_class = 'col-md-3'
         self.helper.field_class = 'col-md-9'
-        # variant and custom_json hidden by default
-        self.helper['variant_type'].wrap(Field, wrapper_class='hidden')
+        # custom_json hidden by default
         self.helper['custom_json'].wrap(Field, wrapper_class='hidden')
 
     def clean_room_name(self):
@@ -128,25 +127,9 @@ class RoomForm(forms.Form):
     def clean(self):
         cleaned_data = super(RoomForm, self).clean()
 
-        # Only proceed if we have the required fields
-        game_type_value = cleaned_data.get("game_type")
-        if not game_type_value:
-            return cleaned_data
-
-        try:
-            # variant_type is not sent if the game only has 1 variant, so use it if
-            # it's present but fall back to the regular game_type otherwise
-            if "variant_type" in cleaned_data and cleaned_data["variant_type"]:
-                cleaned_data["game_type"] = str(int(cleaned_data["variant_type"]))
-                game_type_value = cleaned_data["game_type"]
-        except (ValueError, TypeError):
-            pass
-
-        try:
-            game_type = GameType.for_value(int(game_type_value))
-        except (ValueError, TypeError):
-            # If we can't convert to int, skip custom board validation
-            return cleaned_data
+        # Always use HP Chamber of Secrets (value 50)
+        cleaned_data["game_type"] = "50"
+        game_type = GameType.for_value(50)
         generator = game_type.generator_instance()
 
         custom_json = cleaned_data.get("custom_json", "")

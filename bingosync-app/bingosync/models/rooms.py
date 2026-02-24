@@ -149,7 +149,7 @@ class Game(models.Model):
     seed = models.BigIntegerField()
     size = models.IntegerField()
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
-    game_type_value = models.IntegerField("Game Type", choices=GameType.choices())
+    game_type_value = models.IntegerField("Game Type", choices=GameType.choices(), default=50)  # Default to HP CoS
     lockout_mode_value = models.IntegerField("Lockout Mode", choices=LockoutMode.choices(), default=LockoutMode.default_value())
     fog_of_war = models.BooleanField("Fog of War", default=False)
 
