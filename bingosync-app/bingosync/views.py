@@ -1,4 +1,4 @@
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse, Http404
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse, Http404
 from django.shortcuts import render, redirect
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -30,6 +30,7 @@ from bingosync.decorators import (
     ratelimit_authenticated_action,
     handle_ratelimit
 )
+from bingosync.permissions import check_permission
 
 from crispy_forms.layout import Layout, Field
 
@@ -331,6 +332,10 @@ def new_card(request):
 
     room = Room.get_for_encoded_uuid(data["room"])
     player = _get_session_player(request.session, room)
+    
+    # Check permission to generate board
+    if not check_permission(player, 'generate_board'):
+        return HttpResponseForbidden("You do not have permission to generate a new board.")
 
     lockout_mode = LockoutMode.for_value(int(data["lockout_mode"]))
     try:
@@ -447,6 +452,11 @@ def goal_selected(request):
 
     room = Room.get_for_encoded_uuid_or_404(data["room"])
     player = _get_session_player(request.session, room)
+    
+    # Check permission to mark squares
+    if not check_permission(player, 'mark_square'):
+        return HttpResponseForbidden("You do not have permission to mark squares.")
+    
     game = room.current_game
     slot = int(data["slot"])
     color = Color.for_name(data["color"])
@@ -492,6 +502,10 @@ def board_revealed(request):
 
     room = Room.get_for_encoded_uuid_or_404(data["room"])
     player = _get_session_player(request.session, room)
+    
+    # Check permission to reveal fog of war
+    if not check_permission(player, 'reveal_fog'):
+        return HttpResponseForbidden("You do not have permission to reveal the board.")
 
     revealed_event = RevealedEvent(player=player, player_color_value=player.color.value)
     revealed_event.save()

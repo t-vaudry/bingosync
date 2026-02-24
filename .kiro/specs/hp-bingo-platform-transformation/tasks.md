@@ -453,7 +453,7 @@ Add role system to Player model with four distinct roles.
 
 ---
 
-- [ ] 2.7 Implement Role-Based Permissions
+- [x] 2.7 Implement Role-Based Permissions
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.6
