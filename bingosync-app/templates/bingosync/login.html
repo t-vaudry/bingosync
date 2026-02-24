@@ -1,5 +1,6 @@
 {% extends "bingosync/base.html" %}
 {% load static %}
+{% load crispy_forms_tags %}
 
 {% block page_head_meta_description %}
     <meta name="description" content="Login to your Bingosync account">
@@ -14,21 +15,44 @@
             <div class="panel-body">
                 {% if registered %}
                     <div class="alert alert-success">
-                        <strong>Registration successful!</strong> Your account has been created. Login functionality will be implemented in task 2.3.
+                        <strong>Registration successful!</strong> Your account has been created. Please login below.
                     </div>
                 {% endif %}
                 
-                <p>Login functionality will be implemented in task 2.3.</p>
+                <p>Login to access your account and play Harry Potter Chamber of Secrets bingo.</p>
                 
-                <p class="text-center">
-                    <a href="{% url 'rooms' %}" class="btn btn-primary">Return to Home</a>
-                </p>
+                <form class="form-horizontal" action="{% url 'login' %}" method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    {% crispy form %}
+                    <div class="form-group">
+                        <div class="col-md-9 col-md-offset-3">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                            <a href="{% url 'rooms' %}" class="btn btn-default">Cancel</a>
+                        </div>
+                    </div>
+                </form>
                 
                 <hr>
                 
                 <p class="text-center">
                     Don't have an account? <a href="{% url 'register' %}">Register here</a>
                 </p>
+                
+                <script>
+                    $(document).ready(function() {
+                        // Hide alert messages when close button is clicked
+                        $(".alert-danger a.close, .alert-success a.close").on("click", function() {
+                            $(this).parent().hide(100);
+                        });
+                    });
+                </script>
             </div>
         </div>
     </div>

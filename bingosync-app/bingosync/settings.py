@@ -140,8 +140,8 @@ if IS_PROD:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Security Headers
-# Enforce HTTPS in production
-if IS_PROD:
+# Enforce HTTPS in production (but not in tests)
+if IS_PROD and not IS_TEST:
     SECURE_SSL_REDIRECT = True
 else:
     SECURE_SSL_REDIRECT = False  # Explicitly disable in dev/test

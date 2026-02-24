@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.template import loader
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 
 import json
 import requests
@@ -15,7 +16,7 @@ import urllib.parse
 
 from bingosync.settings import SOCKETS_URL, SOCKETS_PUBLISH_URL, IS_PROD
 from bingosync.generators import InvalidBoardException, GeneratorException
-from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm, UserRegistrationForm
+from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm, UserRegistrationForm, UserLoginForm
 from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
 from bingosync.models.events import Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent, NewCardEvent
@@ -97,15 +98,71 @@ def register(request):
     }
     return render(request, "bingosync/register.html", params)
 
+@handle_ratelimit
+@ratelimit_login
 def login(request):
-    """User login view (placeholder for task 2.3)."""
-    # This is a placeholder view for task 2.3
-    # For now, just show a simple message
+    """User login view."""
+    if request.method == "POST":
+        form = UserLoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            remember_me = form.cleaned_data['remember_me']
+            
+            # Authenticate user
+            user = authenticate(request, username=username, password=password)
+            
+            if user is not None:
+                # Login successful
+                auth_login(request, user)
+                
+                # Set session expiry AFTER logging in (auth_login resets it to default)
+                if remember_me:
+                    # Remember for 2 weeks
+                    request.session.set_expiry(1209600)  # 2 weeks in seconds
+                else:
+                    # Session expires when browser closes
+                    request.session.set_expiry(0)
+                
+                # Explicitly save the session to ensure expiry is persisted
+                request.session.save()
+                
+                # Log successful login
+                logger.info("User logged in successfully: %s from IP: %s", 
+                           username, request.META.get('REMOTE_ADDR', 'unknown'))
+                
+                # Redirect to homepage after login
+                return redirect("rooms")
+            else:
+                # Login failed - create a new form with the error
+                logger.warning("Failed login attempt for username: %s from IP: %s", 
+                              username, request.META.get('REMOTE_ADDR', 'unknown'))
+                # Re-create form with original data and add error
+                form = UserLoginForm(request.POST)
+                form.is_valid()  # Trigger validation to populate cleaned_data
+                form.add_error(None, "Invalid username or password.")
+    else:
+        form = UserLoginForm()
+    
+    # Check if user was just registered
     registered = request.GET.get('registered') == 'true'
+    
     params = {
+        "form": form,
         "registered": registered,
     }
     return render(request, "bingosync/login.html", params)
+
+
+def logout(request):
+    """User logout view."""
+    if request.user.is_authenticated:
+        username = request.user.username
+        auth_logout(request)
+        logger.info("User logged out: %s", username)
+    
+    # Redirect to homepage after logout
+    return redirect("rooms")
 
 @handle_ratelimit
 @ratelimit_login

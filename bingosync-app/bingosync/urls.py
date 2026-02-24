@@ -22,6 +22,7 @@ urlpatterns = [
     url(r'^$', views.rooms, name='rooms'),
     url(r'^register/$', views.register, name='register'),
     url(r'^login/$', views.login, name='login'),
+    url(r'^logout/$', views.logout, name='logout'),
     url(r'^room/(?P<encoded_room_uuid>.+)/board$', views.room_board, name='room_board'),
     url(r'^room/(?P<encoded_room_uuid>.+)/scores$', views.room_scores, name='room_scores'),
     url(r'^room/(?P<encoded_room_uuid>.+)/scores2$', views.room_scores2, name='room_scores2'),

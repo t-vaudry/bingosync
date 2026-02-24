@@ -386,3 +386,30 @@ class UserRegistrationForm(forms.Form):
         
         logger.info("New user registered: %s", username)
         return user
+
+
+class UserLoginForm(forms.Form):
+    """Form for user login with username and password."""
+    
+    username = forms.CharField(
+        label="Username",
+        max_length=150,
+        widget=forms.TextInput(attrs={'autofocus': True})
+    )
+    password = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput()
+    )
+    remember_me = forms.BooleanField(
+        label="Remember me",
+        required=False,
+        help_text="Keep me logged in for 2 weeks"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super(UserLoginForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper(self)
+        self.helper.form_tag = False
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-md-3'
+        self.helper.field_class = 'col-md-9'
