@@ -13,10 +13,7 @@ TEST_TYPES = [game_type for game_type in GameType if not game_type.is_custom]
 TEST_SEEDS = [1, 1000, 1234, 12345]
 
 # games that are intentionally close to duplicates of another game
-DUPLICATE_GUARD_BLACKLIST = {
-    GameType.super_metroid_double_anti_bingo,
-    GameType.hollow_knight_item_rando_tiebreakerless,
-}
+DUPLICATE_GUARD_BLACKLIST = set()  # No duplicates for HP CoS only
 
 def get_golden_data(game_type, seed):
     output_path = os.path.join(GEN_TESTDATA_DIR, game_type.name, str(seed) + ".json")
@@ -51,7 +48,7 @@ class TimeoutTestCase(test.TestCase):
 
     def test_eval_timeout(self):
         try:
-            GameType.celeste.generator_instance().eval("(function() { for (var i = 0; true; i++) {} }())")
+            GameType.hp_cos.generator_instance().eval("(function() { for (var i = 0; true; i++) {} }())")
             self.fail("Failed to time out!")
         except GeneratorException as e:
             pass
