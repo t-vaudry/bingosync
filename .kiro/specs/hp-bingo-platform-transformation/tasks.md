@@ -317,7 +317,7 @@ Remove game type selection and simplify to HP CoS only.
 
 ## Phase 2: Core Features (Weeks 5-8)
 
-- [ ] 2.1 Create User Model with Statistics
+- [x] 2.1 Create User Model with Statistics
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 1.1

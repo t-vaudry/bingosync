@@ -93,6 +93,9 @@ INSTALLED_APPS = (
     'bingosync'
 )
 
+# Custom User Model
+AUTH_USER_MODEL = 'bingosync.User'
+
 MIDDLEWARE = (
     'bingosync.middleware.RequestLoggingMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
