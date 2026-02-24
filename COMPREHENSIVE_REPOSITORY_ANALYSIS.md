@@ -79,7 +79,7 @@ Bingosync enables speedrunners to collaboratively work on "bingo boards" - grids
 | **CSS Framework** | Bootstrap 3 | Via django-bootstrap3 |
 | **Forms** | Crispy Forms | django-crispy-forms |
 | **Reverse Proxy** | Nginx | Production deployment |
-| **Deployment** | NixOS | flake.nix configuration |
+| **Deployment** | Docker Compose | docker-compose.yml configuration |
 | **Process Manager** | Gunicorn | WSGI server |
 
 ---
@@ -93,7 +93,7 @@ bingosync/
 ├── bingosync-websocket/    # Tornado WebSocket server
 ├── .git/                   # Git repository
 ├── .gitignore             # Ignore patterns
-├── flake.nix              # NixOS deployment configuration
+├── docker-compose.yml     # Docker Compose deployment configuration
 ├── README.md              # Basic project documentation
 └── requirements.txt       # Python dependencies
 ```
@@ -236,7 +236,6 @@ bingosync/
 | **feature/tournament-mode** | Tournament/referee features | 64 files changed, -3005/+1607 lines | Review and merge or archive |
 | **hotfix/make-slr-v5-less-dumb** | Generator fix | Unknown changes | Merge or archive |
 | **lockout-beta** | Beta lockout features | Appears merged | Archive |
-| **nixos** | NixOS deployment | Deployment config | Keep if using NixOS |
 
 ### 3.2 Branch Details
 
@@ -280,9 +279,7 @@ bingosync/
 - Python 3.x
 - Node.js (for generators)
 - PostgreSQL 15+
-
-# Optional
-- Nix package manager (for NixOS deployment)
+- Docker and Docker Compose (for containerized deployment)
 ```
 
 #### Installation Steps
@@ -320,16 +317,23 @@ python app.py
 
 ### 4.2 Production Deployment
 
-#### Using NixOS (Recommended)
-```nix
-# Configuration in flake.nix
-services.bingosync = {
-  enable = true;
-  domain = "bingosync.com";
-  socketsDomain = "sockets.bingosync.com";
-  databaseUrl = "postgresql://user:pass@localhost/bingosync";
-  threads = 10;
-};
+#### Using Docker Compose (Recommended)
+```bash
+# 1. Configure environment variables
+cp .env.example .env
+# Edit .env with your production settings
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. Run migrations
+docker-compose exec django python manage.py migrate
+
+# 4. Collect static files
+docker-compose exec django python manage.py collectstatic --noinput
+
+# 5. View logs
+docker-compose logs -f
 ```
 
 #### Manual Deployment
@@ -361,7 +365,7 @@ gunicorn --bind unix:/run/bingosync/http.sock \
 python bingosync-websocket/app.py
 
 # 6. Configure Nginx
-# See flake.nix for nginx configuration example
+# See docker-compose.yml and nginx.conf for configuration examples
 ```
 
 ### 4.3 Testing
@@ -859,10 +863,6 @@ class WebSocketTest(AsyncTestCase):
 - Many functions lack docstrings
 - Complex logic not explained
 - TODOs without context
-
-#### flake.nix
-**Quality:** Well-documented NixOS configuration
-**Audience:** NixOS users only
 
 ### 9.2 Missing Documentation
 
@@ -1424,14 +1424,14 @@ pip install factory-boy  # Test fixtures
 
 ### 14.1 Current Deployment Strategy
 
-**Platform:** Personal server (mentioned in README)
+**Platform:** Docker Compose containerized deployment
 **Stack:**
 - Nginx (reverse proxy, static files)
 - Gunicorn (Django WSGI)
 - Tornado (WebSocket)
 - PostgreSQL (database)
 
-**Configuration:** NixOS via flake.nix
+**Configuration:** Docker Compose via docker-compose.yml
 
 ### 14.2 Deployment Concerns
 
