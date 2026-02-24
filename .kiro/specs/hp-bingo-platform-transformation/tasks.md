@@ -271,7 +271,7 @@ Copy the HP CoS generator and goal list from temp directory to the generators di
 
 ---
 
-- [ ] 1.13 Test HP CoS Generator Integration
+- [x] 1.13 Test HP CoS Generator Integration
   **Priority:** P2 (Code Quality)
   **Estimated Time:** 3 hours
   **Dependencies:** Task 1.12

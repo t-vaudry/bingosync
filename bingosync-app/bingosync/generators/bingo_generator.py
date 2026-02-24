@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 import re
+import tempfile
 
 from bingosync.settings import GENERATOR_TIMEOUT_SECONDS
 
@@ -56,8 +57,21 @@ class BingoGenerator:
         js_eval = "\nconsole.log(JSON.stringify(" + js_command + "));"
         full_command = self.generator_js_bytes + js_eval.encode("utf-8")
 
+        # For generators that use require(), we need to write to a temp file
+        # so Node.js can resolve relative paths correctly
         try:
-            out = subprocess.check_output(["node", "-"], input=full_command, timeout=GENERATOR_TIMEOUT_SECONDS)
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.js', delete=False, dir=GEN_DIR) as temp_file:
+                temp_file.write(full_command)
+                temp_file_path = temp_file.name
+            
+            try:
+                out = subprocess.check_output(["node", temp_file_path], timeout=GENERATOR_TIMEOUT_SECONDS, cwd=GEN_DIR)
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
         except subprocess.TimeoutExpired:
             error_message = "Took too long to generate a bingo board for game '" + self.game_name + "'"
             logging.error(error_message)

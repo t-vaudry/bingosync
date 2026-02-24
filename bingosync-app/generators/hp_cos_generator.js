@@ -278,7 +278,10 @@ bingoGenerator = function(bingoListR, opts) {
                 bingoBoard[b].name = goal;
             }
         }
-        return bingoBoard;
+        return {
+            seed: SEED,
+            objectives: bingoBoard
+        };
     }
 }
 
