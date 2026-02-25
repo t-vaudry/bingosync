@@ -637,7 +637,7 @@ Merge the feature/fog-of-war branch into main.
 ---
 
 
-- [ ] 3.2 Test Fog of War with Role System
+- [x] 3.2 Test Fog of War with Role System
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 3.1, Task 2.7
@@ -648,6 +648,7 @@ Ensure fog of war works correctly with the new role system.
 **Acceptance Criteria:**
 - All roles see fog of war correctly
 - Spectators see only revealed squares
+- Counters see all squares
 - Gamemaster can reveal board (if implemented)
 - fog_of_war status in WebSocket messages
 - UI shows fog status clearly
