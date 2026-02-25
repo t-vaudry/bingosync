@@ -500,7 +500,7 @@ Allow room creator to choose GM-only or GM+Player role.
 ---
 
 
-- [ ] 2.9 Implement Role Change Functionality
+- [x] 2.9 Implement Role Change Functionality
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.7

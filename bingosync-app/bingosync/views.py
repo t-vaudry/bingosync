@@ -20,10 +20,10 @@ from bingosync.generators import InvalidBoardException, GeneratorException
 from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm, UserRegistrationForm, UserLoginForm
 from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
-from bingosync.models.events import Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent, NewCardEvent
+from bingosync.models.events import Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent, NewCardEvent, RoleChangeEvent
 from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
 from bingosync.publish import publish_goal_event, publish_chat_event, publish_color_event, publish_revealed_event
-from bingosync.publish import publish_connection_event, publish_new_card_event
+from bingosync.publish import publish_connection_event, publish_new_card_event, publish_role_change_event
 from bingosync.util import generate_encoded_uuid, ANON_UUID, encode_uuid
 from bingosync.decorators import (
     ratelimit_login,
@@ -512,6 +512,72 @@ def board_revealed(request):
     revealed_event.save()
     publish_revealed_event(revealed_event)
     return HttpResponse("Received data: " + str(data))
+@handle_ratelimit
+@ratelimit_authenticated_action
+def assign_role(request):
+    """Assign a role to a player in the room. Only Gamemaster can change roles."""
+    data = parse_body_json_or_400(request, required_keys=["room", "target_player_uuid", "new_role"])
+
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    player = _get_session_player(request.session, room)
+
+    # Check permission to assign roles
+    if not check_permission(player, 'assign_roles'):
+        return HttpResponseForbidden("You do not have permission to assign roles.")
+
+    # Get the target player
+    try:
+        target_player = Player.get_for_encoded_uuid(data["target_player_uuid"])
+    except Player.DoesNotExist:
+        return HttpResponseBadRequest("Target player not found.")
+
+    # Verify target player is in the same room
+    if target_player.room != room:
+        return HttpResponseForbidden("Target player is not in this room.")
+
+    # Validate the new role
+    from bingosync.models.enums import Role
+    new_role = data["new_role"]
+    valid_roles = [role[0] for role in Role.choices]
+    if new_role not in valid_roles:
+        return HttpResponseBadRequest(f"Invalid role: {new_role}")
+
+    # Store old role for event
+    old_role = target_player.role
+
+    # Update the player's role
+    with transaction.atomic():
+        target_player.role = new_role
+
+        # If changing to/from Gamemaster, handle is_also_player
+        if new_role == Role.GAMEMASTER:
+            # Default to GM+Player (can mark squares)
+            target_player.is_also_player = True
+        elif old_role == Role.GAMEMASTER:
+            # Changing from GM to another role, clear is_also_player
+            target_player.is_also_player = False
+
+        # If changing to/from Counter, clear monitoring_player
+        if new_role != Role.COUNTER:
+            target_player.monitoring_player = None
+
+        target_player.save()
+
+        # Create role change event
+        role_change_event = RoleChangeEvent(
+            player=player,
+            player_color_value=player.color.value,
+            target_player=target_player,
+            old_role=old_role,
+            new_role=new_role
+        )
+        role_change_event.save()
+
+    # Broadcast the role change
+    publish_role_change_event(role_change_event)
+
+    return HttpResponse("Role changed successfully")
+
 
 @handle_ratelimit
 @ratelimit_login

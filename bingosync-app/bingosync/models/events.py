@@ -22,7 +22,7 @@ class Event(models.Model):
 
     @staticmethod
     def event_classes():
-        return [ChatEvent, GoalEvent, ColorEvent, RevealedEvent, ConnectionEvent, NewCardEvent]
+        return [ChatEvent, GoalEvent, ColorEvent, RevealedEvent, ConnectionEvent, NewCardEvent, RoleChangeEvent]
 
     @staticmethod
     def get_all_for_room(room):
@@ -162,6 +162,24 @@ class ConnectionEventType(Enum):
     @staticmethod
     def choices():
         return [(event.value, str(event)) for event in ConnectionEventType]
+
+class RoleChangeEvent(Event):
+    """Event for tracking role changes in a room."""
+    target_player = models.ForeignKey("bingosync.Player", on_delete=models.CASCADE, related_name='role_change_targets')
+    old_role = models.CharField(max_length=20)
+    new_role = models.CharField(max_length=20)
+
+    def to_json(self):
+        return {
+            "type": "role_change",
+            "player": self.player.to_json(),  # The gamemaster who made the change
+            "player_color": self.player_color.name,
+            "target_player": self.target_player.to_json(),
+            "old_role": self.old_role,
+            "new_role": self.new_role,
+            "timestamp": self.json_timestamp
+        }
+
 
 class ConnectionEvent(Event):
     event = models.IntegerField(choices=ConnectionEventType.choices())

@@ -28,6 +28,10 @@ def publish_new_card_event(new_card_event):
     data = new_card_event.to_json()
     _publish_json(data, new_card_event.player.room)
 
+def publish_role_change_event(role_change_event):
+    data = role_change_event.to_json()
+    _publish_json(data, role_change_event.player.room)
+
 def _publish_json(data, room):
     data["room"] = room.encoded_uuid
     requests.put(SOCKETS_PUBLISH_URL, data=json.dumps(data), headers=get_internal_api_headers())

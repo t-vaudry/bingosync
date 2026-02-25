@@ -16,6 +16,19 @@
                     <span class="playername">
                         {{ player.name }}
                     </span>
+                    <span class="player-role-badge" title="Role: {{ player.role }}">
+                        {% if player.role == 'gamemaster' %}
+                            {% if player.is_also_player %}
+                                [GM+P]
+                            {% else %}
+                                [GM]
+                            {% endif %}
+                        {% elif player.role == 'counter' %}
+                            [C]
+                        {% elif player.role == 'spectator' %}
+                            [S]
+                        {% endif %}
+                    </span>
                 </div>
                 {% endif %}
             {% endfor %}
