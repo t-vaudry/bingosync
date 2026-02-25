@@ -55,8 +55,7 @@ class PermissionIntegrationTestCase(TestCase):
         spectator = Player.objects.create(
             room=self.room,
             name='Spectator',
-            role=Role.SPECTATOR,
-            is_spectator=True
+            role=Role.SPECTATOR
         )
         
         # Set up session

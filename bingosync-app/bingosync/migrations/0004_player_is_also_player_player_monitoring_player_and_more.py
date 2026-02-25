@@ -4,6 +4,13 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def migrate_spectator_roles(apps, schema_editor):
+    """Migrate existing spectators to have role='spectator'."""
+    Player = apps.get_model('bingosync', 'Player')
+    # Update all players where is_spectator=True to have role='spectator'
+    Player.objects.filter(is_spectator=True).update(role='spectator')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -26,4 +33,6 @@ class Migration(migrations.Migration):
             name='role',
             field=models.CharField(choices=[('gamemaster', 'Gamemaster'), ('player', 'Player'), ('counter', 'Counter'), ('spectator', 'Spectator')], default='player', max_length=20, verbose_name='Role'),
         ),
+        # Migrate existing spectators to have the correct role
+        migrations.RunPython(migrate_spectator_roles, reverse_code=migrations.RunPython.noop),
     ]

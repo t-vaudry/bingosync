@@ -77,7 +77,6 @@ class FogOfWarRoleTestCase(TestCase):
             room=self.room,
             name='Spectator1',
             role=Role.SPECTATOR,
-            is_spectator=True,
             color_value=Color.blank.value
         )
         

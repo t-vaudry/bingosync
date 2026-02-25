@@ -141,8 +141,7 @@ class RolePermissionsTestCase(TestCase):
         spectator = Player.objects.create(
             room=self.room,
             name='Spectator',
-            role=Role.SPECTATOR,
-            is_spectator=True
+            role=Role.SPECTATOR
         )
         
         # Spectator can view board

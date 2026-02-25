@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 
 from bingosync.forms import RoomForm, JoinRoomForm
 from bingosync.models import Room, GameType, LockoutMode, FilteredPattern
+from bingosync.models.enums import Role
 from django.contrib.auth import hashers
 
 
@@ -203,7 +204,7 @@ class JoinRoomFormValidationTestCase(TestCase):
             'game_name': 'Test Game',
             'player_name': 'TestPlayer',
             'passphrase': 'testpass',
-            'is_spectator': False,
+            'role': Role.PLAYER,
         }
 
     def test_valid_form(self):

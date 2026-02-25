@@ -264,8 +264,7 @@ class Player(models.Model):
     name = models.CharField(max_length=50)
     color_value = models.IntegerField("Color", default=Color.player_default().value, choices=Color.player_choices())
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
-    is_spectator = models.BooleanField("Is Spectator", default=False)
-    
+
     # Role system fields
     role = models.CharField(
         "Role",
@@ -305,6 +304,11 @@ class Player(models.Model):
         return encode_uuid(self.uuid)
 
     @property
+    def is_spectator(self):
+        """Derived property: True if role is SPECTATOR."""
+        return self.role == Role.SPECTATOR
+
+    @property
     def color(self):
         if self.is_spectator:
             return Color.blank
@@ -334,4 +338,5 @@ class Player(models.Model):
             "monitoring_player_uuid": self.monitoring_player.encoded_uuid if self.monitoring_player else None
         }
 
-ANON_PLAYER = Player(uuid=ANON_UUID, name="Anonymous", is_spectator=True)
+
+ANON_PLAYER = Player(uuid=ANON_UUID, name="Anonymous", role=Role.SPECTATOR)

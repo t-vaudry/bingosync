@@ -21,6 +21,7 @@ from bingosync.forms import RoomForm, JoinRoomForm, GoalListConverterForm, UserR
 from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
 from bingosync.models.events import Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent, NewCardEvent, RoleChangeEvent
+from bingosync.models.enums import Role
 from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
 from bingosync.publish import publish_goal_event, publish_chat_event, publish_color_event, publish_revealed_event
 from bingosync.publish import publish_connection_event, publish_new_card_event, publish_role_change_event
@@ -595,7 +596,7 @@ def join_room_api(request):
     form_data.update({
         "player_name": raw_data["nickname"],
         "passphrase": raw_data["password"],
-        "is_spectator": raw_data.get("is_specator", False),
+        "role": raw_data.get("role", Role.PLAYER),
     })
     join_form = JoinRoomForm(form_data)
     if join_form.is_valid():

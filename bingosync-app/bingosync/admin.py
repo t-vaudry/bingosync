@@ -151,7 +151,7 @@ class PlayerAdmin(admin.ModelAdmin):
     inlines = [ChatEventInline, GoalEventInline, ColorEventInline, ConnectionEventInline,
                RevealedEventInline, NewCardEventInline]
     raw_id_fields = ["room"]
-    list_display = ["__str__", "created_date", "connected", "is_spectator", "room", "color"]
+    list_display = ["__str__", "created_date", "connected", "role", "room", "color"]
     actions = [disconnect_players, disconnect_players_if_connected, filter_player_name]
 
 @admin.register(ChatEvent)

@@ -152,13 +152,13 @@ class RoomForm(forms.Form):
     def create_room(self, user=None):
         """
         Create a new room with the specified settings.
-        
+
         Args:
             user: Optional authenticated User instance
-        
+
         Returns:
             Room instance
-        
+
         Raises:
             ValidationError: If authenticated user is already in another room
         """
@@ -215,7 +215,6 @@ class RoomForm(forms.Form):
             creator = Player(
                 room=room,
                 name=nickname,
-                is_spectator=is_spectator,
                 role=role,
                 is_also_player=is_also_player_flag
             )
@@ -229,81 +228,79 @@ class RoomForm(forms.Form):
             room.update_active()
         return room
 
+
 class JoinRoomForm(forms.Form):
-    encoded_room_uuid = forms.CharField(label="Room UUID", max_length=128, widget=forms.HiddenInput())
-    room_name = make_read_only_char_field(label="Room Name", max_length=ROOM_NAME_MAX_LENGTH)
-    creator_name = make_read_only_char_field(label="Creator", max_length=PLAYER_NAME_MAX_LENGTH)
-    game_name = make_read_only_char_field(label="Game")
+    encoded_room_uuid = forms.CharField(widget=forms.HiddenInput())
     player_name = forms.CharField(
         label="Nickname",
-        max_length=PLAYER_NAME_MAX_LENGTH,
-        validators=[validate_player_name, validate_no_html_tags, validate_no_script_tags]
+        max_length=50,
+        validators=[validate_player_name]
     )
     passphrase = forms.CharField(
         label="Password",
-        widget=forms.PasswordInput(render_value=True),
+        widget=forms.PasswordInput(),
         validators=[validate_passphrase]
     )
-    is_spectator = forms.BooleanField(label="Join as Spectator", required=False)
+    role = forms.ChoiceField(
+        label="Join as",
+        choices=[
+            (Role.PLAYER, 'Player'),
+            (Role.SPECTATOR, 'Spectator'),
+            (Role.COUNTER, 'Counter'),
+        ],
+        initial=Role.PLAYER,
+        required=True
+    )
 
     def __init__(self, *args, **kwargs):
-        super(JoinRoomForm, self).__init__(*args, **kwargs)
-        self.helper = FormHelper(self)
-        self.helper.form_tag = False
-
-        self.helper.form_class = 'form-horizontal'
-        self.helper.label_class = 'col-md-3'
-        self.helper.field_class = 'col-md-9'
+        self.room = kwargs.pop('room', None)
+        super().__init__(*args, **kwargs)
+        if self.room:
+            self.fields['encoded_room_uuid'].initial = self.room.encoded_uuid
 
     @staticmethod
     def for_room(room):
-        initial_values = {
-            "encoded_room_uuid": room.encoded_uuid,
-            "room_name": room.name,
-            "creator_name": room.creator.name,
-            "game_name": room.current_game.game_type.long_name,
-        }
-        return JoinRoomForm(initial=initial_values)
+        return JoinRoomForm(room=room)
 
     def get_room(self):
-        encoded_room_uuid = self.cleaned_data["encoded_room_uuid"]
-        return Room.get_for_encoded_uuid(encoded_room_uuid)
-
-    def clean_player_name(self):
-        """Clean and sanitize player name."""
-        player_name = self.cleaned_data.get('player_name', '')
-        # Sanitize input
-        player_name = sanitize_text_input(player_name)
-        # Apply profanity filter
-        player_name = FilteredPattern.filter_string(player_name)
-        return player_name
+        if not self.room:
+            self.room = Room.get_for_encoded_uuid(self.cleaned_data["encoded_room_uuid"])
+        return self.room
 
     def clean(self):
-        cleaned_data = super(JoinRoomForm, self).clean()
-        encoded_room_uuid = cleaned_data.get("encoded_room_uuid")
+        cleaned_data = super().clean()
+        room = self.get_room()
         passphrase = cleaned_data.get("passphrase")
+        if room and passphrase and not hashers.check_password(passphrase, room.passphrase):
+            raise ValidationError("Incorrect password")
+        return cleaned_data
 
-        if encoded_room_uuid and passphrase:
-            room = Room.get_for_encoded_uuid(encoded_room_uuid)
-            if not hashers.check_password(passphrase, room.passphrase):
-                raise forms.ValidationError("Incorrect Password")
+
+
+    def clean(self):
+        cleaned_data = super().clean()
+        room = self.get_room()
+        passphrase = cleaned_data.get("passphrase")
+        if room and passphrase and not hashers.check_password(passphrase, room.passphrase):
+            raise ValidationError("Incorrect password")
+        return cleaned_data
 
     def create_player(self, user=None):
         """
         Create a player for the room.
-        
+
         Args:
             user: Optional authenticated User instance
-        
+
         Returns:
             Player instance
-        
+
         Raises:
             ValidationError: If authenticated user is already in another room
         """
         room = Room.get_for_encoded_uuid(self.cleaned_data["encoded_room_uuid"])
         nickname = self.cleaned_data["player_name"]
-        is_spectator = self.cleaned_data["is_spectator"]
+        role = self.cleaned_data["role"]
 
         # Note: nickname is already sanitized and filtered in clean_player_name method
 
@@ -316,7 +313,7 @@ class JoinRoomForm(forms.Form):
                 )
 
         with transaction.atomic():
-            player = Player(room=room, name=nickname, is_spectator=is_spectator)
+            player = Player(room=room, name=nickname, role=role)
             player.save()
 
             # Set current_room for authenticated users
@@ -327,6 +324,8 @@ class JoinRoomForm(forms.Form):
             room.update_active()
 
             return player
+
+
 
 
 class GoalListConverterForm(forms.Form):

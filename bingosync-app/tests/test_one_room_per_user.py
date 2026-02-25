@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from bingosync.models.user import User
 from bingosync.models.rooms import Room, Player
+from bingosync.models.enums import Role
 from bingosync.forms import RoomForm, JoinRoomForm
 
 
@@ -120,7 +121,7 @@ class OneRoomPerUserTests(TestCase):
             'game_name': second_room.current_game.game_type.long_name,
             'player_name': 'TestPlayer2',
             'passphrase': 'password123',
-            'is_spectator': False,
+            'role': Role.PLAYER,
         }
         join_form = JoinRoomForm(data=join_form_data)
         self.assertTrue(join_form.is_valid())
@@ -159,7 +160,7 @@ class OneRoomPerUserTests(TestCase):
             'game_name': room.current_game.game_type.long_name,
             'player_name': 'TestPlayer2',
             'passphrase': 'password123',
-            'is_spectator': False,
+            'role': Role.PLAYER,
         }
         join_form = JoinRoomForm(data=join_form_data)
         self.assertTrue(join_form.is_valid())
