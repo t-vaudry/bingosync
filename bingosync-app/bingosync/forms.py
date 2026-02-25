@@ -11,6 +11,7 @@ import random
 from bingosync.generators import InvalidBoardException
 from bingosync.models import Room, GameType, LockoutMode, Game, Player, FilteredPattern
 from bingosync.models.user import User
+from bingosync.models.enums import Role
 from bingosync.goals_converter import download_and_get_converted_goal_list, DEFAULT_DOWNLOAD_URL
 from bingosync.widgets import GroupedSelect
 from bingosync.validators import (
@@ -79,6 +80,11 @@ class RoomForm(forms.Form):
         validators=[validate_board_size]
     )
     is_spectator = forms.BooleanField(label="Create as Spectator", required=False)
+    gamemaster_only = forms.BooleanField(
+        label="Gamemaster Only",
+        required=False,
+        help_text="If checked, you will be Gamemaster only (cannot mark squares). If unchecked, you will be Gamemaster + Player (can mark squares)."
+    )
     hide_card = forms.BooleanField(label="Hide Card Initially", required=False)
     fog_of_war = forms.BooleanField(label="Fog of War", required=False)
 
@@ -165,6 +171,7 @@ class RoomForm(forms.Form):
         size = self.cleaned_data["size"]
         custom_board = self.cleaned_data.get("custom_board", [])
         is_spectator = self.cleaned_data["is_spectator"]
+        gamemaster_only = self.cleaned_data.get("gamemaster_only", False)
         hide_card = self.cleaned_data["hide_card"]
         fog_of_war = self.cleaned_data["fog_of_war"]
 
@@ -191,7 +198,27 @@ class RoomForm(forms.Form):
             game = Game.from_board(board_json, room=room, game_type_value=game_type.value,
                     lockout_mode_value=lockout_mode.value, seed=seed, fog_of_war=fog_of_war)
 
-            creator = Player(room=room, name=nickname, is_spectator=is_spectator)
+            # Determine role and is_also_player based on form inputs
+            if is_spectator:
+                # User chose to be a spectator
+                role = Role.SPECTATOR
+                is_also_player_flag = False
+            elif gamemaster_only:
+                # User chose Gamemaster-only (cannot mark squares)
+                role = Role.GAMEMASTER
+                is_also_player_flag = False
+            else:
+                # Default: Gamemaster + Player (can mark squares)
+                role = Role.GAMEMASTER
+                is_also_player_flag = True
+
+            creator = Player(
+                room=room,
+                name=nickname,
+                is_spectator=is_spectator,
+                role=role,
+                is_also_player=is_also_player_flag
+            )
             creator.save()
 
             # Set current_room for authenticated users

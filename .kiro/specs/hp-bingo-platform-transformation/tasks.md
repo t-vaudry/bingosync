@@ -477,7 +477,7 @@ Implement permission checking for role-based actions.
 
 ---
 
-- [ ] 2.8 Implement Gamemaster Assignment Options
+- [x] 2.8 Implement Gamemaster Assignment Options
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.7

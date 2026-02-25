@@ -11,7 +11,19 @@
     <div style="position: relative">
         <h1 style="display: inline-block;"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
         <h4 style="display: inline-block; position: absolute; right: 0; bottom: 0;">
-            {% if player.is_spectator %}Spectating{% else %}Playing{% endif %} as: {{ player.name }}
+            {% if player.role == 'gamemaster' %}
+                {% if player.is_also_player %}
+                    Gamemaster + Player as: {{ player.name }}
+                {% else %}
+                    Gamemaster as: {{ player.name }}
+                {% endif %}
+            {% elif player.role == 'counter' %}
+                Counter as: {{ player.name }}
+            {% elif player.role == 'spectator' %}
+                Spectating as: {{ player.name }}
+            {% else %}
+                Playing as: {{ player.name }}
+            {% endif %}
             <a class="btn btn-default" href="{% url 'room_disconnect' room.encoded_uuid %}">
                 Disconnect
             </a>
