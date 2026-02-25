@@ -49,7 +49,8 @@ class Command(BaseCommand):
                     save_board(game_type, seed, board_json)
 
 def generate_board(game_type, seed):
-    return game_type.generator_instance().get_card(seed)
+    _, board_json = game_type.generator_instance().get_card(seed)
+    return board_json
 
 def save_board(game_type, seed, board_json):
     output_dir = os.path.join(GEN_TESTDATA_DIR, game_type.name)

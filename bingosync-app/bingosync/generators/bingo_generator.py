@@ -94,8 +94,6 @@ class BingoGenerator:
         js_command = "bingoGenerator(bingoList, " + json.dumps(opts) + ")"
         card = self.eval(js_command)
 
-        print(card)
-
         return process_card(card, seed, size)
 
 

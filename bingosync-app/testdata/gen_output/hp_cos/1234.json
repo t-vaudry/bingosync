@@ -1,77 +1,102 @@
 [
     {
-        "name": "Get all of the beans in the chasm"
+        "name": "Lose a Quidditch Match by at least 250 points",
+        "tier": 2
     },
     {
-        "name": "Get all Grand Staircase secrets"
+        "name": "Destroy 19 Ectoplasm in Bicorn",
+        "tier": 21
     },
     {
-        "name": "Get all Goyle secrets"
+        "name": "Avoid fire damage from the snake statues in Chamber",
+        "tier": 14
     },
     {
-        "name": "Collect 31 challenge stars"
+        "name": "Beat the goal time in 2 spell challenges",
+        "tier": 18
     },
     {
-        "name": "Have 15 potions"
+        "name": "7 different Rictusempra Challenge Stars",
+        "tier": 10
     },
     {
-        "name": "Get 5 secrets as Harry in Slytherin"
+        "name": "Complete Chamber without jumping",
+        "tier": 19
     },
     {
-        "name": "Complete all 10 duels"
+        "name": "Empty 6 bean boxes",
+        "tier": 8
     },
     {
-        "name": "Get the 16 beans on Lockhart's balcony"
+        "name": "Complete the Gryffindor Challenge",
+        "tier": 5
     },
     {
-        "name": "Cast on 5 Lumos statues during Spongify"
+        "name": "Collect 10 Secrets in Diffindo",
+        "tier": 22
     },
     {
-        "name": "Collect 3 chocolate frogs in Boomslang"
+        "name": "Throw 3 gnomes into the same hole in Bicorn",
+        "tier": 11
     },
     {
-        "name": "Get the Harry Potter Wizard Card"
+        "name": "23 Bronze Wizard Cards",
+        "tier": 25
     },
     {
-        "name": "Cut all Venomous Tentacula heads off in Boomslang"
+        "name": "Complete Forest without jumping",
+        "tier": 12
     },
     {
-        "name": "Spawn 12 gnomes in the girl's bathroom"
+        "name": "Collect All 6 Cards in Bicorn",
+        "tier": 16
     },
     {
-        "name": "Talk to Percy, Hagrid, Snape, and Madam Pomfrey"
+        "name": "All Gryffindor Challenge secrets",
+        "tier": 9
     },
     {
-        "name": "Get 8 challenge stars in Rictusempra"
+        "name": "Finish a Spell Challenge with a Gnome in your hand",
+        "tier": 3
     },
     {
-        "name": "Clip 4 gnomes out of bounds"
+        "name": "Cast at 8 different Gargoyles in Goyle",
+        "tier": 6
     },
     {
-        "name": "Finish a spell challenge with a gnome in your hand"
+        "name": "Complete Boomslang without jumping",
+        "tier": 4
     },
     {
-        "name": "All Chamber secrets"
+        "name": "Kill 13 Pixies",
+        "tier": 23
     },
     {
-        "name": "Hit 8 different Lumos statues in Goyle"
+        "name": "Buy the Nimbus 2001",
+        "tier": 15
     },
     {
-        "name": "Get 3 health increases"
+        "name": "All Slytherin secrets",
+        "tier": 17
     },
     {
-        "name": "Complete Boomslang without jumping"
+        "name": "Buy 2 Silver Wizard Cards",
+        "tier": 13
     },
     {
-        "name": "Open all 5 Peeves chests"
+        "name": "All Spongify secrets",
+        "tier": 20
     },
     {
-        "name": "Lose a Quidditch match by 250 points"
+        "name": "3 chocolate frogs in Boomslang",
+        "tier": 7
     },
     {
-        "name": "Activate both secrets in Willow from out of bounds"
+        "name": "Use the potion cauldron in hospital wing",
+        "tier": 1
     },
     {
-        "name": "Avoid fire damage from the snake statues in Chamber"
+        "name": "Cast at all 2 Gargoyles in the GWC Challenge",
+        "tier": 24
     }
 ]

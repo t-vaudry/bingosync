@@ -4,7 +4,7 @@ import json
 
 from bingosync import models, forms, generators
 
-NO_ACTIVE_ROOMS_TEXT = "No active rooms right now"
+NO_ACTIVE_ROOMS_TEXT = "Global Stats"
 MAKE_ROOM_BUTTON = '<input type="submit" class="form-control" value="Make Room" />'
 JOIN_ROOM_BUTTON = '<input type="submit" class="form-control" value="Join Room" />'
 BOARD_CONTAINER_HTML = '<div class="board-container">'
@@ -35,7 +35,6 @@ class HomeTestCase(test.TestCase):
     def test_home_empty(self):
         resp = self.client.get("/")
         self.assertContains(resp, NO_ACTIVE_ROOMS_TEXT)
-        self.assertNotContains(resp, "<tr>", html=True)
         self.assertContains(resp, MAKE_ROOM_BUTTON, html=True)
 
     def test_home_create_room(self):
@@ -87,9 +86,8 @@ class HomeTestCase(test.TestCase):
             self.fail("form error: " + repr(self.room_form.errors))
         room = self.room_form.create_room()
         resp = self.client.get("/")
-        self.assertNotContains(resp, "No active rooms right now")
-        room_td = '<td><a href="' + room.get_absolute_url() + '">Test Room</a></td>'
-        self.assertContains(resp, room_td)
+        # The home page now shows global stats, not a list of rooms
+        self.assertContains(resp, "Global Stats")
         self.assertContains(resp, MAKE_ROOM_BUTTON, html=True)
 
 

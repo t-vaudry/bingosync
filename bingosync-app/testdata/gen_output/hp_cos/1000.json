@@ -1,77 +1,102 @@
 [
     {
-        "name": "Complete Chamber without Jumping"
+        "name": "Open 5 Peeves chests",
+        "tier": 24
     },
     {
-        "name": "Walk up the stairs to Girl's Dormitory in Slytherin"
+        "name": "Open 6 Chests in Chamber",
+        "tier": 18
     },
     {
-        "name": "Knock over 8 flower pots"
+        "name": "All Rictusempra secrets",
+        "tier": 15
     },
     {
-        "name": "Empty 10 armor stands"
+        "name": "All Gryffindor Challenge secrets",
+        "tier": 7
     },
     {
-        "name": "Activate both secrets in Willow from out of bounds"
+        "name": "Complete Diffindo without jumping",
+        "tier": 1
     },
     {
-        "name": "Have 15 potions"
+        "name": "Complete Bicorn",
+        "tier": 10
     },
     {
-        "name": "Get all of the beans in the chasm"
+        "name": "Spawn 7 Gnomes in the girl's bathroom",
+        "tier": 2
     },
     {
-        "name": "Get all Challenge Stars in the Gryffindor Challenge"
+        "name": "Kill 13 spiders in the Aragog fight",
+        "tier": 21
     },
     {
-        "name": "Get 5 secrets as Harry in Slytherin"
+        "name": "All Slytherin secrets",
+        "tier": 19
     },
     {
-        "name": "Complete Boomslang without jumping"
+        "name": "Have a score on all 6 Quidditch Matches",
+        "tier": 13
     },
     {
-        "name": "Finish with 2000 beans"
+        "name": "Put 16 crabs into pits during Rictusempra",
+        "tier": 16
     },
     {
-        "name": "Get all Goyle secrets"
+        "name": "Open 6 Chests in Skurge",
+        "tier": 14
     },
     {
-        "name": "Activate a potion cauldron with a gnome"
+        "name": "Complete Goyle",
+        "tier": 8
     },
     {
-        "name": "Get behind the Quidditch gate"
+        "name": "All Boomslang secrets",
+        "tier": 5
     },
     {
-        "name": "Cast on 5 Lumos statues during Spongify"
+        "name": "Empty 27 cauldrons",
+        "tier": 22
     },
     {
-        "name": "Get on top of Hagrid's Hut"
+        "name": "Use the potion cauldron in hospital wing",
+        "tier": 3
     },
     {
-        "name": "Finish the game"
+        "name": "Cast at all 2 Gargoyles in the GWC Challenge",
+        "tier": 25
     },
     {
-        "name": "Buy 8 Bronze Wizard Cards"
+        "name": "Collect All 6 Cards in Bicorn",
+        "tier": 17
     },
     {
-        "name": "Make a 5 mushroom high tower in Diffindo"
+        "name": "10 different Rictusempra Challenge Stars",
+        "tier": 11
     },
     {
-        "name": "Empty 5 bean boxes"
+        "name": "Win all 10 duels",
+        "tier": 9
     },
     {
-        "name": "Cut all Venomous Tentacula heads off in Boomslang"
+        "name": "Buy 4 Silver Wizard Cards",
+        "tier": 12
     },
     {
-        "name": "Enter Quidditch practice from out of bounds"
+        "name": "2 potion ingredients in Slytherin",
+        "tier": 6
     },
     {
-        "name": "Put 15 crabs into pits during Rictusempra"
+        "name": "Stack 5 mushrooms in Diffindo",
+        "tier": 4
     },
     {
-        "name": "All Chamber secrets"
+        "name": "Defeat the Basilisk",
+        "tier": 23
     },
     {
-        "name": "Get all Grounds secrets in both day and night"
+        "name": "10 Bronze Wizard Cards without getting a health increase",
+        "tier": 20
     }
 ]

@@ -1,77 +1,102 @@
 [
     {
-        "name": "Open all 5 Peeves chests"
+        "name": "15 different Challenge Stars",
+        "tier": 20
     },
     {
-        "name": "Get 8 Spongify challenge stars"
+        "name": "Open 3 Peeves chests",
+        "tier": 22
     },
     {
-        "name": "Collect the 14 beans on the roof in the Bean Bonus Room"
+        "name": "Complete Diffindo without jumping",
+        "tier": 4
     },
     {
-        "name": "Get all Boomslang secrets"
+        "name": "All 6 beans in the chasm",
+        "tier": 11
     },
     {
-        "name": "Activate a potion cauldron with a gnome"
+        "name": "Cast at 9 different Gargoyles in Goyle",
+        "tier": 8
     },
     {
-        "name": "Collect 23 wizard cards"
+        "name": "All Entry Hall secrets",
+        "tier": 14
     },
     {
-        "name": "Clip 4 gnomes out of bounds"
+        "name": "Complete Skurge without jumping",
+        "tier": 6
     },
     {
-        "name": "Walk up the stairs to Girl's Dormitory in Slytherin"
+        "name": "Complete Chamber without jumping",
+        "tier": 18
     },
     {
-        "name": "Finish the game"
+        "name": "24 Wizard Cards",
+        "tier": 25
     },
     {
-        "name": "Get all of the beans in the chasm"
+        "name": "Complete Boomslang without jumping",
+        "tier": 2
     },
     {
-        "name": "All Chamber secrets"
+        "name": "Defeat the Basilisk",
+        "tier": 23
     },
     {
-        "name": "Get the 16 beans on Lockhart's balcony"
+        "name": "All Boomslang secrets",
+        "tier": 5
     },
     {
-        "name": "Collect 17 challenge stars"
+        "name": "Empty 8 armor stands",
+        "tier": 12
     },
     {
-        "name": "Complete Diffindo without casting Diffindo"
+        "name": "All 28 beans in Willow",
+        "tier": 9
     },
     {
-        "name": "Spawn 12 gnomes in the girl's bathroom"
+        "name": "Buy the Nimbus 2001",
+        "tier": 16
     },
     {
-        "name": "Lose a Quidditch match by 250 points"
+        "name": "Cast at all 5 Gargoyles in Spongify",
+        "tier": 7
     },
     {
-        "name": "Get 5 secrets as Harry in Slytherin"
+        "name": "All Forest secrets",
+        "tier": 19
     },
     {
-        "name": "Get all secrets in the Gryffindor Challenge"
+        "name": "All 8 potion ingredients in Bicorn",
+        "tier": 21
     },
     {
-        "name": "Hit 10 cauldrons"
+        "name": "All 16 beans on Lockhart's balcony",
+        "tier": 3
     },
     {
-        "name": "Hit 8 different Lumos statues in Goyle"
+        "name": "Have a score on all 6 Quidditch Matches",
+        "tier": 15
     },
     {
-        "name": "Activate both secrets in Willow from out of bounds"
+        "name": "Fix the Bridge in Slytherin",
+        "tier": 1
     },
     {
-        "name": "Complete Goyle without casting Skurge"
+        "name": "Buy 4 Silver Wizard Cards",
+        "tier": 13
     },
     {
-        "name": "Have 15 potions"
+        "name": "Complete Forest without jumping",
+        "tier": 10
     },
     {
-        "name": "Get all Slytherin secrets"
+        "name": "Open 4 Chests in Chamber",
+        "tier": 17
     },
     {
-        "name": "Avoid fire damage from the snake statues in Chamber"
+        "name": "Harry Potter Wizard Card",
+        "tier": 24
     }
 ]
