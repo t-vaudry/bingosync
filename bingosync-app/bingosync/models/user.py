@@ -8,6 +8,14 @@ class User(AbstractUser):
     
     Tracks user statistics for gameplay and enforces one room at a time.
     """
+    # Override email field to make it unique
+    email = models.EmailField(
+        verbose_name='email address',
+        max_length=254,
+        unique=True,
+        blank=False,
+        help_text='Required. Must be unique across all users.'
+    )
     # Enforce one room at a time
     current_room = models.ForeignKey(
         'Room',
