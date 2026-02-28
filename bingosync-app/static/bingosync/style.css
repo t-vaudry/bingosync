@@ -607,6 +607,27 @@
     margin-left: 5px;
 }
 
+.spectators-section {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+
+.spectators-header {
+    font-size: 0.9em;
+    color: #888;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.spectator-entry {
+    opacity: 0.8;
+}
+
+.spectator-entry .playername {
+    color: #999;
+}
+
 .role-change-btn {
     margin-left: 10px;
     padding: 2px 6px;

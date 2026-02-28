@@ -25,13 +25,29 @@
                             {% endif %}
                         {% elif player.role == 'counter' %}
                             [C]
-                        {% elif player.role == 'spectator' %}
-                            [S]
                         {% endif %}
                     </span>
                 </div>
                 {% endif %}
             {% endfor %}
+            
+            {% if room.connected_players|selectattr:'is_spectator'|list %}
+            <div class="spectators-section">
+                <div class="spectators-header">Spectators</div>
+                {% for player in room.connected_players %}
+                    {% if player.is_spectator %}
+                    <div id="{{ player.encoded_uuid }}" class="player-panel-entry spectator-entry">
+                        <span class="playername">
+                            {{ player.name }}
+                        </span>
+                        <span class="player-role-badge" title="Role: Spectator">
+                            [S]
+                        </span>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
