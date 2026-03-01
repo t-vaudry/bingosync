@@ -127,7 +127,7 @@ INSTALLED_APPS = (
     'crispy_forms',
     'bootstrap3',
     'crispy_bootstrap3',
-    'bingosync'
+    'bingosync.apps.BingosyncConfig'
 )
 
 # Custom User Model

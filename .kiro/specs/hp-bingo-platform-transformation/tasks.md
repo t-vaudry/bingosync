@@ -837,7 +837,7 @@ Use prefetch_related() to prevent N+1 queries on reverse relations.
 ---
 
 
-- [ ] 3.11 Implement Redis Caching
+- [x] 3.11 Implement Redis Caching
   **Priority:** P1 (Performance)
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.10
@@ -847,7 +847,6 @@ Add Redis caching for room settings and player lists.
 
 **Acceptance Criteria:**
 - Redis added to docker-compose.yml
-- django-redis added to requirements.txt
 - Cache backend configured in settings.py
 - Room settings cached (5 min TTL)
 - Player lists cached (1 min TTL)
@@ -855,7 +854,6 @@ Add Redis caching for room settings and player lists.
 
 **Files to Modify:**
 - `docker-compose.yml`
-- `requirements.txt`
 - `bingosync-app/bingosync/settings.py`
 - `bingosync-app/bingosync/cache.py` (create)
 - `bingosync-app/bingosync/views.py`

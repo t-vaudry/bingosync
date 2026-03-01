@@ -506,10 +506,16 @@ def room_scores2(request, encoded_room_uuid):
 
 # AJAX view to render the room settings panel
 def room_settings(request, encoded_room_uuid):
+    from bingosync.cache import get_room_settings
+    
     room = Room.get_for_encoded_uuid(encoded_room_uuid)
     panel = loader.get_template("bingosync/room_settings_panel.html").render(
         {"game": room.current_game, "room": room}, request)
-    return JsonResponse({"panel": panel, "settings": room.settings})
+    
+    # Use cached room settings
+    settings = get_room_settings(room)
+    
+    return JsonResponse({"panel": panel, "settings": settings})
 
 
 @handle_ratelimit
