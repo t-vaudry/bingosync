@@ -74,7 +74,7 @@ class BingoGenerator:
                 # Clean up temp file
                 try:
                     os.unlink(temp_file_path)
-                except BaseException:
+                except OSError:
                     pass
         except subprocess.TimeoutExpired:
             error_message = (
