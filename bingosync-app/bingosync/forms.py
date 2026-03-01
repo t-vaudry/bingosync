@@ -267,7 +267,10 @@ class JoinRoomForm(forms.Form):
     player_name = forms.CharField(
         label="Nickname",
         max_length=50,
-        validators=[validate_player_name]
+        validators=[
+            validate_player_name,
+            validate_no_html_tags,
+            validate_no_script_tags]
     )
     passphrase = forms.CharField(
         label="Password",
