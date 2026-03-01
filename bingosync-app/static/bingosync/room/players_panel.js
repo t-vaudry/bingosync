@@ -119,30 +119,6 @@ var PlayersPanel = (function(){
         $('body').append($overlay);
         $('body').append($dialog);
         
-        // Position dialog
-        $dialog.css({
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'white',
-            padding: '20px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            zIndex: 10001,
-            minWidth: '300px'
-        });
-        
-        $overlay.css({
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            zIndex: 10000
-        });
-        
         // Handle confirm
         $dialog.find('.confirm-role-change').on('click', function() {
             var newRole = $dialog.find('.role-select').val();

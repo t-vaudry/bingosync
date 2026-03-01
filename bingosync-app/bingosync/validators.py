@@ -150,10 +150,7 @@ def validate_no_script_tags(value):
     This is a defense-in-depth measure against XSS.
     """
     # Check for script tags (case-insensitive)
-    if re.search(
-        r'<script[^>]*>.*?</script>',
-        value,
-            re.IGNORECASE | re.DOTALL):
+    if re.search(r'<script[^>]*>.*?</script>', value, re.IGNORECASE | re.DOTALL):
         raise ValidationError("Input cannot contain script tags.")
 
     # Check for javascript: URLs

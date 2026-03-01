@@ -384,6 +384,8 @@
 }
 
 .player-panel-entry {
+    position: relative;
+    margin-bottom: 5px;
     white-space: nowrap;
 }
 
@@ -596,11 +598,6 @@
 }
 
 /* Role Management Styles */
-.player-panel-entry {
-    position: relative;
-    margin-bottom: 5px;
-}
-
 .player-role-badge {
     font-size: 0.85em;
     color: #666;
