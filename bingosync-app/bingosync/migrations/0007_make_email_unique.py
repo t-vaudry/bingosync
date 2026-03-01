@@ -41,12 +41,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # First, handle any existing duplicate emails
+        # First, make email nullable so we can set duplicates to NULL
+        migrations.AlterField(
+            model_name='user',
+            name='email',
+            field=models.EmailField(
+                blank=True,
+                null=True,
+                max_length=254,
+                verbose_name='email address'
+            ),
+        ),
+        # Then handle any existing duplicate emails
         migrations.RunPython(
             remove_duplicate_emails,
             reverse_code=migrations.RunPython.noop
         ),
-        # Then alter the email field to add unique constraint and allow NULL
+        # Finally add the unique constraint
         migrations.AlterField(
             model_name='user',
             name='email',
