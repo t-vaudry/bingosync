@@ -73,9 +73,6 @@ if "DOMAIN" in os.environ:
 if "HTTP_SOCK" in os.environ:
     ALLOWED_HOSTS.append(urllib.parse.quote_plus(os.environ['HTTP_SOCK']))
 
-EMAIL_HOST = "localhost"
-EMAIL_PORT = 25
-
 # Email Configuration for Password Reset
 # For development, emails will be printed to console
 # For production, configure these environment variables:
