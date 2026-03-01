@@ -293,18 +293,18 @@ class SocketRouter:
                 self.unregister(ws)
 
     def kill_dead_sockets(self):
-            threshold = datetime.datetime.now() - TIMEOUT_THRESHOLD
-            # Iterate over a snapshot to avoid RuntimeError if unregister() mutates sockets_by_room
-            for ws in list(self.all_sockets):
-                if ws.last_pong < threshold:
-                    print("closing dead socket:", ws)
-                    try:
-                        ws.close()
-                    except tornado.websocket.WebSocketClosedError:
-                        print(
-                            "socket already closed, attempting to unregister",
-                            ws)
-                        self.unregister(ws)
+        threshold = datetime.datetime.now() - TIMEOUT_THRESHOLD
+        # Iterate over a snapshot to avoid RuntimeError if unregister() mutates sockets_by_room
+        for ws in list(self.all_sockets):
+            if ws.last_pong < threshold:
+                print("closing dead socket:", ws)
+                try:
+                    ws.close()
+                except tornado.websocket.WebSocketClosedError:
+                    print(
+                        "socket already closed, attempting to unregister",
+                        ws)
+                    self.unregister(ws)
 
     def send_to_room(self, room_uuid, message):
         room_sockets = self.sockets_by_room[room_uuid]
