@@ -352,8 +352,8 @@ class JoinRoomForm(forms.Form):
         nickname = self.cleaned_data["player_name"]
         role = self.cleaned_data["role"]
 
-        # Note: nickname is already sanitized and filtered in clean_player_name
-        # method
+        # Note: player_name is already sanitized and filtered in clean_player_name()
+        # (HTML tags stripped, whitespace normalized)
 
         # Check if authenticated user is already in a room
         if user and user.is_authenticated:
