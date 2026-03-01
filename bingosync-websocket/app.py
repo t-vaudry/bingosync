@@ -279,8 +279,8 @@ class SocketRouter:
         for ws in self.all_sockets:
             try:
                 ws.send(message)
-            except BaseException:
-                pass
+            except Exception as e:
+                print(f"Failed to send message to socket: {e}")
 
     def ping_all(self):
         for ws in list(self.all_sockets):

@@ -68,8 +68,8 @@ class Color(Enum):
 
 
 class CompositeColor:
-    def __init__(self, colors=[]):
-        self.colors = colors
+    def __init__(self, colors=None):
+        self.colors = colors if colors is not None else []
 
     def __str__(self):
         color_names = list(map(lambda x: x.name.capitalize(), self.colors))
