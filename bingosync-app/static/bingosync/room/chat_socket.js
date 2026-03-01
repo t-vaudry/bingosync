@@ -1,11 +1,12 @@
 var ChatSocket = (function(){
     "use strict";
 
-    var ChatSocket = function(chatPanel, board, playersPanel, socketsUrl) {
+    var ChatSocket = function(chatPanel, board, playersPanel, socketsUrl, currentPlayer) {
         this.chatPanel = chatPanel;
         this.board = board;
         this.playersPanel = playersPanel;
         this.socketsUrl = socketsUrl;
+        this.currentPlayer = currentPlayer;
     };
 
     ChatSocket.prototype.init = function(socketKey) {
@@ -48,7 +49,21 @@ var ChatSocket = (function(){
                 this.playersPanel.updateGoalCounters(this.board);
             }
             else if(json["event_type"] === "disconnected") {
-                this.playersPanel.removePlayer(json["player"]);
+                // Check if the disconnected player is the current user
+                if(json["player"]["uuid"] === this.currentPlayer.uuid) {
+                    // Current user was disconnected (e.g., room closed), redirect to landing page
+                    var disconnectText = "*** You have been disconnected from the room.";
+                    var message = $("<div>", {"class": "connection-message", text: disconnectText}).toHtml();
+                    this.chatPanel.appendChatMessage(message);
+                    
+                    // Redirect after a short delay to show the message
+                    setTimeout(function() {
+                        window.location.href = "/";
+                    }, 1500);
+                } else {
+                    // Another player disconnected, just remove them from the panel
+                    this.playersPanel.removePlayer(json["player"]);
+                }
             }
         }
         else if(json["type"] === "role_change") {

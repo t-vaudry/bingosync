@@ -352,7 +352,7 @@ def room_view(request, encoded_room_uuid):
                     # Pass the authenticated user to create_player
                     user = request.user if request.user.is_authenticated else None
                     player = join_form.create_player(user=user)
-                    _save_session_player(request.session, player)
+                    _save_session_player(request.session, room)
                     return redirect_params(
                         "room_view", encoded_room_uuid=encoded_room_uuid, params={
                             'password': join_form.cleaned_data['passphrase']})
@@ -387,6 +387,13 @@ def room_view(request, encoded_room_uuid):
             new_card_form.helper['custom_json'].wrap(
                 Field, wrapper_class='hidden')
             player = _get_session_player(request.session, room)
+            
+            # Prevent spectators from accessing inactive rooms
+            if player.is_spectator and not room.active:
+                # Clear their session and redirect to landing
+                _clear_session_player(request.session, room)
+                return redirect_params('landing', params={'error': 'room_inactive'})
+            
             params = {
                 "room": room,
                 "game": room.current_game,

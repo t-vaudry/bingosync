@@ -308,9 +308,18 @@ class JoinRoomForm(forms.Form):
         cleaned_data = super().clean()
         room = self.get_room()
         passphrase = cleaned_data.get("passphrase")
+        role = cleaned_data.get("role")
+        
         if room and passphrase and not hashers.check_password(
                 passphrase, room.passphrase):
             raise ValidationError("Incorrect Password")
+        
+        # Prevent spectators from joining inactive rooms
+        if room and role == Role.SPECTATOR and not room.active:
+            raise ValidationError(
+                "This room is no longer active. Spectators cannot join inactive rooms."
+            )
+        
         return cleaned_data
 
     def create_player(self, user=None):
