@@ -860,7 +860,7 @@ Add Redis caching for room settings and player lists.
 
 ---
 
-- [ ] 3.12 Implement Board Caching by Seed
+- [x] 3.12 Implement Board Caching by Seed
   **Priority:** P1 (Performance)
   **Estimated Time:** 3 hours
   **Dependencies:** Task 3.11

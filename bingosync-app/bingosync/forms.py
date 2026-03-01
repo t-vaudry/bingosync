@@ -187,7 +187,18 @@ class RoomForm(forms.Form):
             seed = "" if game_type.uses_seed else "0"
 
         # Always use 5x5 board
-        seed, board_json = game_type.generator_instance().get_card(seed, custom_board, 5)
+        # Use caching for board generation by seed
+        from bingosync.cache import get_board_by_seed
+        
+        # Only cache if we have a valid seed (not empty/random)
+        if seed and seed != "":
+            def generate_board(s):
+                return game_type.generator_instance().get_card(s, custom_board, 5)
+            
+            seed, board_json = get_board_by_seed(seed, generate_board)
+        else:
+            # Don't cache random boards (empty seed)
+            seed, board_json = game_type.generator_instance().get_card(seed, custom_board, 5)
 
         encrypted_passphrase = hashers.make_password(passphrase)
         with transaction.atomic():
