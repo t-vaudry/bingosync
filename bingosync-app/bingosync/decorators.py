@@ -6,7 +6,7 @@ to protect against brute force attacks and DoS.
 """
 
 from functools import wraps
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse
 from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 
@@ -68,6 +68,3 @@ def handle_ratelimit(view_func):
                 content_type="text/plain"
             )
     return wrapped
-
-
-

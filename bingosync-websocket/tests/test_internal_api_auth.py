@@ -13,8 +13,7 @@ from unittest.mock import MagicMock
 # Add parent directory to path to import app module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import app (environment variables are set in tests/__init__.py)
-import app as tornado_app
+import app as tornado_app  # noqa: E402
 
 
 class ValidateInternalRequestTestCase(unittest.TestCase):
