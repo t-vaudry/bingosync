@@ -97,7 +97,7 @@ var PlayersPanel = (function(){
         ];
         
         var dialogHtml = '<div class="role-change-dialog">';
-        dialogHtml += '<p>Change role for <strong>' + playerJson["name"] + '</strong></p>';
+        dialogHtml += '<p>Change role for <strong class="player-name-display"></strong></p>';
         dialogHtml += '<select class="form-control role-select">';
         roles.forEach(function(role) {
             var selected = role.value === currentRole ? ' selected' : '';
@@ -112,6 +112,8 @@ var PlayersPanel = (function(){
         
         // Show dialog (using a simple modal approach)
         var $dialog = $(dialogHtml);
+        // Safely set player name using text() to prevent XSS
+        $dialog.find('.player-name-display').text(playerJson["name"]);
         var $overlay = $('<div class="role-change-overlay"></div>');
         
         $('body').append($overlay);
