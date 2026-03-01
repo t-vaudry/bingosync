@@ -78,12 +78,12 @@ class InternalAPISecretConfigTestCase(unittest.TestCase):
     def test_internal_api_handler_class_exists(self):
         """Test that InternalAPIHandler class is defined."""
         self.assertTrue(hasattr(tornado_app, 'InternalAPIHandler'))
-        self.assertTrue(
-            callable(
-                getattr(
-                    tornado_app.InternalAPIHandler,
-                    'prepare',
-                    None)))
+        prepare_method = getattr(
+            tornado_app.InternalAPIHandler,
+            'prepare',
+            None
+        )
+        self.assertTrue(callable(prepare_method))
 
 
 if __name__ == '__main__':
