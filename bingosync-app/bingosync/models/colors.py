@@ -2,6 +2,7 @@ from enum import Enum, unique
 
 from itertools import combinations, chain
 
+
 @unique
 class Color(Enum):
     blank = 1
@@ -40,7 +41,8 @@ class Color(Enum):
 
     @staticmethod
     def player_choices():
-        return [(color.value, str(color)) for color in Color if color is not Color.blank]
+        return [(color.value, str(color))
+                for color in Color if color is not Color.blank]
 
     @staticmethod
     def player_default():
@@ -61,10 +63,13 @@ class Color(Enum):
     def player_class(self):
         return self.name + "player"
 
-# CompositeColor can be any combination of Color objects (except Color.blank which is always by itself in a CompositeColor)
+# CompositeColor can be any combination of Color objects (except
+# Color.blank which is always by itself in a CompositeColor)
+
+
 class CompositeColor:
-    def __init__(self, colors = []):
-        self.colors = colors
+    def __init__(self, colors=None):
+        self.colors = colors if colors is not None else []
 
     def __str__(self):
         color_names = list(map(lambda x: x.name.capitalize(), self.colors))
@@ -75,19 +80,26 @@ class CompositeColor:
     def goal_choices():
         all_colors = frozenset(Color)
         all_colors = all_colors - set([Color.blank])
-        all_sets = set(chain.from_iterable(combinations(all_colors, n) for n in range(len(all_colors)+1)))
+        all_sets = set(
+            chain.from_iterable(
+                combinations(
+                    all_colors,
+                    n) for n in range(
+                    len(all_colors)
+                    + 1)))
         all_sets.remove(())
         all_sets.add(frozenset([Color.blank]))
         choices = []
         for possible in all_sets:
             try:
-                iterator = iter(possible)
+                iter(possible)
             except TypeError:
                 print(str(possible) + ' is not iterable')
             else:
                 composite_color = CompositeColor(possible)
                 choices.append((composite_color.value, str(composite_color)))
-        # sort so that it's not runtime dependent and messing up migrations every time
+        # sort so that it's not runtime dependent and messing up migrations
+        # every time
         return sorted(choices)
 
     @staticmethod
@@ -121,7 +133,7 @@ class CompositeColor:
         val = 0
         for color in self._colors:
             if color == Color.blank:
-                return 0;
+                return 0
             val = val + color.composite_value
         return val
 

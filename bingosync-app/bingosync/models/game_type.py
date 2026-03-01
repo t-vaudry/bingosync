@@ -1,5 +1,6 @@
 from enum import Enum, unique
 
+
 @unique
 class GameType(Enum):
     hp_cos = 50
@@ -45,7 +46,8 @@ class GameType(Enum):
         # This maintains compatibility with existing code that passes value=50
         if value == 50:
             return GameType.hp_cos
-        # For backward compatibility, if someone passes a different value, still return HP CoS
+        # For backward compatibility, if someone passes a different value,
+        # still return HP CoS
         return GameType.hp_cos
 
     def generator_instance(self):
@@ -54,18 +56,20 @@ class GameType(Enum):
 
     @staticmethod
     def choices():
-        return [(game_type.value, game_type.long_name) for game_type in GameType]
+        return [(game_type.value, game_type.long_name)
+                for game_type in GameType]
 
     @staticmethod
     def game_choices():
         # Return only HP CoS as the game choice
-        return [(None, ''), (GameType.hp_cos.value, GAME_TYPE_GROUP_NAMES[GameType.hp_cos])]
+        return [(None, ''), (GameType.hp_cos.value,
+                             GAME_TYPE_GROUP_NAMES[GameType.hp_cos])]
 
     @staticmethod
     def variant_choices():
         # Return only HP CoS variant
-        return [(GameType.hp_cos.value, 
-                 [(GameType.hp_cos.value, GAME_TYPE_VARIANT_NAMES[GameType.hp_cos])])]
+        return [(GameType.hp_cos.value, [(GameType.hp_cos.value,
+                 GAME_TYPE_VARIANT_NAMES[GameType.hp_cos])])]
 
 
 # Simplified game groups - only HP Chamber of Secrets
@@ -89,15 +93,16 @@ ALL_VARIANTS = []
 for group, entry in GAME_GROUPS.items():
     name = entry["name"]
     variants = entry["variants"]
-    
+
     for variant_tuple in variants:
         game_type = variant_tuple[0]
         variant_name = variant_tuple[1]
         short_name = variant_tuple[2]
-        
+
         GAME_TYPE_GROUPS[game_type] = group
         GAME_TYPE_GROUP_NAMES[game_type] = name
-        GAME_TYPE_LONG_NAMES[game_type] = name + " - " + variant_name if variant_name != "Normal" else name
+        GAME_TYPE_LONG_NAMES[game_type] = name + " - " + \
+            variant_name if variant_name != "Normal" else name
         GAME_TYPE_SHORT_NAMES[game_type] = short_name
         GAME_TYPE_VARIANT_NAMES[game_type] = variant_name
         ALL_VARIANTS.append(game_type)

@@ -16,9 +16,36 @@
                     <span class="playername">
                         {{ player.name }}
                     </span>
+                    <span class="player-role-badge" title="Role: {{ player.role }}">
+                        {% if player.role == 'gamemaster' %}
+                            {% if player.is_also_player %}
+                                [GM+P]
+                            {% else %}
+                                [GM]
+                            {% endif %}
+                        {% elif player.role == 'counter' %}
+                            [C]
+                        {% endif %}
+                    </span>
                 </div>
                 {% endif %}
             {% endfor %}
+            
+            {% if room.connected_spectators %}
+            <div class="spectators-section">
+                <div class="spectators-header">Spectators</div>
+                {% for player in room.connected_spectators %}
+                    <div id="{{ player.encoded_uuid }}" class="player-panel-entry spectator-entry">
+                        <span class="playername">
+                            {{ player.name }}
+                        </span>
+                        <span class="player-role-badge" title="Role: Spectator">
+                            [S]
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

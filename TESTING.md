@@ -55,15 +55,17 @@ python manage.py test --verbosity=2
 ```bash
 cd bingosync-websocket
 
-# Run all tests
-python -m unittest discover tests
+# Run all tests (recommended - sets up environment correctly)
+python run_tests.py
+
+# Alternative: Run with unittest discover (may have environment issues)
+python -m unittest discover tests -v
 
 # Run specific test module
-python -m unittest tests.test_internal_api_auth
-
-# Run with verbose output
-python -m unittest discover tests -v
+python -m unittest tests.test_internal_api_auth -v
 ```
+
+**Note:** The `run_tests.py` script is recommended as it ensures environment variables are set correctly before importing the app module.
 
 ## Current Test Coverage
 

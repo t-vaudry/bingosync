@@ -1,77 +1,102 @@
 [
     {
-        "name": "Enter Forest from out of bounds"
+        "name": "18 different Challenge Stars",
+        "tier": 19
     },
     {
-        "name": "Collect 17 challenge stars"
+        "name": "12 different Diffindo Challenge Stars",
+        "tier": 12
     },
     {
-        "name": "Activate both secrets in Willow from out of bounds"
+        "name": "All 16 beans on Lockhart's balcony",
+        "tier": 1
     },
     {
-        "name": "Buy the Nimbus 2001"
+        "name": "10 different Skurge Challenge Stars",
+        "tier": 10
     },
     {
-        "name": "Collect 53 wizard cards"
+        "name": "Defeat the Basilisk",
+        "tier": 23
     },
     {
-        "name": "Clip 4 gnomes out of bounds"
+        "name": "All Boomslang secrets",
+        "tier": 6
     },
     {
-        "name": "Finish the game"
+        "name": "6 different Challenge Stars from each spell challenge",
+        "tier": 25
     },
     {
-        "name": "Collect 31 challenge stars"
+        "name": "All Bicorn secrets",
+        "tier": 18
     },
     {
-        "name": "Let McGonagall fall down during the second Nick cutscene"
+        "name": "Win 2 Quidditch matches",
+        "tier": 14
     },
     {
-        "name": "Get all of the beans in the chasm"
+        "name": "Fix the Bridge in Slytherin",
+        "tier": 2
     },
     {
-        "name": "Get 2 keys"
+        "name": "Complete Rictusempra without jumping",
+        "tier": 13
     },
     {
-        "name": "Put 15 crabs into pits during Rictusempra"
+        "name": "Collect 16 beans around the tall tree in Forest",
+        "tier": 4
     },
     {
-        "name": "Empty 10 armor stands"
+        "name": "Throw a Gnome at Malfoy",
+        "tier": 7
     },
     {
-        "name": "Hit all of the ropes in the Aragog fight"
+        "name": "Collect 8 Secrets in Diffindo",
+        "tier": 21
     },
     {
-        "name": "Complete the Gryffindor Challenge"
+        "name": "Knock over 4 Gnomes with a mushroom",
+        "tier": 20
     },
     {
-        "name": "Get 8 Spongify challenge stars"
+        "name": "Kill 17 Pixies",
+        "tier": 22
     },
     {
-        "name": "Finish with 2000 beans"
+        "name": "Collect All 6 Cards in Bicorn",
+        "tier": 16
     },
     {
-        "name": "Knock over 8 flower pots"
+        "name": "Buy the Nimbus 2001",
+        "tier": 15
     },
     {
-        "name": "Get 10 Wizard Cards before entering Rictusempra"
+        "name": "Cut all Venomous Tentacula heads in Boomslang",
+        "tier": 3
     },
     {
-        "name": "Complete Diffindo without casting Diffindo"
+        "name": "Empty 9 flower pots",
+        "tier": 9
     },
     {
-        "name": "Get behind the Quidditch gate"
+        "name": "Cast at all 3 Gargoyles in Willow",
+        "tier": 5
     },
     {
-        "name": "Activate a potion cauldron with a gnome"
+        "name": "All 6 beans in the chasm",
+        "tier": 8
     },
     {
-        "name": "Avoid fire damage from the snake statues in Chamber"
+        "name": "Collect 12 unique Wiggentree Bark",
+        "tier": 24
     },
     {
-        "name": "Get all Slytherin secrets"
+        "name": "Cut off 15 tentacula heads",
+        "tier": 17
     },
     {
-        "name": "Collect 3 chocolate frogs in Boomslang"
+        "name": "Buy 3 Silver Wizard Cards",
+        "tier": 11
     }
 ]

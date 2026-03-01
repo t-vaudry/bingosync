@@ -52,11 +52,14 @@ if len(INTERNAL_API_SECRET) < 32:
     )
 
 if 'HTTP_SOCK' in os.environ:
-    BASE_DJANGO_URL = f"http+unix://{urllib.parse.quote_plus(os.environ['HTTP_SOCK'])}/"
+    BASE_DJANGO_URL = (
+        f"http+unix://{urllib.parse.quote_plus(os.environ['HTTP_SOCK'])}/")
 else:
     # In Docker, use the service name for internal communication
     DJANGO_HOST = os.getenv('DJANGO_INTERNAL_HOST', 'localhost:8000')
-    BASE_DJANGO_URL = f"http://{os.environ['DOMAIN']}/" if IS_PROD else f"http://{DJANGO_HOST}/"
+    BASE_DJANGO_URL = (
+        f"http://{os.environ['DOMAIN']}/" if IS_PROD
+        else f"http://{DJANGO_HOST}/")
 BASE_API_URL = BASE_DJANGO_URL + "api/"
 
 SOCKET_VERIFICATION_URL = BASE_API_URL + "socket/"
@@ -69,7 +72,8 @@ TIMEOUT_THRESHOLD = datetime.timedelta(seconds=60)
 
 DEFAULT_RETRY_COUNT = 5
 
-# whether we should clean up the broadcast sockets dictionary as people disconnect
+# whether we should clean up the broadcast sockets dictionary as people
+# disconnect
 CLEANUP_SOCKETS_DICT_ON_DISCONNECT = True
 
 # Rate limiting configuration for WebSocket connections
@@ -78,6 +82,8 @@ WS_RATE_LIMIT_CONNECTIONS = 20
 WS_RATE_LIMIT_WINDOW = 60  # seconds
 
 # https://lovelace.cluster.earlham.edu/mounts/lovelace/software/anaconda3/envs/qiime2-amplicon-2024.2/lib/python3.8/site-packages/jupyter_server/utils.py
+
+
 class UnixSocketResolver(Resolver):
     """A resolver that routes HTTP requests to unix sockets
     in tornado HTTP clients.
@@ -96,24 +102,33 @@ class UnixSocketResolver(Resolver):
         if '%2F' in host:
             return [(socket.AF_UNIX, urllib.parse.unquote_plus(host))]
         else:
-            return self.resolver.resolve(host, port, *args, **kwargs)
+            return await self.resolver.resolve(host, port, *args, **kwargs)
+
+
 resolver = UnixSocketResolver(resolver=Resolver())
 AsyncHTTPClient.configure(None, resolver=resolver)
 
 headers = {'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost'}
 
+
 def load_player_data(socket_key):
-    response = requests.get(SOCKET_VERIFICATION_URL + socket_key, headers=headers)
+    response = requests.get(
+        SOCKET_VERIFICATION_URL
+        + socket_key,
+        headers=headers)
     response_json = response.json()
     room_uuid = response_json["room"]
     player_uuid = response_json["player"]
     return room_uuid, player_uuid
 
+
 def post_player_connection(player_uuid):
     ping_with_retry(CONNECTION_URL + player_uuid)
 
+
 def post_player_disconnection(player_uuid):
     ping_with_retry(DISCONNECTION_URL + player_uuid)
+
 
 def ping_with_retry(url, retry_count=DEFAULT_RETRY_COUNT):
     def retry_callback(response):
@@ -126,7 +141,13 @@ def ping_with_retry(url, retry_count=DEFAULT_RETRY_COUNT):
         print("Ran out of retries, for url '" + url + "', giving up.")
 
     client = AsyncHTTPClient()
-    client.fetch(url.replace('http+unix://', 'http://'), retry_callback, headers=headers)
+    client.fetch(
+        url.replace(
+            'http+unix://',
+            'http://'),
+        retry_callback,
+        headers=headers)
+
 
 def format_defaultdict(ddict):
     if isinstance(ddict, defaultdict):
@@ -138,7 +159,7 @@ def format_defaultdict(ddict):
 def validate_internal_request(request_handler):
     """
     Validate that a request comes from Django using the shared secret.
-    
+
     Returns True if the request is authenticated, False otherwise.
     """
     auth_header = request_handler.request.headers.get('X-Internal-Secret')
@@ -148,14 +169,14 @@ def validate_internal_request(request_handler):
 class InternalAPIHandler(tornado.web.RequestHandler):
     """
     Base handler for internal API endpoints that require authentication.
-    
+
     Validates the X-Internal-Secret header before processing requests.
     """
-    
+
     def prepare(self):
         """
         Called before each request method.
-        
+
         Validates the internal API secret and returns 401 if invalid.
         """
         if not validate_internal_request(self):
@@ -172,39 +193,40 @@ class InternalAPIHandler(tornado.web.RequestHandler):
 class WebSocketRateLimiter:
     """
     Rate limiter for WebSocket connections.
-    
+
     Tracks connection attempts per IP address and enforces a limit of
     20 connections per minute per IP.
     """
-    
-    def __init__(self, max_connections=WS_RATE_LIMIT_CONNECTIONS, window_seconds=WS_RATE_LIMIT_WINDOW):
+
+    def __init__(self, max_connections=WS_RATE_LIMIT_CONNECTIONS,
+                 window_seconds=WS_RATE_LIMIT_WINDOW):
         self.max_connections = max_connections
         self.window_seconds = window_seconds
         # Dictionary mapping IP -> list of connection timestamps
         self.connection_attempts = defaultdict(list)
-    
+
     def is_rate_limited(self, ip_address):
         """
         Check if an IP address has exceeded the rate limit.
-        
+
         Returns True if rate limited, False otherwise.
         """
         now = time.time()
-        
+
         # Clean up old connection attempts outside the window
         self.connection_attempts[ip_address] = [
             timestamp for timestamp in self.connection_attempts[ip_address]
             if now - timestamp < self.window_seconds
         ]
-        
+
         # Check if we've exceeded the limit
         if len(self.connection_attempts[ip_address]) >= self.max_connections:
             return True
-        
+
         # Record this connection attempt
         self.connection_attempts[ip_address].append(now)
         return False
-    
+
     def cleanup_old_entries(self):
         """
         Periodically clean up old entries to prevent memory growth.
@@ -212,18 +234,18 @@ class WebSocketRateLimiter:
         """
         now = time.time()
         ips_to_remove = []
-        
+
         for ip_address, timestamps in self.connection_attempts.items():
             # Remove timestamps outside the window
             self.connection_attempts[ip_address] = [
                 timestamp for timestamp in timestamps
                 if now - timestamp < self.window_seconds
             ]
-            
+
             # If no recent attempts, mark for removal
             if not self.connection_attempts[ip_address]:
                 ips_to_remove.append(ip_address)
-        
+
         # Remove IPs with no recent attempts
         for ip_address in ips_to_remove:
             del self.connection_attempts[ip_address]
@@ -231,6 +253,7 @@ class WebSocketRateLimiter:
 
 # Global rate limiter instance
 WS_RATE_LIMITER = WebSocketRateLimiter()
+
 
 class SocketRouter:
 
@@ -241,8 +264,8 @@ class SocketRouter:
     def all_sockets(self):
         for room_sockets in self.sockets_by_room.values():
             for player_sockets in room_sockets.values():
-                for socket in player_sockets:
-                    yield socket
+                for ws in player_sockets:
+                    yield ws
 
     def log_sockets(self, message=None):
         if message:
@@ -251,37 +274,43 @@ class SocketRouter:
         print()
 
     def send_all(self, message):
-        print("sending message:", repr(message), "to", len(list(self.all_sockets)), "sockets")
-        for socket in self.all_sockets:
+        print("sending message:", repr(message), "to",
+              len(list(self.all_sockets)), "sockets")
+        for ws in self.all_sockets:
             try:
-                socket.send(message)
-            except:
-                pass
+                ws.send(message)
+            except Exception as e:
+                print(f"Failed to send message to socket: {e}")
 
     def ping_all(self):
-        for socket in list(self.all_sockets):
+        for ws in list(self.all_sockets):
             try:
-                socket.ping("boop".encode("utf8"))
+                ws.ping("boop".encode("utf8"))
             except tornado.websocket.WebSocketClosedError:
-                print("pinged socket that was already closed, unregistering", socket)
-                self.unregister(socket)
+                print(
+                    "pinged socket that was already closed, unregistering",
+                    ws)
+                self.unregister(ws)
 
     def kill_dead_sockets(self):
         threshold = datetime.datetime.now() - TIMEOUT_THRESHOLD
-        for socket in self.all_sockets:
-            if socket.last_pong < threshold:
-                print("closing dead socket:", socket)
+        # Iterate over a snapshot to avoid RuntimeError if unregister() mutates sockets_by_room
+        for ws in list(self.all_sockets):
+            if ws.last_pong < threshold:
+                print("closing dead socket:", ws)
                 try:
-                    socket.close()
+                    ws.close()
                 except tornado.websocket.WebSocketClosedError:
-                    print("socket already closed, attempting to unregister", socket)
-                    self.unregister(socket)
+                    print(
+                        "socket already closed, attempting to unregister",
+                        ws)
+                    self.unregister(ws)
 
     def send_to_room(self, room_uuid, message):
         room_sockets = self.sockets_by_room[room_uuid]
         for player_sockets in room_sockets.values():
-            for socket in player_sockets:
-                socket.send(message)
+            for ws in player_sockets:
+                ws.send(message)
 
     def register(self, room_uuid, player_uuid, socket):
         self.log_sockets("registering socket...")
@@ -312,7 +341,9 @@ class SocketRouter:
                     break
         self.log_sockets("unregistered")
 
+
 ROUTER = SocketRouter()
+
 
 class MainHandler(InternalAPIHandler):
 
@@ -328,7 +359,8 @@ class MainHandler(InternalAPIHandler):
 class ConnectedHandler(InternalAPIHandler):
 
     def get(self):
-        data = {room: list(players.keys()) for room, players in ROUTER.sockets_by_room.items()}
+        data = {room: list(players.keys())
+                for room, players in ROUTER.sockets_by_room.items()}
         self.write(json.dumps(data))
 
 
@@ -344,7 +376,7 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         """
         Validate WebSocket connection origin against allowed hosts.
-        
+
         Returns True if the origin is allowed, False otherwise.
         Logs rejected connections for security monitoring.
         """
@@ -352,37 +384,47 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
             # Parse the origin URL to extract the hostname
             parsed_origin = urllib.parse.urlparse(origin)
             origin_host = parsed_origin.hostname
-            
+
             # Check if the origin host is in ALLOWED_HOSTS
             if origin_host in ALLOWED_HOSTS:
                 return True
-            
+
             # Log rejected connection
             ip_address = self.request.remote_ip
-            print(f"WebSocket connection rejected: Origin '{origin}' (host: {origin_host}) not in ALLOWED_HOSTS. IP: {ip_address}")
+            print(
+                f"WebSocket connection rejected: Origin '{origin}' "
+                f"(host: {origin_host}) not in ALLOWED_HOSTS. "
+                f"IP: {ip_address}"
+            )
             return False
-            
+
         except Exception as e:
             # Log parsing errors and reject the connection
             ip_address = self.request.remote_ip
-            print(f"WebSocket connection rejected: Failed to parse origin '{origin}'. Error: {e}. IP: {ip_address}")
+            print(
+                f"WebSocket connection rejected: Failed to parse origin "
+                f"'{origin}'. Error: {e}. IP: {ip_address}"
+            )
             return False
-    
+
     def open(self):
         """
         Called when a new WebSocket connection is opened.
-        
+
         Checks rate limiting before allowing the connection.
         """
         # Get the client's IP address
         ip_address = self.request.remote_ip
-        
+
         # Check if this IP is rate limited
         if WS_RATE_LIMITER.is_rate_limited(ip_address):
-            print(f"Rate limit exceeded for WebSocket connection from {ip_address}")
-            self.close(code=1008, reason="Rate limit exceeded. Too many connection attempts.")
+            print(
+                f"Rate limit exceeded for WebSocket connection from {ip_address}")
+            self.close(
+                code=1008,
+                reason="Rate limit exceeded. Too many connection attempts.")
             return
-        
+
         print(f"WebSocket connection opened from {ip_address}")
 
     def send(self, message):
@@ -402,10 +444,13 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
             ROUTER.register(room_uuid, player_uuid, self)
         except Exception as e:
             traceback.print_exc()
-            self.send(json.dumps({"type": "error", "error": "unable to authenticate, try refreshing", "exception": str(e)}))
+            self.send(json.dumps({"type": "error",
+                                  "error": "unable to authenticate, try refreshing",
+                                  "exception": str(e)}))
 
     def on_close(self):
         ROUTER.unregister(self)
+
 
 application = tornado.web.Application([
     (r"/", MainHandler),
@@ -419,6 +464,7 @@ def periodic_ping():
     ROUTER.kill_dead_sockets()
     WS_RATE_LIMITER.cleanup_old_entries()
 
+
 if __name__ == "__main__":
     print("Starting application!")
     if SOCK is None:
@@ -426,7 +472,8 @@ if __name__ == "__main__":
         application.listen(PORT)
     else:
         if bind_unix_socket is None:
-            raise RuntimeError("Unix sockets are not supported on this platform (Windows)")
+            raise RuntimeError(
+                "Unix sockets are not supported on this platform (Windows)")
         print("Listening on socket: " + str(SOCK))
         server = HTTPServer(application)
         mysock = bind_unix_socket(SOCK, mode=0o666)

@@ -14,7 +14,7 @@ from django_ratelimit.exceptions import Ratelimited
 def ratelimit_login(view_func):
     """
     Rate limit login attempts to 10 per minute per IP address.
-    
+
     This prevents brute force password attacks.
     """
     @wraps(view_func)
@@ -27,7 +27,7 @@ def ratelimit_login(view_func):
 def ratelimit_registration(view_func):
     """
     Rate limit registration attempts to 5 per minute per IP address.
-    
+
     This prevents spam account creation.
     """
     @wraps(view_func)
@@ -40,7 +40,7 @@ def ratelimit_registration(view_func):
 def ratelimit_authenticated_action(view_func):
     """
     Rate limit authenticated actions to 100 per hour per user.
-    
+
     This prevents abuse of authenticated endpoints.
     Uses IP as fallback for unauthenticated requests.
     """
@@ -54,7 +54,7 @@ def ratelimit_authenticated_action(view_func):
 def handle_ratelimit(view_func):
     """
     Decorator to handle rate limit exceptions and return 429 Too Many Requests.
-    
+
     Should be applied as the outermost decorator.
     """
     @wraps(view_func)

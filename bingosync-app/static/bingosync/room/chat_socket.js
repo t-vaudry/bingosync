@@ -52,6 +52,9 @@ var ChatSocket = (function(){
                 this.playersPanel.removePlayer(json["player"]);
             }
         }
+        else if(json["type"] === "role_change") {
+            this.playersPanel.handleRoleChange(json);
+        }
         else if(json["type"] === "new-card") {
             // TODO: remove this external dependency
             // if the card was never revealed show what the seed was in the chat anyway

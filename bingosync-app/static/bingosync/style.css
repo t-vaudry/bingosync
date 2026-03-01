@@ -384,6 +384,8 @@
 }
 
 .player-panel-entry {
+    position: relative;
+    margin-bottom: 5px;
     white-space: nowrap;
 }
 
@@ -593,4 +595,70 @@
   margin: auto;
   max-width: fit-content;
   padding: 1px 3px;
+}
+
+/* Role Management Styles */
+.player-role-badge {
+    font-size: 0.85em;
+    color: #666;
+    margin-left: 5px;
+}
+
+.spectators-section {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+
+.spectators-header {
+    font-size: 0.9em;
+    color: #888;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.spectator-entry {
+    opacity: 0.8;
+}
+
+.spectator-entry .playername {
+    color: #999;
+}
+
+.role-change-btn {
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+}
+
+.role-change-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.role-change-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 10001;
+    min-width: 300px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.role-change-dialog .role-select {
+    margin: 10px 0;
+}
+
+.role-change-dialog .m-t-s {
+    margin-top: 15px;
 }

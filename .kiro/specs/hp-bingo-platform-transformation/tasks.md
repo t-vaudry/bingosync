@@ -317,7 +317,7 @@ Remove game type selection and simplify to HP CoS only.
 
 ## Phase 2: Core Features (Weeks 5-8)
 
-- [ ] 2.1 Create User Model with Statistics
+- [x] 2.1 Create User Model with Statistics
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 1.1
@@ -338,7 +338,7 @@ Extend Django's User model with statistics fields for tracking gameplay.
 
 ---
 
-- [ ] 2.2 Implement User Registration
+- [x] 2.2 Implement User Registration
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.1
@@ -363,7 +363,7 @@ Create user registration functionality with username, email, and password.
 ---
 
 
-- [ ] 2.3 Implement User Login/Logout
+- [x] 2.3 Implement User Login/Logout
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.2
@@ -387,7 +387,7 @@ Create login and logout functionality using username and password.
 
 ---
 
-- [ ] 2.4 Implement Password Reset
+- [x] 2.4 Implement Password Reset
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.3
@@ -410,7 +410,7 @@ Create password reset functionality via email.
 
 ---
 
-- [ ] 2.5 Enforce One Room Per User
+- [x] 2.5 Enforce One Room Per User
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 2.1
@@ -432,7 +432,7 @@ Enforce that users can only be in one room at a time.
 ---
 
 
-- [ ] 2.6 Create Role Enum and Model Fields
+- [x] 2.6 Create Role Enum and Model Fields
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 1.1
@@ -453,7 +453,7 @@ Add role system to Player model with four distinct roles.
 
 ---
 
-- [ ] 2.7 Implement Role-Based Permissions
+- [x] 2.7 Implement Role-Based Permissions
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.6
@@ -477,7 +477,7 @@ Implement permission checking for role-based actions.
 
 ---
 
-- [ ] 2.8 Implement Gamemaster Assignment Options
+- [x] 2.8 Implement Gamemaster Assignment Options
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.7
@@ -500,7 +500,7 @@ Allow room creator to choose GM-only or GM+Player role.
 ---
 
 
-- [ ] 2.9 Implement Role Change Functionality
+- [x] 2.9 Implement Role Change Functionality
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.7
@@ -637,7 +637,7 @@ Merge the feature/fog-of-war branch into main.
 ---
 
 
-- [ ] 3.2 Test Fog of War with Role System
+- [x] 3.2 Test Fog of War with Role System
   **Priority:** Feature
   **Estimated Time:** 3 hours
   **Dependencies:** Task 3.1, Task 2.7
@@ -648,6 +648,7 @@ Ensure fog of war works correctly with the new role system.
 **Acceptance Criteria:**
 - All roles see fog of war correctly
 - Spectators see only revealed squares
+- Counters see all squares
 - Gamemaster can reveal board (if implemented)
 - fog_of_war status in WebSocket messages
 - UI shows fog status clearly

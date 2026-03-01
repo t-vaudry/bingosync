@@ -40,8 +40,7 @@ if not INTERNAL_API_SECRET and not IS_TEST:
         "INTERNAL_API_SECRET environment variable is required. "
         "This secret is used to authenticate internal API calls between Django and Tornado. "
         "Generate a secure random string (32+ characters) using: "
-        "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
-    )
+        "python -c 'import secrets; print(secrets.token_urlsafe(32))'")
 if INTERNAL_API_SECRET and len(INTERNAL_API_SECRET) < 32 and not IS_TEST:
     raise ValueError(
         "INTERNAL_API_SECRET must be at least 32 characters long for security. "
@@ -74,8 +73,46 @@ if "DOMAIN" in os.environ:
 if "HTTP_SOCK" in os.environ:
     ALLOWED_HOSTS.append(urllib.parse.quote_plus(os.environ['HTTP_SOCK']))
 
-EMAIL_HOST = "localhost"
-EMAIL_PORT = 25
+# Email Configuration for Password Reset
+# For development, emails will be printed to console
+# For production, configure these environment variables:
+# - EMAIL_BACKEND: Email backend to use (default: console for dev, smtp for prod)
+# - EMAIL_HOST: SMTP server hostname (e.g., smtp.gmail.com)
+# - EMAIL_PORT: SMTP server port (default: 587 for TLS)
+# - EMAIL_HOST_USER: SMTP username
+# - EMAIL_HOST_PASSWORD: SMTP password
+# - EMAIL_USE_TLS: Use TLS encryption (recommended: True)
+# - DEFAULT_FROM_EMAIL: Email address to send from
+
+if DEBUG:
+    # In development, print emails to console instead of sending
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # In production, use SMTP
+    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND',
+                              'django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.getenv(
+        'EMAIL_USE_TLS',
+        'True').lower() in (
+        'true',
+        '1',
+        'yes')
+    EMAIL_USE_SSL = os.getenv(
+        'EMAIL_USE_SSL',
+        'False').lower() in (
+        'true',
+        '1',
+        'yes')
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bingosync.com')
+
+# Password reset token expiry (in seconds)
+# Default: 86400 seconds = 24 hours
+PASSWORD_RESET_TIMEOUT = 86400
 
 
 # Application definition
@@ -92,6 +129,28 @@ INSTALLED_APPS = (
     'crispy_bootstrap3',
     'bingosync'
 )
+
+# Custom User Model
+AUTH_USER_MODEL = 'bingosync.User'
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
 MIDDLEWARE = (
     'bingosync.middleware.RequestLoggingMiddleware',
@@ -118,14 +177,19 @@ if IS_PROD:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Security Headers
-# Enforce HTTPS in production
-if IS_PROD:
+# Enforce HTTPS in production (but not in tests)
+if IS_PROD and not IS_TEST:
     SECURE_SSL_REDIRECT = True
+else:
+    SECURE_SSL_REDIRECT = False  # Explicitly disable in dev/test
 
 # HSTS (HTTP Strict Transport Security)
 # Tells browsers to only access the site via HTTPS for 1 year
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+if IS_PROD:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+else:
+    SECURE_HSTS_SECONDS = 0  # Disable HSTS in dev/test
 
 # Prevent MIME type sniffing
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -139,7 +203,8 @@ X_FRAME_OPTIONS = 'DENY'
 # Content Security Policy (CSP) Headers
 # These will be added via middleware
 CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")  # Minimize inline scripts where possible
+# Minimize inline scripts where possible
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
 CSP_IMG_SRC = ("'self'", "data:")
 CSP_FONT_SRC = ("'self'",)
@@ -262,15 +327,19 @@ else:
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-#STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.CachedStaticFilesStorage'
+# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.CachedStaticFilesStorage'
 
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = (
-  os.path.join(BASE_DIR, 'static/'),
+    os.path.join(BASE_DIR, 'static/'),
 )
 
-STATIC_ROOT = os.getenv("STATIC_ROOT", os.path.join(os.path.dirname(BASE_DIR), 'static'))
+STATIC_ROOT = os.getenv(
+    "STATIC_ROOT",
+    os.path.join(
+        os.path.dirname(BASE_DIR),
+        'static'))
 
 
 INTERNAL_SOCKETS_URL = "127.0.0.1:8888"
@@ -280,12 +349,16 @@ if IS_PROD:
 else:
     SOCKETS_URL = "ws://" + os.getenv("SOCKETS_DOMAIN", INTERNAL_SOCKETS_URL)
 
-# used for publishing events from django to tornado, so can always go across localhost
+# used for publishing events from django to tornado, so can always go
+# across localhost
 if "WS_SOCK" in os.environ:
-    SOCKETS_PUBLISH_URL = f"http+unix://{urllib.parse.quote_plus(os.environ['WS_SOCK'])}"
+    SOCKETS_PUBLISH_URL = (
+        f"http+unix://{urllib.parse.quote_plus(os.environ['WS_SOCK'])}")
 else:
     # In Docker, use the service name for internal communication
-    SOCKETS_PUBLISH_HOST = os.getenv("SOCKETS_PUBLISH_HOST", INTERNAL_SOCKETS_URL)
+    SOCKETS_PUBLISH_HOST = os.getenv(
+        "SOCKETS_PUBLISH_HOST",
+        INTERNAL_SOCKETS_URL)
     SOCKETS_PUBLISH_URL = "http://" + SOCKETS_PUBLISH_HOST
 
 # Update CSP to allow WebSocket connections
@@ -299,6 +372,7 @@ else:
 # crispy forms confiuguration
 CRISPY_TEMPLATE_PACK = 'bootstrap3'
 
-# Calling django.setup() here works around an issue with running tests in parallel
-import django
-django.setup()
+# NOTE: django.setup() was previously called here to work around parallel test issues
+# However, this causes "populate() isn't reentrant" errors when running tests
+# The test runner calls django.setup() automatically, so this is not needed
+# django.setup()

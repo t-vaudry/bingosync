@@ -56,9 +56,20 @@
             <div class="flex-col-container page-container">
                 <div class="flex-col-header">
                     {% block page_header %}
-                            <a href="{% url 'rooms' %}">
-                                <h1>Bingosync</h1>
-                            </a>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <a href="{% url 'rooms' %}">
+                                    <h1>Bingosync</h1>
+                                </a>
+                                <div class="user-nav">
+                                    {% if user.is_authenticated %}
+                                        <span style="margin-right: 15px;">Welcome, <strong>{{ user.username }}</strong></span>
+                                        <a href="{% url 'logout' %}" class="btn btn-sm btn-default">Logout</a>
+                                    {% else %}
+                                        <a href="{% url 'login' %}" class="btn btn-sm btn-primary" style="margin-right: 5px;">Login</a>
+                                        <a href="{% url 'register' %}" class="btn btn-sm btn-default">Register</a>
+                                    {% endif %}
+                                </div>
+                            </div>
                     {% endblock %}
                 </div>
                 <div class="flex-col-content">
