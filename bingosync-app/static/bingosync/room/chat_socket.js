@@ -30,7 +30,6 @@ var ChatSocket = (function(){
 
     ChatSocket.prototype.onSocketMessage = function(evt) {
         var json = JSON.parse(evt.data);
-        //console.log(json);
         if (json["type"] === "error") {
             console.log("Got error message from socket: ", json);
             return;
@@ -44,7 +43,7 @@ var ChatSocket = (function(){
             this.playersPanel.updateGoalCounters(this.board);
         }
         else if(json["type"] === "connection") {
-            if(json["event_type"] === "connected" && !json["player"]["is_spectator"]) {
+            if(json["event_type"] === "connected") {
                 this.playersPanel.setPlayer(json["player"]);
                 this.playersPanel.updateGoalCounters(this.board);
             }

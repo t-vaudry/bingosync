@@ -44,7 +44,8 @@ from bingosync.decorators import (
     ratelimit_login,
     ratelimit_registration,
     ratelimit_authenticated_action,
-    handle_ratelimit
+    handle_ratelimit,
+    require_internal_api_secret
 )
 from bingosync.permissions import check_permission
 
@@ -61,21 +62,150 @@ def redirect_params(url, params=None, **kwargs):
     return response
 
 
+def landing(request):
+    """Main landing page - offers login or join as spectator."""
+    stats = {
+        "rooms": Room.objects.count(),
+        "games": Game.objects.count(),
+        "ticks": GoalEvent.objects.filter(remove_color=False).count(),
+        "unticks": GoalEvent.objects.filter(remove_color=True).count(),
+    }
+    
+    params = {
+        "stats": stats,
+    }
+    return render(request, "bingosync/landing.html", params)
+
+
+def join_by_code(request):
+    """Redirect to join room page (for direct URL access only)."""
+    room_code = request.GET.get('room_code', '').strip().upper()
+    
+    if not room_code:
+        return redirect('landing')
+    
+    try:
+        room = Room.get_for_room_code(room_code)
+        # Redirect to join room page
+        return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
+    except Room.DoesNotExist:
+        # Room not found - redirect back to landing with error
+        return redirect_params('landing', params={'error': 'invalid_code'})
+
+
+@handle_ratelimit
+@ratelimit_login
+def join_as_spectator(request):
+    """Join a room as spectator directly from landing page."""
+    if request.method != 'POST':
+        return redirect('landing')
+    
+    room_code = request.POST.get('room_code', '').strip().upper()
+    password = request.POST.get('password', '')
+    display_name = request.POST.get('display_name', '').strip()
+    
+    if not room_code or not display_name:
+        return redirect_params('landing', params={'error': 'missing_fields'})
+    
+    try:
+        room = Room.get_for_room_code(room_code)
+    except Room.DoesNotExist:
+        return redirect_params('landing', params={'error': 'invalid_code'})
+    
+    # Create join form with spectator data
+    form_data = {
+        'encoded_room_uuid': room.encoded_uuid,
+        'player_name': display_name,
+        'passphrase': password,
+        'role': Role.SPECTATOR,
+    }
+    
+    join_form = JoinRoomForm(data=form_data, room=room, user=None)
+    
+    if join_form.is_valid():
+        try:
+            player = join_form.create_player(user=None)
+            _save_session_player(request.session, player)
+            return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
+        except ValidationError as e:
+            return redirect_params('landing', params={'error': str(e)})
+    else:
+        # Form validation failed (likely wrong password)
+        error_msg = 'Invalid password or room details'
+        if 'passphrase' in join_form.errors:
+            error_msg = 'Incorrect password'
+        return redirect_params('landing', params={'error': error_msg})
+
+
+@handle_ratelimit
+@ratelimit_login
+def join_room_by_code(request):
+    """Join a room directly with code, password, and role (for authenticated users)."""
+    if request.method != 'POST':
+        return redirect('rooms')
+    
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    room_code = request.POST.get('room_code', '').strip().upper()
+    password = request.POST.get('password', '')
+    role = request.POST.get('role', 'player')
+    
+    if not room_code:
+        return redirect_params('rooms', params={'error': 'missing_code'})
+    
+    try:
+        room = Room.get_for_room_code(room_code)
+    except Room.DoesNotExist:
+        return redirect_params('rooms', params={'error': 'invalid_code'})
+    
+    # Create join form with the data
+    form_data = {
+        'encoded_room_uuid': room.encoded_uuid,
+        'player_name': request.user.username,
+        'passphrase': password,
+        'role': role,
+    }
+    
+    join_form = JoinRoomForm(data=form_data, room=room, user=request.user)
+    
+    if join_form.is_valid():
+        try:
+            player = join_form.create_player(user=request.user)
+            _save_session_player(request.session, player)
+            return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
+        except ValidationError as e:
+            return redirect_params('rooms', params={'error': str(e)})
+    else:
+        # Form validation failed (likely wrong password)
+        error_msg = 'Invalid password or room details'
+        if 'passphrase' in join_form.errors:
+            error_msg = 'Incorrect password'
+        return redirect_params('rooms', params={'error': error_msg})
+
+
 @handle_ratelimit
 @ratelimit_registration
 def rooms(request):
+    """Dashboard for authenticated users - room creation and management."""
+    # Require authentication
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
     if request.method == "POST":
-        form = RoomForm(request.POST)
+        form = RoomForm(request.POST, user=request.user)
         if form.is_valid():
             try:
                 # Pass the authenticated user to create_room
-                user = request.user if request.user.is_authenticated else None
-                room = form.create_room(user=user)
+                room = form.create_room(user=request.user)
                 creator = room.creator
                 _save_session_player(request.session, creator)
+                # Show room code in success message
                 return redirect_params(
                     "room_view", encoded_room_uuid=room.encoded_uuid, params={
-                        'password': form.cleaned_data['passphrase']})
+                        'password': form.cleaned_data['passphrase'],
+                        'created': 'true'
+                    })
             except ValidationError as e:
                 # Handle one-room-per-user validation error
                 form.add_error(None, str(e))
@@ -87,7 +217,7 @@ def rooms(request):
                     "custom_json", "")[
                     :2000])
     else:
-        form = RoomForm()
+        form = RoomForm(user=request.user)
 
     stats = {
         "rooms": Room.objects.count(),
@@ -167,7 +297,12 @@ def login(request):
                         'REMOTE_ADDR',
                         'unknown'))
 
-                # Redirect to homepage after login
+                # Check if there's a next parameter
+                next_url = request.GET.get('next')
+                if next_url:
+                    return redirect(next_url)
+                
+                # Redirect to dashboard after login
                 return redirect("rooms")
             else:
                 # Login failed - create a new form with the error
@@ -201,8 +336,8 @@ def logout(request):
         auth_logout(request)
         logger.info("User logged out: %s", username)
 
-    # Redirect to homepage after logout
-    return redirect("rooms")
+    # Redirect to landing page after logout
+    return redirect("landing")
 
 
 @handle_ratelimit
@@ -236,7 +371,6 @@ def room_view(request, encoded_room_uuid):
                 "lockout_mode": room.current_game.lockout_mode.value,
                 "fog_of_war": room.current_game.fog_of_war,
                 "hide_card": room.hide_card,
-                "size": room.current_game.size,
             }
             new_card_form = RoomForm(initial=initial_values)
             new_card_form.helper.layout = Layout(
@@ -245,7 +379,6 @@ def room_view(request, encoded_room_uuid):
                 "custom_json",
                 "lockout_mode",
                 "seed",
-                "size",
                 "hide_card",
                 "fog_of_war",
             )
@@ -264,7 +397,7 @@ def room_view(request, encoded_room_uuid):
             }
             return render(request, "bingosync/bingosync.html", params)
     except NotAuthenticatedError:
-        join_form = JoinRoomForm.for_room(room)
+        join_form = JoinRoomForm.for_room(room, user=request.user)
         if 'password' in request.GET:
             join_form.initial['passphrase'] = request.GET['password']
         return _join_room(request, join_form, room)
@@ -398,7 +531,6 @@ def new_card(request):
         fog_of_war = False
     hide_card = data["hide_card"]
     seed = data["seed"]
-    size = data['size']
     custom_json = data.get("custom_json", "")
 
     # create new game
@@ -414,7 +546,8 @@ def new_card(request):
     generator = game_type.generator_instance()
 
     try:
-        custom_board = generator.validate_custom_json(custom_json, size=size)
+        # Always use 5x5 board
+        custom_board = generator.validate_custom_json(custom_json, size=5)
     except InvalidBoardException as e:
         return HttpResponseBadRequest("Invalid board: " + str(e))
 
@@ -422,7 +555,8 @@ def new_card(request):
         seed = "" if game_type.uses_seed else "0"
 
     try:
-        seed, board_json = game_type.generator_instance().get_card(seed, custom_board, size)
+        # Always use 5x5 board
+        seed, board_json = game_type.generator_instance().get_card(seed, custom_board, 5)
     except GeneratorException as e:
         return HttpResponseBadRequest(str(e))
 
@@ -512,7 +646,12 @@ def room_disconnect(request, encoded_room_uuid):
         request.user.save()
 
     _clear_session_player(request.session, room)
-    return redirect("rooms")
+    
+    # Redirect authenticated users to dashboard, anonymous to landing
+    if request.user.is_authenticated:
+        return redirect("rooms")
+    else:
+        return redirect("landing")
 
 
 @handle_ratelimit
@@ -688,7 +827,7 @@ def join_room_api(request):
         "passphrase": raw_data["password"],
         "role": raw_data.get("role", Role.PLAYER),
     }
-    join_form = JoinRoomForm(data=form_data, room=room)
+    join_form = JoinRoomForm(data=form_data, room=room, user=request.user)
     if join_form.is_valid():
         try:
             # Pass the authenticated user to create_player
@@ -716,8 +855,8 @@ def get_socket_key(request, encoded_room_uuid):
     return JsonResponse(data)
 
 
-# TODO: add authentication to limit this route to tornado
 @csrf_exempt
+@require_internal_api_secret
 def user_connected(request, encoded_player_uuid):
     player = Player.get_for_encoded_uuid(encoded_player_uuid)
     if player is not ANON_PLAYER:
@@ -729,6 +868,7 @@ def user_connected(request, encoded_player_uuid):
 
 
 @csrf_exempt
+@require_internal_api_secret
 def user_disconnected(request, encoded_player_uuid):
     player = Player.get_for_encoded_uuid(encoded_player_uuid)
     if player is not ANON_PLAYER:
@@ -736,9 +876,8 @@ def user_disconnected(request, encoded_player_uuid):
         publish_connection_event(connection_event)
     return HttpResponse()
 
-# TODO: add authentication to limit this route to tornado
 
-
+@require_internal_api_secret
 def check_socket_key(request, socket_key):
     try:
         kind, encoded_player_uuid = _get_temporary_socket_player_uuid(

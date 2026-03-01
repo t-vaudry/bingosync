@@ -267,6 +267,19 @@ USE_L10N = True
 USE_TZ = True
 
 
+# Cache Configuration
+# https://docs.djangoproject.com/en/4.2/topics/cache/
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/0'),
+        'KEY_PREFIX': 'bingosync',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    }
+}
+
+
 # Logging
 # https://docs.djangoproject.com/en/1.8/topics/logging/
 

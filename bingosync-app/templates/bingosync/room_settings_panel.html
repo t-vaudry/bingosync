@@ -12,6 +12,12 @@
     <div class="panel-body">
         <div class="table-wrapper">
             <table id="settings-table" >
+                <tr><td><b>Room Code:</b></td><td>
+                    <span style="letter-spacing: 1px;">{{ room.room_code }}</span>
+                    <button onclick="copyRoomCode(event)" class="btn btn-xs btn-default" style="margin-left: 5px;" title="Copy room code">
+                        <span class="glyphicon glyphicon-copy"></span>
+                    </button>
+                </td></tr>
                 <tr><td><b>Seed:</b></td><td>
                     <span id="the-seed">
                         {% if room.settings.hide_card %}

@@ -25,6 +25,7 @@ STALE_THRESHOLD = datetime.timedelta(minutes=90)
 class Room(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False)
     name = models.CharField(max_length=255)
+    room_code = models.CharField(max_length=8, unique=True, db_index=True, help_text="Short code for joining room")
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
     passphrase = models.CharField(max_length=255)
     active = models.BooleanField("Active", default=False)
@@ -64,6 +65,35 @@ class Room(models.Model):
     def get_for_encoded_uuid_or_404(encoded_room_uuid):
         try:
             return Room.get_for_encoded_uuid(encoded_room_uuid)
+        except Room.DoesNotExist:
+            raise Http404
+
+    @staticmethod
+    def generate_room_code():
+        """Generate a unique 6-character room code."""
+        import random
+        import string
+        
+        while True:
+            # Generate 6-character code (uppercase letters and digits)
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            # Check if code already exists
+            if not Room.objects.filter(room_code=code).exists():
+                return code
+
+    @staticmethod
+    def get_for_room_code(room_code):
+        """Get room by room code."""
+        try:
+            return Room.objects.get(room_code=room_code.upper())
+        except Room.DoesNotExist:
+            raise Room.DoesNotExist(f"Room with code '{room_code}' not found")
+
+    @staticmethod
+    def get_for_room_code_or_404(room_code):
+        """Get room by room code or raise 404."""
+        try:
+            return Room.get_for_room_code(room_code)
         except Room.DoesNotExist:
             raise Http404
 
@@ -308,6 +338,16 @@ class Player(models.Model):
         default=Color.player_default().value,
         choices=Color.player_choices())
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
+
+    # User link (nullable for anonymous spectators)
+    user = models.ForeignKey(
+        'User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='player_sessions',
+        help_text='Linked user account (null for anonymous spectators)'
+    )
 
     # Role system fields
     role = models.CharField(

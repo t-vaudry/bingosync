@@ -113,9 +113,11 @@ headers = {'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost'}
 
 def load_player_data(socket_key):
     response = requests.get(
-        SOCKET_VERIFICATION_URL
-        + socket_key,
-        headers=headers)
+        SOCKET_VERIFICATION_URL + socket_key,
+        headers={
+            'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost',
+            'X-Internal-Secret': INTERNAL_API_SECRET
+        })
     response_json = response.json()
     room_uuid = response_json["room"]
     player_uuid = response_json["player"]
@@ -140,13 +142,19 @@ def ping_with_retry(url, retry_count=DEFAULT_RETRY_COUNT):
     if retry_count <= 0:
         print("Ran out of retries, for url '" + url + "', giving up.")
 
+    # Include internal API secret for authentication
+    auth_headers = {
+        'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost',
+        'X-Internal-Secret': INTERNAL_API_SECRET
+    }
+    
     client = AsyncHTTPClient()
     client.fetch(
         url.replace(
             'http+unix://',
             'http://'),
         retry_callback,
-        headers=headers)
+        headers=auth_headers)
 
 
 def format_defaultdict(ddict):

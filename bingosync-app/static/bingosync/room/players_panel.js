@@ -7,44 +7,102 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype.setPlayer = function(playerJson) {
+        var isSpectator = playerJson["role"] === "spectator";
+        
         if(this.$playersPanel.find("#" + playerJson["uuid"]).length === 0) {
-            // insert if the uuid is not already listed
-            var colorClass = getSquareColorClass(playerJson["color"]);
-            var goalCounter = $("<span>", {"class": "goalcounter " + colorClass, html: "<span class=\"squarecounter\" title=\"Squares with color.\">0</span> <span class=\"rowcounter\" title=\"Rows with color.\">(0)</span>"});
-
-            var playerName = $("<span>", {"class": "playername", text: " " + playerJson["name"]});
-            
-            // Add role badge
-            var roleBadge = this._createRoleBadge(playerJson);
-            
-            var playerDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry"});
-            playerDiv.append(goalCounter);
-            playerDiv.append(playerName);
-            playerDiv.append(roleBadge);
-            
-            // Add role management button if current player is gamemaster
-            if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
-                var roleButton = this._createRoleButton(playerJson);
-                playerDiv.append(roleButton);
+            // Player doesn't exist, insert them
+            if (isSpectator) {
+                this._addSpectator(playerJson);
+            } else {
+                this._addPlayer(playerJson);
             }
-
-            this.$playersPanel.insertOnce(playerDiv, function($possibleNext) {
-                var possibleNextName = $.trim($possibleNext.find(".playername").text()).toLowerCase();
-                return possibleNextName > playerJson["name"].toLowerCase();
-            });
         } else {
-            // otherwise update the player's color
+            // Player exists, update them
             var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
-            var $playerGoalCounter = $playerEntry.find(".goalcounter");
-            COLORS.forEach(function(color) {
-                $playerGoalCounter.removeClass(getSquareColorClass(color));
-            });
-            $playerGoalCounter.addClass(getSquareColorClass(playerJson["color"]));
             
-            // Update role badge
-            var $roleBadge = $playerEntry.find(".player-role-badge");
-            $roleBadge.replaceWith(this._createRoleBadge(playerJson));
+            // Check if role changed (e.g., player became spectator or vice versa)
+            var wasSpectator = $playerEntry.hasClass("spectator-entry");
+            if (isSpectator !== wasSpectator) {
+                // Role changed between spectator and non-spectator, remove and re-add
+                $playerEntry.remove();
+                if (isSpectator) {
+                    this._addSpectator(playerJson);
+                } else {
+                    this._addPlayer(playerJson);
+                }
+            } else {
+                // Just update the existing entry
+                if (!isSpectator) {
+                    // Update color for non-spectators
+                    var $playerGoalCounter = $playerEntry.find(".goalcounter");
+                    COLORS.forEach(function(color) {
+                        $playerGoalCounter.removeClass(getSquareColorClass(color));
+                    });
+                    $playerGoalCounter.addClass(getSquareColorClass(playerJson["color"]));
+                }
+                
+                // Update role badge
+                var $roleBadge = $playerEntry.find(".player-role-badge");
+                $roleBadge.replaceWith(this._createRoleBadge(playerJson));
+            }
         }
+    };
+
+    PlayersPanel.prototype._addPlayer = function(playerJson) {
+        var colorClass = getSquareColorClass(playerJson["color"]);
+        var goalCounter = $("<span>", {"class": "goalcounter " + colorClass, html: "<span class=\"squarecounter\" title=\"Squares with color.\">0</span> <span class=\"rowcounter\" title=\"Rows with color.\">(0)</span>"});
+
+        var playerName = $("<span>", {"class": "playername", text: " " + playerJson["name"]});
+        
+        // Add role badge
+        var roleBadge = this._createRoleBadge(playerJson);
+        
+        var playerDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry"});
+        playerDiv.append(goalCounter);
+        playerDiv.append(playerName);
+        playerDiv.append(roleBadge);
+        
+        // Add role management button if current player is gamemaster
+        if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
+            var roleButton = this._createRoleButton(playerJson);
+            playerDiv.append(roleButton);
+        }
+
+        // Insert before spectators section if it exists, otherwise at end
+        var $spectatorsSection = this.$playersPanel.find(".spectators-section");
+        if ($spectatorsSection.length > 0) {
+            $spectatorsSection.before(playerDiv);
+        } else {
+            this.$playersPanel.append(playerDiv);
+        }
+    };
+
+    PlayersPanel.prototype._addSpectator = function(playerJson) {
+        var playerName = $("<span>", {"class": "playername", text: " " + playerJson["name"]});
+        var roleBadge = this._createRoleBadge(playerJson);
+        
+        var spectatorDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry spectator-entry"});
+        spectatorDiv.append(playerName);
+        spectatorDiv.append(roleBadge);
+        
+        // Add role management button if current player is gamemaster
+        if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
+            var roleButton = this._createRoleButton(playerJson);
+            spectatorDiv.append(roleButton);
+        }
+        
+        // Ensure spectators section exists
+        var $spectatorsSection = this.$playersPanel.find(".spectators-section");
+        if ($spectatorsSection.length === 0) {
+            // Create spectators section
+            $spectatorsSection = $("<div>", {"class": "spectators-section"});
+            var header = $("<div>", {"class": "spectators-header", text: "Spectators"});
+            $spectatorsSection.append(header);
+            this.$playersPanel.append($spectatorsSection);
+        }
+        
+        // Add spectator to the section
+        $spectatorsSection.append(spectatorDiv);
     };
 
     PlayersPanel.prototype._createRoleBadge = function(playerJson) {
@@ -174,7 +232,17 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype.removePlayer = function(playerJson) {
-        this.$playersPanel.find("#" + playerJson["uuid"]).remove();
+        var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
+        var wasSpectator = $playerEntry.hasClass("spectator-entry");
+        $playerEntry.remove();
+        
+        // If it was a spectator and spectators section is now empty (only header), remove the section
+        if (wasSpectator) {
+            var $spectatorsSection = this.$playersPanel.find(".spectators-section");
+            if ($spectatorsSection.find(".spectator-entry").length === 0) {
+                $spectatorsSection.remove();
+            }
+        }
     };
 
     PlayersPanel.prototype.updateGoalCounters = function(board) {

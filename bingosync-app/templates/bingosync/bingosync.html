@@ -152,5 +152,25 @@
         chatPanel.reloadChatHistory(/*full=*/false);
         chatSocket.init(temporarySocketKey);
     });
+    
+    // Function to copy room code to clipboard
+    function copyRoomCode(event) {
+        var roomCode = "{{ room.room_code }}";
+        navigator.clipboard.writeText(roomCode).then(function() {
+            // Show success feedback
+            var btn = event.target.closest('button');
+            var originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="glyphicon glyphicon-ok"></span>';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-default');
+            setTimeout(function() {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-default');
+            }, 2000);
+        }).catch(function(err) {
+            alert('Failed to copy room code: ' + err);
+        });
+    }
 </script>
 {% endblock %}

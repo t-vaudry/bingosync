@@ -883,6 +883,42 @@ Cache generated boards by seed value to avoid regeneration.
 
 ---
 
+- [x] 3.13 Force login to create/join rooms as players/counters
+  **Priority:** Feature
+  **Estimated Time:** 4 hours
+  **Dependencies:** Task 2.2, Task 2.3
+
+  **Description:**
+For users to be able to use the application as a gamemaster, player or counter, they must login. Spectators can remain anonymous, and have a displayname.
+
+**Acceptance Criteria:**
+- Room creation requires authentication (redirect to login if not authenticated)
+- Joining as Player requires authentication (redirect to login if not authenticated)
+- Joining as Counter requires authentication (redirect to login if not authenticated)
+- Joining as Spectator does NOT require authentication (anonymous allowed)
+- Authenticated users: nickname automatically set to user.username (field pre-filled and read-only or hidden)
+- Anonymous spectators: nickname field remains editable and required
+- Authenticated users have their User instance linked to Player model
+- Anonymous spectators have NULL user field in Player model
+- Login redirect preserves intended action (return to room creation/join after login)
+- Clear UI messaging: "Login required to play" for Player/Counter roles
+- RoomForm validates user is authenticated when is_spectator=False
+- JoinRoomForm validates user is authenticated when role != SPECTATOR
+- Player.name is set to user.username for authenticated users automatically
+- Player model user field is nullable (for anonymous spectators)
+- WebSocket authentication works for both authenticated and anonymous users
+
+**Files to Modify:**
+- `bingosync-app/bingosync/views.py` (add @login_required decorator to room creation, conditional check for join)
+- `bingosync-app/bingosync/forms.py` (add validation in RoomForm.create_room() and JoinRoomForm.clean())
+- `bingosync-app/bingosync/models/rooms.py` (ensure Player.user is nullable with null=True, blank=True)
+- `bingosync-app/templates/bingosync/index.html` (add messaging about login requirement)
+- `bingosync-app/templates/bingosync/join_room.html` (add messaging about login requirement for non-spectators)
+- `bingosync-app/bingosync/decorators.py` (create conditional_login_required decorator if needed)
+- `bingosync-websocket/app.py` (ensure WebSocket handles anonymous spectators correctly)
+
+---
+
 ## Phase 4: Statistics & Quality (Weeks 13-16)
 
 - [ ] 4.1 Create Achievement Model

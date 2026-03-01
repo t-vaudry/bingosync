@@ -6,9 +6,36 @@ to protect against brute force attacks and DoS.
 """
 
 from functools import wraps
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
+
+
+def require_internal_api_secret(view_func):
+    """
+    Decorator to validate internal API requests from Tornado.
+    
+    Checks for the X-Internal-Secret header and validates it against
+    the configured INTERNAL_API_SECRET.
+    
+    Returns 401 Unauthorized if the secret is missing or invalid.
+    """
+    @wraps(view_func)
+    def wrapped(request, *args, **kwargs):
+        from bingosync.settings import INTERNAL_API_SECRET
+        
+        auth_header = request.headers.get('X-Internal-Secret')
+        if auth_header != INTERNAL_API_SECRET:
+            return JsonResponse(
+                {
+                    'error': 'Unauthorized',
+                    'message': 'Invalid or missing X-Internal-Secret header'
+                },
+                status=401
+            )
+        
+        return view_func(request, *args, **kwargs)
+    return wrapped
 
 
 def ratelimit_login(view_func):
