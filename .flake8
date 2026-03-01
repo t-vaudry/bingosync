@@ -1,0 +1,10 @@
+[flake8]
+max-line-length = 99
+exclude =
+    */migrations/*,
+    .git,
+    __pycache__,
+    */static/*,
+    */templates/*
+# W503: line break before binary operator (preferred by PEP 8)
+ignore = W503

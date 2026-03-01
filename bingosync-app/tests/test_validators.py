@@ -247,11 +247,15 @@ class SanitizeTextInputTestCase(TestCase):
 
     def test_sanitize_removes_control_characters(self):
         """Sanitization should remove control characters."""
-        self.assertEqual(sanitize_text_input("text\x00with\x1fcontrol"), "textwithcontrol")
+        self.assertEqual(
+            sanitize_text_input("text\x00with\x1fcontrol"),
+            "textwithcontrol")
 
     def test_sanitize_normalizes_whitespace(self):
         """Sanitization should normalize multiple spaces to single space."""
-        self.assertEqual(sanitize_text_input("text  with   spaces"), "text with spaces")
+        self.assertEqual(
+            sanitize_text_input("text  with   spaces"),
+            "text with spaces")
 
     def test_sanitize_empty_input(self):
         """Sanitization should handle empty input."""

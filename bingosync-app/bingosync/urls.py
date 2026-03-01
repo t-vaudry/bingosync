@@ -24,9 +24,9 @@ urlpatterns = [
     url(r'^register/$', views.register, name='register'),
     url(r'^login/$', views.login, name='login'),
     url(r'^logout/$', views.logout, name='logout'),
-    
+
     # Password reset URLs
-    url(r'^password-reset/$', 
+    url(r'^password-reset/$',
         auth_views.PasswordResetView.as_view(
             template_name='bingosync/password_reset_form.html',
             email_template_name='bingosync/password_reset_email.html',
@@ -34,30 +34,40 @@ urlpatterns = [
             success_url='/password-reset/done/'
         ),
         name='password_reset'),
-    url(r'^password-reset/done/$', 
+    url(r'^password-reset/done/$',
         auth_views.PasswordResetDoneView.as_view(
             template_name='bingosync/password_reset_done.html'
         ),
         name='password_reset_done'),
-    url(r'^password-reset-confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,32})/$', 
+    url(
+        r'^password-reset-confirm/'
+        r'(?P<uidb64>[0-9A-Za-z_\-]+)/'
+        r'(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,32})/$',
         auth_views.PasswordResetConfirmView.as_view(
             template_name='bingosync/password_reset_confirm.html',
             success_url='/password-reset-complete/'
         ),
         name='password_reset_confirm'),
-    url(r'^password-reset-complete/$', 
+    url(r'^password-reset-complete/$',
         auth_views.PasswordResetCompleteView.as_view(
             template_name='bingosync/password_reset_complete.html'
         ),
         name='password_reset_complete'),
-    
-    url(r'^room/(?P<encoded_room_uuid>.+)/board$', views.room_board, name='room_board'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/scores$', views.room_scores, name='room_scores'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/scores2$', views.room_scores2, name='room_scores2'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/feed$', views.room_feed, name='room_feed'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/disconnect$', views.room_disconnect, name='room_disconnect'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/room-settings$', views.room_settings, name='room_settings'),
-    url(r'^room/(?P<encoded_room_uuid>.+)/stream$', views.room_stream, name='room_stream'),
+
+    url(r'^room/(?P<encoded_room_uuid>.+)/board$',
+        views.room_board, name='room_board'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/scores$',
+        views.room_scores, name='room_scores'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/scores2$',
+        views.room_scores2, name='room_scores2'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/feed$',
+        views.room_feed, name='room_feed'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/disconnect$',
+        views.room_disconnect, name='room_disconnect'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/room-settings$',
+        views.room_settings, name='room_settings'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/stream$',
+        views.room_stream, name='room_stream'),
     url(r'^room/(?P<encoded_room_uuid>.+)$', views.room_view, name='room_view'),
     url(r'^history', views.history, name='history'),
     url(r'^convert', views.goal_converter, name='goal_converter'),
@@ -69,10 +79,14 @@ urlpatterns = [
     url(r'^api/assign-role$', views.assign_role, name='assign_role'),
     url(r'^api/new-card$', views.new_card, name='new_card'),
     url(r'^api/join-room$', views.join_room_api, name='join_room_api'),
-    url(r'^api/get-socket-key/(?P<encoded_room_uuid>.+)$', views.get_socket_key, name='get_socket_key'),
-    url(r'^api/connected/(?P<encoded_player_uuid>.+)$', views.user_connected, name='user_connected'),
-    url(r'^api/disconnected/(?P<encoded_player_uuid>.+)$', views.user_disconnected, name='user_disconnected'),
-    url(r'^api/socket/(?P<socket_key>.+)$', views.check_socket_key, name='check_socket_key'),
+    url(r'^api/get-socket-key/(?P<encoded_room_uuid>.+)$',
+        views.get_socket_key, name='get_socket_key'),
+    url(r'^api/connected/(?P<encoded_player_uuid>.+)$',
+        views.user_connected, name='user_connected'),
+    url(r'^api/disconnected/(?P<encoded_player_uuid>.+)$',
+        views.user_disconnected, name='user_disconnected'),
+    url(r'^api/socket/(?P<socket_key>.+)$',
+        views.check_socket_key, name='check_socket_key'),
     url(r'^api/reconcile$', views.reconcile_connections, name='reconcile'),
     url(r'^admin/', admin.site.urls),
 ]

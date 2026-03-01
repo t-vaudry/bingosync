@@ -2,6 +2,7 @@ from django import test
 
 from bingosync.models import game_type
 
+
 class GametypeTestCase(test.SimpleTestCase):
 
     def test_game_type_consistency(self):

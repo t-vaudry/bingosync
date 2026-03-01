@@ -2,6 +2,7 @@
 Tests for role change functionality (Task 2.9).
 """
 
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from bingosync.models.rooms import Room, Game, Player
@@ -14,9 +15,10 @@ import json
 User = get_user_model()
 
 
+@patch('bingosync.publish.requests.put')
 class RoleChangeTestCase(TestCase):
     """Test role change functionality."""
-    
+
     def setUp(self):
         """Set up test fixtures."""
         # Create users
@@ -30,13 +32,13 @@ class RoleChangeTestCase(TestCase):
             email='player1@test.com',
             password='testpass123'
         )
-        
+
         # Create room
         self.room = Room.objects.create(
             name='Test Room',
             passphrase='test123'
         )
-        
+
         # Create game
         self.game = Game.objects.create(
             room=self.room,
@@ -44,7 +46,7 @@ class RoleChangeTestCase(TestCase):
             size=5,
             game_type_value=GameType.hp_cos.value
         )
-        
+
         # Create gamemaster player
         self.gm_player = Player.objects.create(
             room=self.room,
@@ -53,7 +55,7 @@ class RoleChangeTestCase(TestCase):
             is_also_player=True,
             color_value=Color.orange.value
         )
-        
+
         # Create regular player
         self.regular_player = Player.objects.create(
             room=self.room,
@@ -61,21 +63,21 @@ class RoleChangeTestCase(TestCase):
             role=Role.PLAYER,
             color_value=Color.blue.value
         )
-        
+
         self.client = Client()
-    
-    def test_gamemaster_can_change_role(self):
+
+    def test_gamemaster_can_change_role(self, mock_put):
         """Test that Gamemaster can change another player's role."""
         # Login as gamemaster
         self.client.force_login(self.gm_user)
-        
+
         # Store session player
         session = self.client.session
         session['authorized_rooms'] = {
             self.room.encoded_uuid: self.gm_player.encoded_uuid
         }
         session.save()
-        
+
         # Change regular player's role to Counter
         response = self.client.post(
             '/api/assign-role',
@@ -86,36 +88,36 @@ class RoleChangeTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         # Verify role was changed
         self.regular_player.refresh_from_db()
         self.assertEqual(self.regular_player.role, Role.COUNTER)
-        
+
         # Verify RoleChangeEvent was created
         role_change_events = RoleChangeEvent.objects.filter(
             player=self.gm_player,
             target_player=self.regular_player
         )
         self.assertEqual(role_change_events.count(), 1)
-        
+
         event = role_change_events.first()
         self.assertEqual(event.old_role, Role.PLAYER)
         self.assertEqual(event.new_role, Role.COUNTER)
-    
-    def test_regular_player_cannot_change_role(self):
+
+    def test_regular_player_cannot_change_role(self, mock_put):
         """Test that regular Player cannot change roles."""
         # Login as regular player
         self.client.force_login(self.player_user)
-        
+
         # Store session player
         session = self.client.session
         session['authorized_rooms'] = {
             self.room.encoded_uuid: self.regular_player.encoded_uuid
         }
         session.save()
-        
+
         # Try to change gamemaster's role
         response = self.client.post(
             '/api/assign-role',
@@ -126,26 +128,26 @@ class RoleChangeTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be forbidden
         self.assertEqual(response.status_code, 403)
-        
+
         # Verify role was NOT changed
         self.gm_player.refresh_from_db()
         self.assertEqual(self.gm_player.role, Role.GAMEMASTER)
-    
-    def test_role_change_to_gamemaster_sets_is_also_player(self):
+
+    def test_role_change_to_gamemaster_sets_is_also_player(self, mock_put):
         """Test that changing to Gamemaster sets is_also_player to True."""
         # Login as gamemaster
         self.client.force_login(self.gm_user)
-        
+
         # Store session player
         session = self.client.session
         session['authorized_rooms'] = {
             self.room.encoded_uuid: self.gm_player.encoded_uuid
         }
         session.save()
-        
+
         # Change regular player's role to Gamemaster
         response = self.client.post(
             '/api/assign-role',
@@ -156,26 +158,26 @@ class RoleChangeTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         # Verify is_also_player was set
         self.regular_player.refresh_from_db()
         self.assertEqual(self.regular_player.role, Role.GAMEMASTER)
         self.assertTrue(self.regular_player.is_also_player)
-    
-    def test_role_change_from_gamemaster_clears_is_also_player(self):
+
+    def test_role_change_from_gamemaster_clears_is_also_player(self, mock_put):
         """Test that changing from Gamemaster clears is_also_player."""
         # Login as gamemaster
         self.client.force_login(self.gm_user)
-        
+
         # Store session player
         session = self.client.session
         session['authorized_rooms'] = {
             self.room.encoded_uuid: self.gm_player.encoded_uuid
         }
         session.save()
-        
+
         # Change gamemaster's role to Player
         response = self.client.post(
             '/api/assign-role',
@@ -186,15 +188,15 @@ class RoleChangeTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         # Verify is_also_player was cleared
         self.gm_player.refresh_from_db()
         self.assertEqual(self.gm_player.role, Role.PLAYER)
         self.assertFalse(self.gm_player.is_also_player)
-    
-    def test_role_change_event_to_json(self):
+
+    def test_role_change_event_to_json(self, mock_put):
         """Test RoleChangeEvent.to_json() format."""
         # Create a role change event
         event = RoleChangeEvent.objects.create(
@@ -204,30 +206,34 @@ class RoleChangeTestCase(TestCase):
             old_role=Role.PLAYER,
             new_role=Role.COUNTER
         )
-        
+
         # Get JSON representation
         json_data = event.to_json()
-        
+
         # Verify structure
         self.assertEqual(json_data['type'], 'role_change')
-        self.assertEqual(json_data['player']['uuid'], self.gm_player.encoded_uuid)
-        self.assertEqual(json_data['target_player']['uuid'], self.regular_player.encoded_uuid)
+        self.assertEqual(
+            json_data['player']['uuid'],
+            self.gm_player.encoded_uuid)
+        self.assertEqual(
+            json_data['target_player']['uuid'],
+            self.regular_player.encoded_uuid)
         self.assertEqual(json_data['old_role'], Role.PLAYER)
         self.assertEqual(json_data['new_role'], Role.COUNTER)
         self.assertIn('timestamp', json_data)
-    
-    def test_invalid_role_rejected(self):
+
+    def test_invalid_role_rejected(self, mock_put):
         """Test that invalid role values are rejected."""
         # Login as gamemaster
         self.client.force_login(self.gm_user)
-        
+
         # Store session player
         session = self.client.session
         session['authorized_rooms'] = {
             self.room.encoded_uuid: self.gm_player.encoded_uuid
         }
         session.save()
-        
+
         # Try to set invalid role
         response = self.client.post(
             '/api/assign-role',
@@ -238,10 +244,10 @@ class RoleChangeTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be bad request
         self.assertEqual(response.status_code, 400)
-        
+
         # Verify role was NOT changed
         self.regular_player.refresh_from_db()
         self.assertEqual(self.regular_player.role, Role.PLAYER)

@@ -31,11 +31,10 @@
                 {% endif %}
             {% endfor %}
             
-            {% if room.connected_players|selectattr:'is_spectator'|list %}
+            {% if room.connected_spectators %}
             <div class="spectators-section">
                 <div class="spectators-header">Spectators</div>
-                {% for player in room.connected_players %}
-                    {% if player.is_spectator %}
+                {% for player in room.connected_spectators %}
                     <div id="{{ player.encoded_uuid }}" class="player-panel-entry spectator-entry">
                         <span class="playername">
                             {{ player.name }}
@@ -44,7 +43,6 @@
                             [S]
                         </span>
                     </div>
-                    {% endif %}
                 {% endfor %}
             </div>
             {% endif %}

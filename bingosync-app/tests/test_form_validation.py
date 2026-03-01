@@ -5,7 +5,6 @@ This module tests that forms properly validate and sanitize user inputs.
 """
 
 from django.test import TestCase
-from django.core.exceptions import ValidationError
 
 from bingosync.forms import RoomForm, JoinRoomForm
 from bingosync.models import Room, GameType, LockoutMode, FilteredPattern
@@ -24,7 +23,7 @@ class RoomFormValidationTestCase(TestCase):
             game_type_value = str(game_choices[0][0])
         else:
             game_type_value = '1'  # Fallback
-        
+
         self.valid_data = {
             'room_name': 'Test Room',
             'passphrase': 'password123',
@@ -196,7 +195,7 @@ class JoinRoomFormValidationTestCase(TestCase):
             passphrase=encrypted_passphrase,
             hide_card=False
         )
-        
+
         self.valid_data = {
             'encoded_room_uuid': self.room.encoded_uuid,
             'room_name': self.room.name,
@@ -260,14 +259,14 @@ class ProfanityFilterTestCase(TestCase):
         """Set up test data with profanity patterns."""
         # Create a test profanity pattern
         FilteredPattern.objects.create(pattern=r'\bbadword\b')
-        
+
         # Get a valid game type value
         game_choices = GameType.game_choices()
         if game_choices:
             game_type_value = str(game_choices[0][0])
         else:
             game_type_value = '1'  # Fallback
-        
+
         self.valid_data = {
             'room_name': 'Test Room',
             'passphrase': 'password123',

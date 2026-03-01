@@ -40,14 +40,14 @@ ROLE_PERMISSIONS = {
 def check_permission(player, action):
     """
     Check if a player has permission to perform an action.
-    
+
     Args:
         player: Player instance with role and is_also_player fields
         action: String representing the action (e.g., 'mark_square', 'generate_board')
-    
+
     Returns:
         Boolean indicating whether the player has permission
-    
+
     Examples:
         >>> check_permission(gamemaster_player, 'generate_board')
         True
@@ -56,14 +56,14 @@ def check_permission(player, action):
     """
     if not player or not hasattr(player, 'role'):
         return False
-    
+
     # Get permissions for the player's role
     permissions = ROLE_PERMISSIONS.get(player.role, {})
-    
+
     # Special case: Gamemaster can only mark squares if they're also a player
     if action == 'mark_square' and player.role == Role.GAMEMASTER:
         return player.is_also_player
-    
+
     # Check if the action is in the role's permissions
     return permissions.get(action, False)
 
@@ -71,33 +71,33 @@ def check_permission(player, action):
 def require_permission(action):
     """
     Decorator to require a specific permission for a view.
-    
+
     Usage:
         @require_permission('mark_square')
         def goal_selected(request):
             ...
-    
+
     Args:
         action: String representing the required action permission
-    
+
     Returns:
         Decorator function that checks permission before executing view
     """
     from functools import wraps
     from django.http import HttpResponseForbidden
-    
+
     def decorator(view_func):
         @wraps(view_func)
         def wrapped(request, *args, **kwargs):
             # Get player from session or request context
             # This assumes the view has already authenticated the player
             player = getattr(request, 'player', None)
-            
+
             if not player or not check_permission(player, action):
                 return HttpResponseForbidden(
                     f"You do not have permission to {action.replace('_', ' ')}."
                 )
-            
+
             return view_func(request, *args, **kwargs)
         return wrapped
     return decorator

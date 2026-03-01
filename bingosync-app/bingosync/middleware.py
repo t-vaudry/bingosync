@@ -38,9 +38,13 @@ class RequestLoggingMiddleware:
         try:
             user_ip = _get_ip_from_request(request)
             log_func = _get_log_func_for_status_code(response.status_code)
-            log_func('"%s %s" %s %s (%s)', request.method, request.get_full_path(), response.status_code,
-                    len(response.content), user_ip)
-        except Exception as e:
+            log_func('"%s %s" %s %s (%s)',
+                     request.method,
+                     request.get_full_path(),
+                     response.status_code,
+                     len(response.content),
+                     user_ip)
+        except Exception:
             logger.exception("Exception when logging request")
 
 
@@ -74,7 +78,7 @@ class InvalidRequestMiddleware:
 class SecurityHeadersMiddleware:
     """
     Middleware to add Content Security Policy (CSP) headers to all responses.
-    
+
     CSP helps prevent XSS attacks by controlling which resources can be loaded.
     """
 
@@ -89,33 +93,39 @@ class SecurityHeadersMiddleware:
     def add_csp_headers(self, response):
         """Add Content Security Policy headers to the response"""
         from django.conf import settings
-        
+
         # Build CSP directives from settings
         csp_directives = []
-        
+
         if hasattr(settings, 'CSP_DEFAULT_SRC'):
-            csp_directives.append(f"default-src {' '.join(settings.CSP_DEFAULT_SRC)}")
-        
+            csp_directives.append(
+                f"default-src {' '.join(settings.CSP_DEFAULT_SRC)}")
+
         if hasattr(settings, 'CSP_SCRIPT_SRC'):
-            csp_directives.append(f"script-src {' '.join(settings.CSP_SCRIPT_SRC)}")
-        
+            csp_directives.append(
+                f"script-src {' '.join(settings.CSP_SCRIPT_SRC)}")
+
         if hasattr(settings, 'CSP_STYLE_SRC'):
-            csp_directives.append(f"style-src {' '.join(settings.CSP_STYLE_SRC)}")
-        
+            csp_directives.append(
+                f"style-src {' '.join(settings.CSP_STYLE_SRC)}")
+
         if hasattr(settings, 'CSP_IMG_SRC'):
             csp_directives.append(f"img-src {' '.join(settings.CSP_IMG_SRC)}")
-        
+
         if hasattr(settings, 'CSP_FONT_SRC'):
-            csp_directives.append(f"font-src {' '.join(settings.CSP_FONT_SRC)}")
-        
+            csp_directives.append(
+                f"font-src {' '.join(settings.CSP_FONT_SRC)}")
+
         if hasattr(settings, 'CSP_CONNECT_SRC'):
-            csp_directives.append(f"connect-src {' '.join(settings.CSP_CONNECT_SRC)}")
-        
+            csp_directives.append(
+                f"connect-src {' '.join(settings.CSP_CONNECT_SRC)}")
+
         if hasattr(settings, 'CSP_FRAME_ANCESTORS'):
-            csp_directives.append(f"frame-ancestors {' '.join(settings.CSP_FRAME_ANCESTORS)}")
-        
+            csp_directives.append(
+                f"frame-ancestors {' '.join(settings.CSP_FRAME_ANCESTORS)}")
+
         # Set the CSP header
         if csp_directives:
             response['Content-Security-Policy'] = '; '.join(csp_directives)
-        
+
         return response

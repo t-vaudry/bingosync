@@ -7,6 +7,7 @@ from enum import Enum, unique
 from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType
 
+
 class Event(models.Model):
     player = models.ForeignKey("bingosync.Player", on_delete=models.CASCADE)
     timestamp = models.DateTimeField("Sent", default=timezone.now)
@@ -22,7 +23,14 @@ class Event(models.Model):
 
     @staticmethod
     def event_classes():
-        return [ChatEvent, GoalEvent, ColorEvent, RevealedEvent, ConnectionEvent, NewCardEvent, RoleChangeEvent]
+        return [
+            ChatEvent,
+            GoalEvent,
+            ColorEvent,
+            RevealedEvent,
+            ConnectionEvent,
+            NewCardEvent,
+            RoleChangeEvent]
 
     @staticmethod
     def get_all_for_room(room):
@@ -36,10 +44,19 @@ class Event(models.Model):
         recent_events = []
         total_events = 0
         for event_class in Event.event_classes():
-            total_events += event_class.objects.filter(player__room=room).count()
-            recent_events.extend(event_class.objects.filter(player__room=room).filter(timestamp__gte=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)))
+            total_events += event_class.objects.filter(
+                player__room=room).count()
+            recent_events.extend(
+                event_class.objects.filter(
+                    player__room=room).filter(
+                    timestamp__gte=datetime.datetime.now(
+                        datetime.timezone.utc)
+                    - datetime.timedelta(
+                        hours=24)))
         all_included = total_events == len(recent_events)
-        recent_events = sorted(recent_events, key=lambda event: event.timestamp)
+        recent_events = sorted(
+            recent_events,
+            key=lambda event: event.timestamp)
         return {'events': recent_events, 'all_included': all_included}
 
     @staticmethod
@@ -47,7 +64,8 @@ class Event(models.Model):
         latest_events = []
         for event_class in Event.event_classes():
             try:
-                latest_event = event_class.objects.filter(player__room=room).latest()
+                latest_event = event_class.objects.filter(
+                    player__room=room).latest()
                 latest_events.append(latest_event)
             except event_class.DoesNotExist:
                 pass
@@ -73,6 +91,7 @@ class ChatEvent(Event):
             "timestamp": self.json_timestamp
         }
 
+
 class NewCardEvent(Event):
     game_type_value = models.IntegerField(choices=GameType.choices())
     seed = models.BigIntegerField(default=0)
@@ -85,7 +104,8 @@ class NewCardEvent(Event):
 
     @property
     def is_current(self):
-        new_card_events = NewCardEvent.objects.filter(player__room=self.player.room).order_by("timestamp")
+        new_card_events = NewCardEvent.objects.filter(
+            player__room=self.player.room).order_by("timestamp")
         return new_card_events.last() == self
 
     def to_json(self):
@@ -100,6 +120,7 @@ class NewCardEvent(Event):
             "timestamp": self.json_timestamp,
             "fog_of_war": self.fog_of_war,
         }
+
 
 class GoalEvent(Event):
     square = models.ForeignKey("bingosync.Square", on_delete=models.CASCADE)
@@ -121,6 +142,7 @@ class GoalEvent(Event):
             "timestamp": self.json_timestamp
         }
 
+
 class ColorEvent(Event):
     color_value = models.IntegerField(choices=Color.player_choices())
 
@@ -137,6 +159,7 @@ class ColorEvent(Event):
             "timestamp": self.json_timestamp
         }
 
+
 class RevealedEvent(Event):
 
     def to_json(self):
@@ -146,6 +169,7 @@ class RevealedEvent(Event):
             "player_color": self.player_color.name,
             "timestamp": self.json_timestamp
         }
+
 
 @unique
 class ConnectionEventType(Enum):
@@ -163,9 +187,13 @@ class ConnectionEventType(Enum):
     def choices():
         return [(event.value, str(event)) for event in ConnectionEventType]
 
+
 class RoleChangeEvent(Event):
     """Event for tracking role changes in a room."""
-    target_player = models.ForeignKey("bingosync.Player", on_delete=models.CASCADE, related_name='role_change_targets')
+    target_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='role_change_targets')
     old_role = models.CharField(max_length=20)
     new_role = models.CharField(max_length=20)
 
@@ -190,8 +218,10 @@ class ConnectionEvent(Event):
 
     @staticmethod
     def make_connected_event(player):
-        return ConnectionEvent(player=player, player_color_value=player.color.value,
-                               event=ConnectionEventType.connected.value)
+        return ConnectionEvent(
+            player=player,
+            player_color_value=player.color.value,
+            event=ConnectionEventType.connected.value)
 
     @staticmethod
     def atomically_connect(player):
@@ -203,13 +233,16 @@ class ConnectionEvent(Event):
 
     @staticmethod
     def make_disconnected_event(player):
-        return ConnectionEvent(player=player, player_color_value=player.color.value,
-                               event=ConnectionEventType.disconnected.value)
+        return ConnectionEvent(
+            player=player,
+            player_color_value=player.color.value,
+            event=ConnectionEventType.disconnected.value)
 
     @staticmethod
     def atomically_disconnect(player):
         with transaction.atomic():
-            disconnected_event = ConnectionEvent.make_disconnected_event(player)
+            disconnected_event = ConnectionEvent.make_disconnected_event(
+                player)
             disconnected_event.save()
             player.room.update_active()
             return disconnected_event

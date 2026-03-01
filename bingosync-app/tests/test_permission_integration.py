@@ -3,34 +3,35 @@ Integration tests for role-based permissions in views.
 """
 
 import json
+from unittest.mock import patch
 from django.test import TestCase, Client
-from django.urls import reverse
 from bingosync.models import Room, Player, Game, User
 from bingosync.models.enums import Role
 from bingosync.models.game_type import GameType
 from bingosync.models.rooms import LockoutMode
 
 
+@patch('bingosync.publish.requests.put')
 class PermissionIntegrationTestCase(TestCase):
     """Test permission enforcement in views."""
-    
+
     def setUp(self):
         """Set up test data."""
         self.client = Client()
-        
+
         # Create a test user
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpass123'
         )
-        
+
         # Create a room with a game
         self.room = Room.objects.create(
             name='Test Room',
             passphrase='test123'
         )
-        
+
         # Create a game for the room
         board_json = [{"name": f"Goal {i}", "tier": 1} for i in range(1, 26)]
         self.game = Game.from_board(
@@ -40,7 +41,7 @@ class PermissionIntegrationTestCase(TestCase):
             game_type_value=GameType.hp_cos.value,
             lockout_mode_value=LockoutMode.non_lockout.value
         )
-    
+
     def _create_player_session(self, player):
         """Helper to create a session with player authentication."""
         session = self.client.session
@@ -48,8 +49,8 @@ class PermissionIntegrationTestCase(TestCase):
             self.room.encoded_uuid: player.encoded_uuid
         }
         session.save()
-    
-    def test_spectator_cannot_mark_square(self):
+
+    def test_spectator_cannot_mark_square(self, mock_put):
         """Test that spectators cannot mark squares."""
         # Create spectator player
         spectator = Player.objects.create(
@@ -57,10 +58,10 @@ class PermissionIntegrationTestCase(TestCase):
             name='Spectator',
             role=Role.SPECTATOR
         )
-        
+
         # Set up session
         self._create_player_session(spectator)
-        
+
         # Try to mark a square
         response = self.client.post(
             '/api/select',
@@ -72,12 +73,12 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be forbidden
         self.assertEqual(response.status_code, 403)
         self.assertIn(b'permission', response.content.lower())
-    
-    def test_player_can_mark_square(self):
+
+    def test_player_can_mark_square(self, mock_put):
         """Test that players can mark squares."""
         # Create player
         player = Player.objects.create(
@@ -85,10 +86,10 @@ class PermissionIntegrationTestCase(TestCase):
             name='Player',
             role=Role.PLAYER
         )
-        
+
         # Set up session
         self._create_player_session(player)
-        
+
         # Try to mark a square
         response = self.client.post(
             '/api/select',
@@ -100,11 +101,11 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should succeed
         self.assertEqual(response.status_code, 200)
-    
-    def test_gamemaster_only_cannot_mark_square(self):
+
+    def test_gamemaster_only_cannot_mark_square(self, mock_put):
         """Test that GM-only cannot mark squares."""
         # Create GM-only player
         gm = Player.objects.create(
@@ -113,10 +114,10 @@ class PermissionIntegrationTestCase(TestCase):
             role=Role.GAMEMASTER,
             is_also_player=False
         )
-        
+
         # Set up session
         self._create_player_session(gm)
-        
+
         # Try to mark a square
         response = self.client.post(
             '/api/select',
@@ -128,11 +129,11 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be forbidden
         self.assertEqual(response.status_code, 403)
-    
-    def test_gamemaster_player_can_mark_square(self):
+
+    def test_gamemaster_player_can_mark_square(self, mock_put):
         """Test that GM+Player can mark squares."""
         # Create GM+Player
         gm_player = Player.objects.create(
@@ -141,10 +142,10 @@ class PermissionIntegrationTestCase(TestCase):
             role=Role.GAMEMASTER,
             is_also_player=True
         )
-        
+
         # Set up session
         self._create_player_session(gm_player)
-        
+
         # Try to mark a square
         response = self.client.post(
             '/api/select',
@@ -156,11 +157,11 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should succeed
         self.assertEqual(response.status_code, 200)
-    
-    def test_player_cannot_generate_board(self):
+
+    def test_player_cannot_generate_board(self, mock_put):
         """Test that regular players cannot generate new boards."""
         # Create player
         player = Player.objects.create(
@@ -168,10 +169,10 @@ class PermissionIntegrationTestCase(TestCase):
             name='Player',
             role=Role.PLAYER
         )
-        
+
         # Set up session
         self._create_player_session(player)
-        
+
         # Try to generate new board
         response = self.client.put(
             '/api/new-card',
@@ -186,12 +187,12 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be forbidden
         self.assertEqual(response.status_code, 403)
         self.assertIn(b'permission', response.content.lower())
-    
-    def test_gamemaster_can_generate_board(self):
+
+    def test_gamemaster_can_generate_board(self, mock_put):
         """Test that gamemasters can generate new boards."""
         # Create GM
         gm = Player.objects.create(
@@ -200,10 +201,10 @@ class PermissionIntegrationTestCase(TestCase):
             role=Role.GAMEMASTER,
             is_also_player=False
         )
-        
+
         # Set up session
         self._create_player_session(gm)
-        
+
         # Try to generate new board
         response = self.client.put(
             '/api/new-card',
@@ -218,11 +219,11 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should succeed
         self.assertEqual(response.status_code, 200)
-    
-    def test_player_cannot_reveal_board(self):
+
+    def test_player_cannot_reveal_board(self, mock_put):
         """Test that regular players cannot reveal fog of war."""
         # Create player
         player = Player.objects.create(
@@ -230,10 +231,10 @@ class PermissionIntegrationTestCase(TestCase):
             name='Player',
             role=Role.PLAYER
         )
-        
+
         # Set up session
         self._create_player_session(player)
-        
+
         # Try to reveal board
         response = self.client.post(
             '/api/revealed',
@@ -242,12 +243,12 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should be forbidden
         self.assertEqual(response.status_code, 403)
         self.assertIn(b'permission', response.content.lower())
-    
-    def test_gamemaster_can_reveal_board(self):
+
+    def test_gamemaster_can_reveal_board(self, mock_put):
         """Test that gamemasters can reveal fog of war."""
         # Create GM
         gm = Player.objects.create(
@@ -256,10 +257,10 @@ class PermissionIntegrationTestCase(TestCase):
             role=Role.GAMEMASTER,
             is_also_player=False
         )
-        
+
         # Set up session
         self._create_player_session(gm)
-        
+
         # Try to reveal board
         response = self.client.post(
             '/api/revealed',
@@ -268,6 +269,6 @@ class PermissionIntegrationTestCase(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         # Should succeed
         self.assertEqual(response.status_code, 200)

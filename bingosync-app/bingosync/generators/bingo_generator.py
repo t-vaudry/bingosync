@@ -36,7 +36,8 @@ class BingoGenerator:
     @staticmethod
     def instance(game_name):
         if game_name not in BingoGenerator.CACHED_INSTANCES:
-            BingoGenerator.CACHED_INSTANCES[game_name] = load_generator(game_name)
+            BingoGenerator.CACHED_INSTANCES[game_name] = load_generator(
+                game_name)
         return BingoGenerator.CACHED_INSTANCES[game_name]
 
     @staticmethod
@@ -60,20 +61,27 @@ class BingoGenerator:
         # For generators that use require(), we need to write to a temp file
         # so Node.js can resolve relative paths correctly
         try:
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.js', delete=False, dir=GEN_DIR) as temp_file:
+            with tempfile.NamedTemporaryFile(
+                mode='wb', suffix='.js', delete=False, dir=GEN_DIR
+            ) as temp_file:
                 temp_file.write(full_command)
                 temp_file_path = temp_file.name
-            
+
             try:
-                out = subprocess.check_output(["node", temp_file_path], timeout=GENERATOR_TIMEOUT_SECONDS, cwd=GEN_DIR)
+                out = subprocess.check_output(
+                    ["node", temp_file_path], timeout=GENERATOR_TIMEOUT_SECONDS, cwd=GEN_DIR)
             finally:
                 # Clean up temp file
                 try:
                     os.unlink(temp_file_path)
-                except:
+                except BaseException:
                     pass
         except subprocess.TimeoutExpired:
-            error_message = "Took too long to generate a bingo board for game '" + self.game_name + "'"
+            error_message = (
+                "Took too long to generate a bingo board for game '"
+                + self.game_name
+                + "'"
+            )
             logging.error(error_message)
             raise GeneratorException(error_message)
 
@@ -98,14 +106,17 @@ class BingoGenerator:
 
 
 def process_card(card, seed, size):
-    # the regular SRL generator includes an extra null element at the front, so ignore that
-    
+    # the regular SRL generator includes an extra null element at the front,
+    # so ignore that
+
     seed = card['seed']
     card = card['objectives']
-    
+
     if len(card) == (size * size) + 1:
         card = card[1:]
     if len(card) != size * size:
-        raise Exception("bad card length: " + str(len(card)) + ", card: " + str(card))
-    x = [{"name": goal.get("name", ""), "tier": goal.get("difficulty", "") or 0} for goal in card]
+        raise Exception("bad card length: "
+                        + str(len(card)) + ", card: " + str(card))
+    x = [{"name": goal.get("name", ""), "tier": goal.get(
+        "difficulty", "") or 0} for goal in card]
     return seed, x

@@ -6,18 +6,14 @@ header on internal API endpoints.
 """
 
 import unittest
-import os
 import sys
+import os
 from unittest.mock import MagicMock
-
-# Set test environment variable before importing app
-os.environ['INTERNAL_API_SECRET'] = 'test-secret-for-testing-purposes-only-32-chars'
-os.environ['DEBUG'] = '1'
-os.environ['DOMAIN'] = 'localhost'
 
 # Add parent directory to path to import app module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import app (environment variables are set in tests/__init__.py)
 import app as tornado_app
 
 
@@ -27,8 +23,10 @@ class ValidateInternalRequestTestCase(unittest.TestCase):
     def test_validate_internal_request_with_valid_secret(self):
         """Test that validate_internal_request returns True for valid secret."""
         mock_handler = MagicMock()
-        mock_handler.request.headers.get.return_value = 'test-secret-for-testing-purposes-only-32-chars'
-        
+        mock_handler.request.headers.get.return_value = (
+            'test-secret-for-testing-purposes-only-32-chars'
+        )
+
         result = tornado_app.validate_internal_request(mock_handler)
         self.assertTrue(result)
 
@@ -36,7 +34,7 @@ class ValidateInternalRequestTestCase(unittest.TestCase):
         """Test that validate_internal_request returns False for invalid secret."""
         mock_handler = MagicMock()
         mock_handler.request.headers.get.return_value = 'wrong-secret'
-        
+
         result = tornado_app.validate_internal_request(mock_handler)
         self.assertFalse(result)
 
@@ -44,19 +42,23 @@ class ValidateInternalRequestTestCase(unittest.TestCase):
         """Test that validate_internal_request returns False for missing header."""
         mock_handler = MagicMock()
         mock_handler.request.headers.get.return_value = None
-        
+
         result = tornado_app.validate_internal_request(mock_handler)
         self.assertFalse(result)
 
     def test_validate_internal_request_checks_correct_header(self):
         """Test that validate_internal_request checks the X-Internal-Secret header."""
         mock_handler = MagicMock()
-        mock_handler.request.headers.get.return_value = 'test-secret-for-testing-purposes-only-32-chars'
-        
+        mock_handler.request.headers.get.return_value = (
+            'test-secret-for-testing-purposes-only-32-chars'
+        )
+
         tornado_app.validate_internal_request(mock_handler)
-        
+
         # Verify it checked the correct header name
-        mock_handler.request.headers.get.assert_called_once_with('X-Internal-Secret')
+        mock_handler.request.headers.get.assert_called_once_with(
+            'X-Internal-Secret'
+        )
 
 
 class InternalAPISecretConfigTestCase(unittest.TestCase):
@@ -77,7 +79,12 @@ class InternalAPISecretConfigTestCase(unittest.TestCase):
     def test_internal_api_handler_class_exists(self):
         """Test that InternalAPIHandler class is defined."""
         self.assertTrue(hasattr(tornado_app, 'InternalAPIHandler'))
-        self.assertTrue(callable(getattr(tornado_app.InternalAPIHandler, 'prepare', None)))
+        self.assertTrue(
+            callable(
+                getattr(
+                    tornado_app.InternalAPIHandler,
+                    'prepare',
+                    None)))
 
 
 if __name__ == '__main__':

@@ -3,25 +3,32 @@ import uuid
 
 ALTERNATE_CHARACTERS = b"-_"
 
+
 def encode_uuid(uuid):
-    encoded_uuid = base64.b64encode(uuid.bytes, ALTERNATE_CHARACTERS).decode("utf8")
+    encoded_uuid = base64.b64encode(
+        uuid.bytes, ALTERNATE_CHARACTERS).decode("utf8")
     # remove the '==' at the end
     stripped_uuid = encoded_uuid[:-2]
     return stripped_uuid
 
+
 def decode_uuid(encoded_uuid):
     # re-add the '==' at the end
     encoded_uuid += "=="
-    uuid_bytes = base64.b64decode(encoded_uuid.encode("utf8"), ALTERNATE_CHARACTERS)
+    uuid_bytes = base64.b64decode(
+        encoded_uuid.encode("utf8"),
+        ALTERNATE_CHARACTERS)
     return uuid.UUID(bytes=uuid_bytes)
+
 
 def generate_encoded_uuid():
     return encode_uuid(uuid.uuid4())
 
+
 def get_internal_api_headers():
     """
     Get headers for internal API requests to Tornado.
-    
+
     Includes the X-Internal-Secret header for authentication.
     """
     from bingosync.settings import INTERNAL_API_SECRET
@@ -29,5 +36,6 @@ def get_internal_api_headers():
         'X-Internal-Secret': INTERNAL_API_SECRET,
         'Content-Type': 'application/json'
     }
+
 
 ANON_UUID = uuid.UUID("ec832ac3-e151-47da-aec3-3350563b25ba")

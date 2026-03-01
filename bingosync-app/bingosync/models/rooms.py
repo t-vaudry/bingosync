@@ -5,18 +5,22 @@ from django.utils import timezone
 
 import datetime
 from uuid import uuid4
-from enum import Enum, unique
+from enum import Enum
 import math
 import urllib.parse
 
 from bingosync.models.game_type import GameType
 from bingosync.models.colors import Color, CompositeColor
-from bingosync.models.events import Event, GoalEvent, ColorEvent, RevealedEvent, ConnectionEventType, ConnectionEvent
+from bingosync.models.events import (
+    Event, GoalEvent, ColorEvent, RevealedEvent,
+    ConnectionEventType, ConnectionEvent
+)
 from bingosync.models.enums import Role
 from bingosync.util import ANON_UUID, encode_uuid, decode_uuid
 
 
 STALE_THRESHOLD = datetime.timedelta(minutes=90)
+
 
 class Room(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False)
@@ -30,7 +34,8 @@ class Room(models.Model):
         return self.name
 
     def __repr__(self):
-        return "<Room: id: {!r}, uuid: {!r}>".format(self.id, self.encoded_uuid)
+        return "<Room: id: {!r}, uuid: {!r}>".format(
+            self.id, self.encoded_uuid)
 
     def get_absolute_url(self, with_password=False):
         from bingosync.views import room_view
@@ -39,7 +44,8 @@ class Room(models.Model):
         }
         result = reverse(room_view, kwargs=kwargs)
         if with_password:
-            result += '?' + urllib.parse.urlencode({'password': self.passphrase})
+            result += '?' + \
+                urllib.parse.urlencode({'password': self.passphrase})
         return result
 
     @staticmethod
@@ -47,7 +53,11 @@ class Room(models.Model):
         try:
             decoded_uuid = decode_uuid(encoded_room_uuid)
         except ValueError:
-            raise Room.DoesNotExist("Malformed encoded uuid: '" + str(encoded_room_uuid) + "'")
+            raise Room.DoesNotExist(
+                "Malformed encoded uuid: '"
+                + str(encoded_room_uuid)
+                + "'"
+            )
         return Room.objects.get(uuid=decoded_uuid)
 
     @staticmethod
@@ -59,7 +69,9 @@ class Room(models.Model):
 
     @staticmethod
     def get_with_multiple_players():
-        return Room.objects.annotate(num_players=models.Count('player')).filter(num_players__gt=1)
+        return Room.objects.annotate(
+            num_players=models.Count('player')).filter(
+            num_players__gt=1)
 
     @property
     def encoded_uuid(self):
@@ -82,13 +94,18 @@ class Room(models.Model):
         return [player for player in self.players if player.connected]
 
     @property
+    def connected_spectators(self):
+        return [player for player in self.connected_players if player.is_spectator]
+
+    @property
     def latest_event_timestamp(self):
         latest_event = Event.get_latest_for_room(self)
         return latest_event.timestamp if latest_event else self.created_date
 
     @property
     def is_idle(self):
-        idle_time = datetime.datetime.now(datetime.timezone.utc) - self.latest_event_timestamp
+        idle_time = datetime.datetime.now(
+            datetime.timezone.utc) - self.latest_event_timestamp
         return idle_time > STALE_THRESHOLD
 
     @property
@@ -96,7 +113,8 @@ class Room(models.Model):
         if not self.hide_card:
             return False
         latest_game_start = self.current_game.created_date
-        latest_revealed_event = RevealedEvent.objects.filter(player__room=self).order_by("timestamp").last()
+        latest_revealed_event = RevealedEvent.objects.filter(
+            player__room=self).order_by("timestamp").last()
         return not latest_revealed_event or latest_game_start >= latest_revealed_event.timestamp
 
     def update_active(self):
@@ -121,6 +139,7 @@ class Room(models.Model):
             "seed": game.seed,
         }
 
+
 class LockoutMode(Enum):
     non_lockout = 1
     lockout = 2
@@ -138,20 +157,29 @@ class LockoutMode(Enum):
 
     @staticmethod
     def choices():
-        return [(lockout_mode.value, str(lockout_mode)) for lockout_mode in LockoutMode]
+        return [(lockout_mode.value, str(lockout_mode))
+                for lockout_mode in LockoutMode]
+
 
 LOCKOUT_MODE_NAMES = {
     LockoutMode.non_lockout: "Non-Lockout",
     LockoutMode.lockout: "Lockout",
 }
 
+
 class Game(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     seed = models.BigIntegerField()
     size = models.IntegerField()
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
-    game_type_value = models.IntegerField("Game Type", choices=GameType.choices(), default=50)  # Default to HP CoS
-    lockout_mode_value = models.IntegerField("Lockout Mode", choices=LockoutMode.choices(), default=LockoutMode.default_value())
+    game_type_value = models.IntegerField(
+        "Game Type",
+        choices=GameType.choices(),
+        default=50)  # Default to HP CoS
+    lockout_mode_value = models.IntegerField(
+        "Lockout Mode",
+        choices=LockoutMode.choices(),
+        default=LockoutMode.default_value())
     fog_of_war = models.BooleanField("Fog of War", default=False)
 
     def __str__(self):
@@ -171,9 +199,13 @@ class Game(models.Model):
 
                 # hack to make tier work with non-SRL formats
                 tier = square_json.get("tier")
-                if tier == None:
+                if tier is None:
                     tier = -1
-                square = Square(game=game, slot=slot, goal=square_json["name"], tier=tier)
+                square = Square(
+                    game=game,
+                    slot=slot,
+                    goal=square_json["name"],
+                    tier=tier)
 
                 square.full_clean()
                 square.save()
@@ -208,7 +240,6 @@ class Game(models.Model):
             if remove_color and square_color.colors != [color]:
                 return False
 
-
         if remove_color:
             square_color.remove(color)
         else:
@@ -216,8 +247,12 @@ class Game(models.Model):
         square.color = square_color
         square.save()
 
-        goal_event = GoalEvent(player=player, square=square, color_value=color.value,
-                               player_color_value=player.color.value, remove_color=remove_color)
+        goal_event = GoalEvent(
+            player=player,
+            square=square,
+            color_value=color.value,
+            player_color_value=player.color.value,
+            remove_color=remove_color)
         goal_event.save()
         return goal_event
 
@@ -225,15 +260,20 @@ class Game(models.Model):
 SLOT_RANGE = range(1, 26)
 SLOT_CHOICES = [(num, str(num)) for num in SLOT_RANGE]
 
+
 def validate_in_slot_range(slot):
     return slot in SLOT_RANGE
+
 
 class Square(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
     slot = models.IntegerField()
     goal = models.CharField(max_length=255)
     tier = models.IntegerField(default=0)
-    color_value = models.IntegerField("Color", default=CompositeColor.goal_default().value, choices=CompositeColor.goal_choices())
+    color_value = models.IntegerField(
+        "Color",
+        default=CompositeColor.goal_default().value,
+        choices=CompositeColor.goal_choices())
 
     @property
     def color(self):
@@ -258,11 +298,15 @@ class Square(models.Model):
     class Meta:
         unique_together = (("game", "slot"),)
 
+
 class Player(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     uuid = models.UUIDField(default=uuid4, editable=False)
     name = models.CharField(max_length=50)
-    color_value = models.IntegerField("Color", default=Color.player_default().value, choices=Color.player_choices())
+    color_value = models.IntegerField(
+        "Color",
+        default=Color.player_default().value,
+        choices=Color.player_choices())
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
 
     # Role system fields
@@ -297,7 +341,8 @@ class Player(models.Model):
         return self.name
 
     def __repr__(self):
-        return "<Player: id: {!r}, uuid: {!r}, name: {!r}>".format(self.id, self.encoded_uuid, self.name)
+        return "<Player: id: {!r}, uuid: {!r}, name: {!r}>".format(
+            self.id, self.encoded_uuid, self.name)
 
     @property
     def encoded_uuid(self):
@@ -316,18 +361,31 @@ class Player(models.Model):
 
     @property
     def connected(self):
-        last_connection_event = ConnectionEvent.objects.filter(player=self).order_by("timestamp").last()
-        return not last_connection_event or last_connection_event.event_type == ConnectionEventType.connected
+        last_connection_event = (
+            ConnectionEvent.objects.filter(player=self)
+            .order_by("timestamp").last()
+        )
+        return (
+            not last_connection_event
+            or last_connection_event.event_type == ConnectionEventType.connected
+        )
 
     def update_color(self, color):
         with transaction.atomic():
-            color_event = ColorEvent(player=self, player_color_value=self.color.value, color_value=color.value)
+            color_event = ColorEvent(
+                player=self,
+                player_color_value=self.color.value,
+                color_value=color.value)
             color_event.save()
             self.color_value = color.value
             self.save()
         return color_event
 
     def to_json(self):
+        monitoring_uuid = (
+            self.monitoring_player.encoded_uuid
+            if self.monitoring_player else None
+        )
         return {
             "uuid": self.encoded_uuid,
             "name": self.name,
@@ -335,7 +393,7 @@ class Player(models.Model):
             "is_spectator": self.is_spectator,
             "role": self.role,
             "is_also_player": self.is_also_player,
-            "monitoring_player_uuid": self.monitoring_player.encoded_uuid if self.monitoring_player else None
+            "monitoring_player_uuid": monitoring_uuid
         }
 
 

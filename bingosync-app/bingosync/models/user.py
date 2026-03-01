@@ -5,7 +5,7 @@ from django.db import models
 class User(AbstractUser):
     """
     Persistent user account extending Django's AbstractUser.
-    
+
     Tracks user statistics for gameplay and enforces one room at a time.
     """
     # Override email field to make it unique
@@ -25,10 +25,10 @@ class User(AbstractUser):
         related_name='current_users',
         help_text='The room the user is currently in (one room at a time)'
     )
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     # Statistics fields
     total_games_played = models.IntegerField(
         default=0,
@@ -50,20 +50,20 @@ class User(AbstractUser):
         default=0,
         help_text='Number of losses in lockout mode'
     )
-    
+
     class Meta:
         db_table = 'bingosync_user'
         indexes = [
             models.Index(fields=['username']),
             models.Index(fields=['email']),
         ]
-    
+
     def __str__(self):
         return self.username
-    
+
     def __repr__(self):
         return f"<User: id={self.id!r}, username={self.username!r}>"
-    
+
     @property
     def win_rate(self):
         """Calculate win rate in lockout mode games."""

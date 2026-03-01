@@ -29,16 +29,16 @@ class GamemasterAssignmentTestCase(test.TestCase):
         # Create room without gamemaster_only checkbox (default)
         form = forms.RoomForm(self.base_form_data)
         self.assertTrue(form.is_valid(), f"Form errors: {form.errors}")
-        
+
         room = form.create_room()
         creator = room.creator
-        
+
         # Verify role is GAMEMASTER
         self.assertEqual(creator.role, Role.GAMEMASTER)
-        
+
         # Verify is_also_player is True (can mark squares)
         self.assertTrue(creator.is_also_player)
-        
+
         # Verify creator can mark squares
         from bingosync.permissions import check_permission
         self.assertTrue(check_permission(creator, 'mark_square'))
@@ -48,19 +48,19 @@ class GamemasterAssignmentTestCase(test.TestCase):
         # Create room with gamemaster_only checkbox
         form_data = self.base_form_data.copy()
         form_data['gamemaster_only'] = True
-        
+
         form = forms.RoomForm(form_data)
         self.assertTrue(form.is_valid(), f"Form errors: {form.errors}")
-        
+
         room = form.create_room()
         creator = room.creator
-        
+
         # Verify role is GAMEMASTER
         self.assertEqual(creator.role, Role.GAMEMASTER)
-        
+
         # Verify is_also_player is False (cannot mark squares)
         self.assertFalse(creator.is_also_player)
-        
+
         # Verify creator cannot mark squares
         from bingosync.permissions import check_permission
         self.assertFalse(check_permission(creator, 'mark_square'))
@@ -70,19 +70,19 @@ class GamemasterAssignmentTestCase(test.TestCase):
         # Create room with gamemaster_only explicitly set to False
         form_data = self.base_form_data.copy()
         form_data['gamemaster_only'] = False
-        
+
         form = forms.RoomForm(form_data)
         self.assertTrue(form.is_valid(), f"Form errors: {form.errors}")
-        
+
         room = form.create_room()
         creator = room.creator
-        
+
         # Verify role is GAMEMASTER
         self.assertEqual(creator.role, Role.GAMEMASTER)
-        
+
         # Verify is_also_player is True (can mark squares)
         self.assertTrue(creator.is_also_player)
-        
+
         # Verify creator can mark squares
         from bingosync.permissions import check_permission
         self.assertTrue(check_permission(creator, 'mark_square'))
@@ -93,19 +93,19 @@ class GamemasterAssignmentTestCase(test.TestCase):
         form_data = self.base_form_data.copy()
         form_data['is_spectator'] = True
         form_data['gamemaster_only'] = False  # This should be ignored
-        
+
         form = forms.RoomForm(form_data)
         self.assertTrue(form.is_valid(), f"Form errors: {form.errors}")
-        
+
         room = form.create_room()
         creator = room.creator
-        
+
         # Verify role is SPECTATOR (not GAMEMASTER)
         self.assertEqual(creator.role, Role.SPECTATOR)
-        
+
         # Verify is_also_player is False
         self.assertFalse(creator.is_also_player)
-        
+
         # Verify creator cannot mark squares (spectators can't)
         from bingosync.permissions import check_permission
         self.assertFalse(check_permission(creator, 'mark_square'))
@@ -119,7 +119,7 @@ class GamemasterAssignmentTestCase(test.TestCase):
         self.assertTrue(form_gm_only.is_valid())
         room_gm_only = form_gm_only.create_room()
         gm_only = room_gm_only.creator
-        
+
         # Test GM+Player permissions
         form_data_gm_player = self.base_form_data.copy()
         form_data_gm_player['gamemaster_only'] = False
@@ -127,9 +127,9 @@ class GamemasterAssignmentTestCase(test.TestCase):
         self.assertTrue(form_gm_player.is_valid())
         room_gm_player = form_gm_player.create_room()
         gm_player = room_gm_player.creator
-        
+
         from bingosync.permissions import check_permission
-        
+
         # Both should have GM permissions
         for gm in [gm_only, gm_player]:
             self.assertTrue(check_permission(gm, 'generate_board'))
@@ -137,7 +137,7 @@ class GamemasterAssignmentTestCase(test.TestCase):
             self.assertTrue(check_permission(gm, 'assign_roles'))
             self.assertTrue(check_permission(gm, 'remove_players'))
             self.assertTrue(check_permission(gm, 'delete_room'))
-        
+
         # Only GM+Player should be able to mark squares
         self.assertFalse(check_permission(gm_only, 'mark_square'))
         self.assertTrue(check_permission(gm_player, 'mark_square'))
@@ -151,10 +151,10 @@ class GamemasterAssignmentTestCase(test.TestCase):
         self.assertTrue(form.is_valid())
         room = form.create_room()
         creator = room.creator
-        
+
         # Get JSON representation
         player_json = creator.to_json()
-        
+
         # Verify role and is_also_player are in JSON
         self.assertIn('role', player_json)
         self.assertIn('is_also_player', player_json)

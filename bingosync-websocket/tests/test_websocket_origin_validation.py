@@ -6,18 +6,14 @@ against ALLOWED_HOSTS configuration.
 """
 
 import unittest
-import os
 import sys
+import os
 from unittest.mock import MagicMock, patch
-
-# Set test environment variables before importing app
-os.environ['INTERNAL_API_SECRET'] = 'test-secret-for-testing-purposes-only-32-chars'
-os.environ['DEBUG'] = '1'
-os.environ['DOMAIN'] = 'example.com'
 
 # Add parent directory to path to import app module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import app (environment variables are set in tests/__init__.py)
 import app as tornado_app
 
 
@@ -68,7 +64,7 @@ class WebSocketOriginValidationTestCase(unittest.TestCase):
     def test_check_origin_logs_rejected_connection(self, mock_print):
         """Test that check_origin logs rejected connections."""
         self.ws_handler.check_origin('https://malicious.com')
-        
+
         # Verify that a log message was printed
         mock_print.assert_called()
         call_args = str(mock_print.call_args)
@@ -95,7 +91,7 @@ class WebSocketOriginValidationTestCase(unittest.TestCase):
         """Test that check_origin handles invalid origin formats gracefully."""
         result = self.ws_handler.check_origin('not-a-valid-url')
         self.assertFalse(result)
-        
+
         # Verify that an error was logged
         mock_print.assert_called()
         call_args = str(mock_print.call_args)

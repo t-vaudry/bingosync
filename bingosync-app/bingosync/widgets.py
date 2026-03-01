@@ -1,5 +1,6 @@
 from django.forms.widgets import Select
 
+
 class GroupedSelect(Select):
 
     def options(self, name, value, attrs=None):
@@ -11,5 +12,7 @@ class GroupedSelect(Select):
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
         context['widget'].pop('optgroups')
-        context['widget']['optgroups'] = [(None, [x], 0) for x in self.options(name, context['widget']['value'], attrs)]
+        context['widget']['optgroups'] = [
+            (None, [x], 0) for x in self.options(
+                name, context['widget']['value'], attrs)]
         return context

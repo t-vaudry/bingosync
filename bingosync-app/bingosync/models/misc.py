@@ -5,6 +5,7 @@ import logging
 
 FILLER_WORD = "bingo"
 
+
 class FilteredPattern(models.Model):
     pattern = models.CharField(max_length=255)
 
@@ -14,10 +15,10 @@ class FilteredPattern(models.Model):
 
         for filtered_pattern in filtered_patterns:
             try:
-                filtered_regex = re.compile(filtered_pattern.pattern, re.IGNORECASE)
+                filtered_regex = re.compile(
+                    filtered_pattern.pattern, re.IGNORECASE)
                 string = filtered_regex.sub(FILLER_WORD, string)
-            except Exception as e:
+            except Exception:
                 logging.exception("Regex pattern: " + filtered_pattern.pattern)
 
         return string
-
