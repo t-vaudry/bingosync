@@ -2,12 +2,19 @@
 Tests for role-based permissions system.
 """
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from bingosync.models import Room, Player, User
 from bingosync.models.enums import Role
 from bingosync.permissions import check_permission
 
 
+# Use locmem cache for testing instead of Redis
+@override_settings(CACHES={
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-test-cache',
+    }
+})
 class RolePermissionsTestCase(TestCase):
     """Test role-based permission checking."""
 

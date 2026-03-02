@@ -917,6 +917,89 @@ For users to be able to use the application as a gamemaster, player or counter, 
 
 ---
 
+- [x] 3.14 Gamemaster Role Management Enhancements
+  **Priority:** Feature
+  **Estimated Time:** 3 hours
+  **Dependencies:** Task 2.9, Task 3.13
+  **Status:** COMPLETED
+
+  **Description:**
+Enhance gamemaster capabilities to change player colors, kick players (including spectators), and enforce that Gamemaster cannot also be a Player. Allow logged-in users to join rooms as spectators.
+
+**Acceptance Criteria:**
+- ✅ Gamemaster can change any player's role (except their own, cannot create new GMs)
+- ✅ Gamemaster can change any player's color (already implemented via select_color)
+- ✅ Gamemaster can kick/remove any player from the room (new remove_player endpoint)
+- ✅ Gamemaster cannot kick themselves
+- ✅ Gamemaster cannot be a Player (mutually exclusive roles enforced)
+- ✅ Kick button appears in players panel for all players except the gamemaster themselves
+- ✅ Kick confirmation dialog before removing a player
+- ✅ Role change to Player/Counter validates that user is logged in
+- ✅ Anonymous spectators cannot be changed to Player/Counter roles
+- ✅ Logged-in spectators can be changed to Player/Counter roles
+- ✅ Logged-in spectators have displayname automatically set to username
+- ✅ Logged-in users can join rooms as spectators (added spectator option to join form)
+- ✅ Player removal broadcasts disconnection event to all participants
+- ✅ Room active status updates after player removal
+- ✅ All tests passing (24 tests including new spectator join tests)
+
+**Files Modified:**
+- `bingosync-app/bingosync/views.py` (added remove_player endpoint, enhanced assign_role validation)
+- `bingosync-app/bingosync/urls.py` (added /api/remove-player route)
+- `bingosync-app/static/bingosync/room/players_panel.js` (added kick button and handlers)
+- `bingosync-app/static/bingosync/style.css` (added kick button and dialog styles)
+- `bingosync-app/templates/bingosync/index.html` (added spectator option to join room form)
+- `bingosync-app/tests/test_spectator_join.py` (new test file for spectator join functionality)
+
+---
+
+- [x] 3.15 Refactor Gamemaster Role to Simplified Model
+  **Priority:** P2 (Code Quality / Refactoring)
+  **Estimated Time:** 6 hours
+  **Dependencies:** Task 3.14
+
+  **Description:**
+Refactor the existing Gamemaster implementation to match the simplified model where Gamemaster is optional, can only be assigned at room creation, cannot be transferred, and cannot also be a player.
+
+**Current Implementation Issues:**
+- Tasks 2.6-2.9 and 3.14 implemented a flexible Gamemaster model that may allow GM+Player combinations or role flexibility
+- Need to enforce stricter constraints: Gamemaster is mutually exclusive with Player role
+- Need to ensure Gamemaster can only be assigned at room creation time
+- Need to prevent Gamemaster role transfers
+
+**Acceptance Criteria:**
+- Room creation form has optional "Assign Gamemaster" checkbox (if not already present)
+- When checked, the room creator becomes Gamemaster ONLY (not also a player)
+- When unchecked, the room creator is a regular Player
+- Gamemaster role can ONLY be assigned during room creation (not after)
+- Gamemaster role cannot be transferred to another user after creation
+- Gamemaster and Player roles are mutually exclusive (enforced in model and views)
+- Gamemaster can mark/unmark goals for ANY player on the board (but not for themselves since they're not a player)
+- Gamemaster can change roles of all other participants (but not their own role)
+- Gamemaster can kick any participant including spectators (but not themselves)
+- Gamemaster cannot be changed to Player role (validation prevents this)
+- No other user can be changed to Gamemaster role (validation prevents this)
+- Remove any `is_also_player` field or similar concepts if they exist
+- Update permission checking logic to reflect Gamemaster cannot mark their own squares
+- Update UI to clearly show Gamemaster status and limitations
+- All existing tests pass with new constraints
+- Add new tests for Gamemaster creation-time-only assignment
+- Add new tests for Gamemaster role transfer prevention
+- Add new tests for Gamemaster/Player mutual exclusivity
+
+**Files to Modify:**
+- `bingosync-app/bingosync/models/rooms.py` (remove is_also_player if exists, add validation)
+- `bingosync-app/bingosync/forms.py` (update room creation form)
+- `bingosync-app/bingosync/views.py` (update create_room, assign_role with new constraints)
+- `bingosync-app/bingosync/permissions.py` (update permission logic)
+- `bingosync-app/templates/bingosync/index.html` (update room creation UI)
+- `bingosync-app/templates/bingosync/players_panel.html` (update role management UI)
+- `bingosync-app/static/bingosync/room/players.js` (update role change logic)
+- `bingosync-app/tests/test_gamemaster_constraints.py` (create new test file)
+- `bingosync-app/tests/test_spectator_join.py` (update existing tests if needed)
+
+---
+
 ## Phase 4: Statistics & Quality (Weeks 13-16)
 
 - [ ] 4.1 Create Achievement Model

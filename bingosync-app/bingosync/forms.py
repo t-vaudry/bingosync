@@ -82,13 +82,12 @@ class RoomForm(forms.Form):
         required=False,
         validators=[validate_seed]
     )
-    gamemaster_only = forms.BooleanField(
-        label="Gamemaster Only",
+    assign_gamemaster = forms.BooleanField(
+        label="Assign Gamemaster",
         required=False,
         help_text=(
-            "If checked, you will be Gamemaster only (cannot mark "
-            "squares). If unchecked, you will be Gamemaster + Player "
-            "(can mark squares)."
+            "If checked, you will be Gamemaster (can manage roles, generate boards, "
+            "but cannot mark squares). If unchecked, you will be a regular Player."
         )
     )
     hide_card = forms.BooleanField(label="Hide Card Initially", required=False)
@@ -162,7 +161,7 @@ class RoomForm(forms.Form):
             int(self.cleaned_data["lockout_mode"]))
         seed = self.cleaned_data["seed"]
         custom_board = self.cleaned_data.get("custom_board", [])
-        gamemaster_only = self.cleaned_data.get("gamemaster_only", False)
+        assign_gamemaster = self.cleaned_data.get("assign_gamemaster", False)
         hide_card = self.cleaned_data["hide_card"]
         fog_of_war = self.cleaned_data["fog_of_war"]
 
@@ -217,22 +216,18 @@ class RoomForm(forms.Form):
                 seed=seed,
                 fog_of_war=fog_of_war)
 
-            # Determine role and is_also_player based on form inputs
-            # Room creator is always Gamemaster (either GM-only or GM+Player)
-            if gamemaster_only:
-                # User chose Gamemaster-only (cannot mark squares)
+            # Determine role based on assign_gamemaster checkbox
+            # If checked: Gamemaster (cannot mark squares)
+            # If unchecked: Player (can mark squares)
+            if assign_gamemaster:
                 role = Role.GAMEMASTER
-                is_also_player_flag = False
             else:
-                # Default: Gamemaster + Player (can mark squares)
-                role = Role.GAMEMASTER
-                is_also_player_flag = True
+                role = Role.PLAYER
 
             creator = Player(
                 room=room,
                 name=nickname,
                 role=role,
-                is_also_player=is_also_player_flag,
                 user=user
             )
             creator.save()

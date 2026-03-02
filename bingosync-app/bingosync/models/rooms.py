@@ -381,11 +381,6 @@ class Player(models.Model):
         choices=Role.choices,
         default=Role.PLAYER
     )
-    is_also_player = models.BooleanField(
-        "Is Also Player",
-        default=False,
-        help_text="For Gamemaster role: allows GM to mark squares"
-    )
     monitoring_player = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -457,8 +452,8 @@ class Player(models.Model):
             "color": self.color.name,
             "is_spectator": self.is_spectator,
             "role": self.role,
-            "is_also_player": self.is_also_player,
-            "monitoring_player_uuid": monitoring_uuid
+            "monitoring_player_uuid": monitoring_uuid,
+            "is_logged_in": self.user is not None
         }
 
 

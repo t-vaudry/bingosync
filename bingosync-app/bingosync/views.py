@@ -794,20 +794,44 @@ def assign_role(request):
     if new_role not in valid_roles:
         return HttpResponseBadRequest(f"Invalid role: {new_role}")
 
+    # Check if target player is logged in when changing to Player/Counter
+    if new_role in [Role.PLAYER, Role.COUNTER]:
+        if not target_player.user:
+            return HttpResponseBadRequest(
+                "Player must be logged in to become a Player or Counter. "
+                "Only logged-in users can have these roles."
+            )
+
     # Store old role for event
     old_role = target_player.role
+    
+    # RULE 1: Gamemaster role cannot be transferred after room creation
+    # Prevent changing anyone TO Gamemaster
+    if new_role == Role.GAMEMASTER:
+        return HttpResponseBadRequest(
+            "Gamemaster role can only be assigned at room creation. "
+            "It cannot be transferred to another user."
+        )
+    
+    # RULE 2: Gamemaster cannot change their own role
+    # (Gamemaster role is permanent once assigned)
+    if player.role == Role.GAMEMASTER and target_player.uuid == player.uuid:
+        return HttpResponseBadRequest(
+            "Gamemaster cannot change their own role. "
+            "The Gamemaster role is permanent and cannot be transferred."
+        )
+    
+    # RULE 3: Gamemaster cannot be changed to another role by anyone
+    # (This prevents GM from being demoted by themselves or others)
+    if old_role == Role.GAMEMASTER:
+        return HttpResponseBadRequest(
+            "Gamemaster role cannot be changed. "
+            "The Gamemaster role is permanent and cannot be transferred."
+        )
 
-    # Update the player's role
+    # Normal role change (Player <-> Counter <-> Spectator)
     with transaction.atomic():
         target_player.role = new_role
-
-        # If changing to/from Gamemaster, handle is_also_player
-        if new_role == Role.GAMEMASTER:
-            # Default to GM+Player (can mark squares)
-            target_player.is_also_player = True
-        elif old_role == Role.GAMEMASTER:
-            # Changing from GM to another role, clear is_also_player
-            target_player.is_also_player = False
 
         # If changing to/from Counter, clear monitoring_player
         if new_role != Role.COUNTER:
@@ -829,6 +853,63 @@ def assign_role(request):
     publish_role_change_event(role_change_event)
 
     return HttpResponse("Role changed successfully")
+
+
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def remove_player(request):
+    """Remove a player from the room. Only Gamemaster can remove players."""
+    data = parse_body_json_or_400(
+        request,
+        required_keys=[
+            "room",
+            "target_player_uuid"])
+
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    player = _get_session_player(request.session, room)
+
+    # Check permission to remove players
+    if not check_permission(player, 'remove_players'):
+        return HttpResponseForbidden(
+            "You do not have permission to remove players.")
+
+    # Get the target player
+    try:
+        target_player = Player.get_for_encoded_uuid(data["target_player_uuid"])
+    except Player.DoesNotExist:
+        return HttpResponseBadRequest("Target player not found.")
+
+    # Verify target player is in the same room
+    if target_player.room != room:
+        return HttpResponseForbidden("Target player is not in this room.")
+
+    # Prevent removing yourself
+    if target_player.uuid == player.uuid:
+        return HttpResponseBadRequest("You cannot remove yourself from the room.")
+
+    # Create disconnection event before removing
+    from bingosync.models.events import ConnectionEvent
+    disconnected_event = ConnectionEvent.make_disconnected_event(target_player)
+    disconnected_event.save()
+
+    # Broadcast the disconnection
+    from bingosync.publish import publish_connection_event
+    publish_connection_event(disconnected_event)
+
+    # Remove the player
+    target_player.delete()
+
+    # Update room active status
+    # Note: Room can continue without Gamemaster until all players/counters disconnect
+    room.update_active()
+
+    return HttpResponse("Player removed successfully")
+
+
+
+
 
 
 @handle_ratelimit
@@ -898,6 +979,8 @@ def user_disconnected(request, encoded_player_uuid):
     if player is not ANON_PLAYER:
         connection_event = ConnectionEvent.atomically_disconnect(player)
         publish_connection_event(connection_event)
+        # Note: Room can continue without Gamemaster until all players/counters disconnect
+    
     return HttpResponse()
 
 

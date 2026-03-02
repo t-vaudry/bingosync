@@ -3,7 +3,7 @@ Tests for role change functionality (Task 2.9).
 """
 
 from unittest.mock import patch
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.contrib.auth import get_user_model
 from bingosync.models.rooms import Room, Game, Player
 from bingosync.models.events import RoleChangeEvent
@@ -15,6 +15,13 @@ import json
 User = get_user_model()
 
 
+# Use locmem cache for testing instead of Redis
+@override_settings(CACHES={
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-test-cache-role-change',
+    }
+})
 @patch('bingosync.publish.requests.put')
 class RoleChangeTestCase(TestCase):
     """Test role change functionality."""
@@ -50,6 +57,7 @@ class RoleChangeTestCase(TestCase):
         # Create gamemaster player
         self.gm_player = Player.objects.create(
             room=self.room,
+            user=self.gm_user,
             name='Gamemaster',
             role=Role.GAMEMASTER,
             is_also_player=True,
@@ -59,6 +67,7 @@ class RoleChangeTestCase(TestCase):
         # Create regular player
         self.regular_player = Player.objects.create(
             room=self.room,
+            user=self.player_user,
             name='Player1',
             role=Role.PLAYER,
             color_value=Color.blue.value
@@ -178,12 +187,18 @@ class RoleChangeTestCase(TestCase):
         }
         session.save()
 
-        # Change gamemaster's role to Player
+        # Change another player's role from Player to Spectator (should clear is_also_player if they were GM)
+        # First make regular_player a GM
+        self.regular_player.role = Role.GAMEMASTER
+        self.regular_player.is_also_player = True
+        self.regular_player.save()
+        
+        # Now change them to Player (GM can change others)
         response = self.client.post(
             '/api/assign-role',
             data=json.dumps({
                 'room': self.room.encoded_uuid,
-                'target_player_uuid': self.gm_player.encoded_uuid,
+                'target_player_uuid': self.regular_player.encoded_uuid,
                 'new_role': Role.PLAYER
             }),
             content_type='application/json'
@@ -192,9 +207,9 @@ class RoleChangeTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Verify is_also_player was cleared
-        self.gm_player.refresh_from_db()
-        self.assertEqual(self.gm_player.role, Role.PLAYER)
-        self.assertFalse(self.gm_player.is_also_player)
+        self.regular_player.refresh_from_db()
+        self.assertEqual(self.regular_player.role, Role.PLAYER)
+        self.assertFalse(self.regular_player.is_also_player)
 
     def test_role_change_event_to_json(self, mock_put):
         """Test RoleChangeEvent.to_json() format."""

@@ -1,7 +1,7 @@
 """
 Tests for user login/logout functionality (Task 2.3).
 """
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from bingosync.models.user import User
 from bingosync.forms import UserLoginForm
@@ -42,6 +42,15 @@ class UserLoginFormTests(TestCase):
         self.assertFalse(form.cleaned_data['remember_me'])
 
 
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-test-cache',
+        }
+    },
+    RATELIMIT_ENABLE=False
+)
 class UserLoginViewTests(TestCase):
     """Test the user login view."""
 

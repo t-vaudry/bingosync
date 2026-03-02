@@ -12,11 +12,7 @@
         <h1 style="display: inline-block;"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
         <h4 style="display: inline-block; position: absolute; right: 0; bottom: 0;">
             {% if player.role == 'gamemaster' %}
-                {% if player.is_also_player %}
-                    Gamemaster + Player as: {{ player.name }}
-                {% else %}
-                    Gamemaster as: {{ player.name }}
-                {% endif %}
+                Gamemaster as: {{ player.name }}
             {% elif player.role == 'counter' %}
                 Counter as: {{ player.name }}
             {% elif player.role == 'spectator' %}

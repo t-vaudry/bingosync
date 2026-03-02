@@ -436,32 +436,37 @@ def check_permission(player, action):
         Role.SPECTATOR: [],
     }
     
-    # Gamemaster can only mark if they're also a player
-    if action == 'mark_square' and player.role == Role.GAMEMASTER:
-        return player.is_also_player  # New field or check
-    
     return action in permissions.get(player.role, [])
 ```
 
 ### Gamemaster Assignment
 ```python
 # Room creation
-def create_room(user, room_name, is_gamemaster_only=False):
+def create_room(user, room_name, assign_gamemaster=False, gamemaster_user=None):
+    """Create a room with optional gamemaster assignment at creation time only"""
     room = Room.objects.create(name=room_name, creator=user)
     
-    if is_gamemaster_only:
-        role = Role.GAMEMASTER
-        is_also_player = False
-    else:
-        role = Role.GAMEMASTER  # Can also mark squares
-        is_also_player = True
-    
-    player = Player.objects.create(
+    # Creator joins as a player by default
+    creator_player = Player.objects.create(
         user=user,
         room=room,
-        role=role,
-        is_also_player=is_also_player
+        role=Role.PLAYER
     )
+    
+    # Optionally assign a gamemaster (can be the creator or another user)
+    if assign_gamemaster and gamemaster_user:
+        # If gamemaster is the creator, update their role
+        if gamemaster_user == user:
+            creator_player.role = Role.GAMEMASTER
+            creator_player.save()
+        else:
+            # Create a separate gamemaster player
+            Player.objects.create(
+                user=gamemaster_user,
+                room=room,
+                role=Role.GAMEMASTER
+            )
+    
     return room
 ```
 
