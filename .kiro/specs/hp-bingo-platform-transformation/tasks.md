@@ -659,7 +659,7 @@ Ensure fog of war works correctly with the new role system.
 
 ---
 
-- [ ] 3.3 Create Square Model with Claim Status
+- [x] 3.3 Create Square Model with Claim Status
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 1.1

@@ -330,6 +330,36 @@ class Square(models.Model):
         default=CompositeColor.goal_default().value,
         choices=CompositeColor.goal_choices())
 
+    # Claim review system fields
+    claim_status = models.CharField(
+        "Claim Status",
+        max_length=20,
+        default='none',
+        choices=[
+            ('none', 'None'),
+            ('under_review', 'Under Review'),
+            ('confirmed', 'Confirmed'),
+            ('rejected', 'Rejected'),
+        ],
+        help_text="Status of the claim for counter review system"
+    )
+    claimed_by = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='claimed_squares',
+        help_text="Player who claimed this square"
+    )
+    reviewed_by = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_squares',
+        help_text="Counter who reviewed this claim"
+    )
+
     @property
     def color(self):
         return CompositeColor.for_value(self.color_value)
@@ -352,6 +382,10 @@ class Square(models.Model):
 
     class Meta:
         unique_together = (("game", "slot"),)
+        indexes = [
+            models.Index(fields=['game', 'slot']),
+        ]
+
 
 
 class Player(models.Model):
