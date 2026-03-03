@@ -30,7 +30,8 @@ class Event(models.Model):
             RevealedEvent,
             ConnectionEvent,
             NewCardEvent,
-            RoleChangeEvent]
+            RoleChangeEvent,
+            CounterAssignmentEvent]
 
     @staticmethod
     def get_all_for_room(room):
@@ -205,6 +206,30 @@ class RoleChangeEvent(Event):
             "target_player": self.target_player.to_json(),
             "old_role": self.old_role,
             "new_role": self.new_role,
+            "timestamp": self.json_timestamp
+        }
+
+
+class CounterAssignmentEvent(Event):
+    """Event for tracking counter assignments to players."""
+    counter_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='counter_assignments_made')
+    monitored_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='counter_assignments_received',
+        null=True,
+        blank=True)  # Null means unassignment
+
+    def to_json(self):
+        return {
+            "type": "counter_assignment",
+            "player": self.player.to_json(),  # The gamemaster or counter who made the assignment
+            "player_color": self.player_color.name,
+            "counter_player": self.counter_player.to_json(),
+            "monitored_player": self.monitored_player.to_json() if self.monitored_player else None,
             "timestamp": self.json_timestamp
         }
 

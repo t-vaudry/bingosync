@@ -43,6 +43,11 @@ def publish_role_change_event(role_change_event):
     _publish_json(data, role_change_event.player.room)
 
 
+def publish_counter_assignment_event(counter_assignment_event):
+    data = counter_assignment_event.to_json()
+    _publish_json(data, counter_assignment_event.player.room)
+
+
 def _publish_json(data, room):
     data["room"] = room.encoded_uuid
     try:

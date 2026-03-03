@@ -27,7 +27,7 @@ from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
 from bingosync.models.events import (
     Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent,
-    NewCardEvent, RoleChangeEvent
+    NewCardEvent, RoleChangeEvent, CounterAssignmentEvent
 )
 from bingosync.models.enums import Role
 from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
@@ -37,7 +37,7 @@ from bingosync.publish import (
 )
 from bingosync.publish import (
     publish_connection_event, publish_new_card_event,
-    publish_role_change_event
+    publish_role_change_event, publish_counter_assignment_event
 )
 from bingosync.util import generate_encoded_uuid
 from bingosync.decorators import (
@@ -908,6 +908,86 @@ def remove_player(request):
     return HttpResponse("Player removed successfully")
 
 
+@handle_ratelimit
+@ratelimit_authenticated_action
+def assign_counter(request):
+    """Assign a counter to monitor a specific player. 
+    
+    Can be called by:
+    - Gamemaster: to assign any counter to any player
+    - Counter: to assign themselves to a player
+    """
+    data = parse_body_json_or_400(
+        request,
+        required_keys=[
+            "room",
+            "counter_player_uuid",
+            "monitored_player_uuid"])
+
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    player = _get_session_player(request.session, room)
+
+    # Get the counter player
+    try:
+        counter_player = Player.get_for_encoded_uuid(data["counter_player_uuid"])
+    except Player.DoesNotExist:
+        return HttpResponseBadRequest("Counter player not found.")
+
+    # Verify counter player is in the same room
+    if counter_player.room != room:
+        return HttpResponseForbidden("Counter player is not in this room.")
+
+    # Verify counter player has Counter role
+    if counter_player.role != Role.COUNTER:
+        return HttpResponseBadRequest("Player must have Counter role to be assigned as a counter.")
+
+    # Get the monitored player (can be null for unassignment)
+    monitored_player = None
+    monitored_player_uuid = data.get("monitored_player_uuid")
+    
+    if monitored_player_uuid and monitored_player_uuid != "null":
+        try:
+            monitored_player = Player.get_for_encoded_uuid(monitored_player_uuid)
+        except Player.DoesNotExist:
+            return HttpResponseBadRequest("Monitored player not found.")
+
+        # Verify monitored player is in the same room
+        if monitored_player.room != room:
+            return HttpResponseForbidden("Monitored player is not in this room.")
+
+        # Verify monitored player is a Player (not spectator, counter, or gamemaster)
+        if monitored_player.role != Role.PLAYER:
+            return HttpResponseBadRequest("Can only assign counters to players with Player role.")
+
+    # Check permissions
+    # Gamemaster can assign any counter to any player
+    # Counter can assign themselves to any player
+    is_gamemaster = check_permission(player, 'assign_roles')
+    is_self_assignment = (counter_player.uuid == player.uuid and player.role == Role.COUNTER)
+    
+    if not (is_gamemaster or is_self_assignment):
+        return HttpResponseForbidden(
+            "You do not have permission to assign counters. "
+            "Only Gamemaster can assign counters, or Counters can assign themselves.")
+
+    # Perform the assignment
+    with transaction.atomic():
+        counter_player.monitoring_player = monitored_player
+        counter_player.save()
+
+        # Create counter assignment event
+        counter_assignment_event = CounterAssignmentEvent(
+            player=player,
+            player_color_value=player.color.value,
+            counter_player=counter_player,
+            monitored_player=monitored_player
+        )
+        counter_assignment_event.save()
+
+    # Broadcast the counter assignment
+    publish_counter_assignment_event(counter_assignment_event)
+
+    return HttpResponse("Counter assigned successfully")
 
 
 

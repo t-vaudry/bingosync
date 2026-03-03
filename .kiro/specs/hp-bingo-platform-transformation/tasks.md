@@ -678,17 +678,16 @@ Add claim_status field to Square model for claim review system.
 
 ---
 
-- [ ] 3.4 Implement Counter Assignment
+- [x] 3.4 Implement Counter Assignment
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.6, Task 3.3
 
   **Description:**
-Allow Gamemaster to assign Counters to specific Players.
+Allow Gamemaster to assign Counters to specific Players. Allow Counters to assign themselves to specific Players.
 
 **Acceptance Criteria:**
 - assign_counter endpoint created
-- Only Gamemaster can assign counters
 - Player.monitoring_player set correctly
 - UI for counter assignment in players panel
 - WebSocket broadcast of assignment
