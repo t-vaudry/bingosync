@@ -105,14 +105,13 @@ class PermissionIntegrationTestCase(TestCase):
         # Should succeed
         self.assertEqual(response.status_code, 200)
 
-    def test_gamemaster_only_cannot_mark_square(self, mock_put):
-        """Test that GM-only cannot mark squares."""
-        # Create GM-only player
+    def test_gamemaster_can_mark_square(self, mock_put):
+        """Test that Gamemaster can mark squares (simplified model)."""
+        # Create Gamemaster player
         gm = Player.objects.create(
             room=self.room,
             name='Gamemaster',
-            role=Role.GAMEMASTER,
-            is_also_player=False
+            role=Role.GAMEMASTER
         )
 
         # Set up session
@@ -130,17 +129,16 @@ class PermissionIntegrationTestCase(TestCase):
             content_type='application/json'
         )
 
-        # Should be forbidden
-        self.assertEqual(response.status_code, 403)
+        # Should succeed
+        self.assertEqual(response.status_code, 200)
 
-    def test_gamemaster_player_can_mark_square(self, mock_put):
-        """Test that GM+Player can mark squares."""
-        # Create GM+Player
+    def test_gamemaster_can_also_mark_square(self, mock_put):
+        """Test that Gamemaster can mark squares (simplified model)."""
+        # Create Gamemaster player
         gm_player = Player.objects.create(
             room=self.room,
             name='GM+Player',
-            role=Role.GAMEMASTER,
-            is_also_player=True
+            role=Role.GAMEMASTER
         )
 
         # Set up session
@@ -198,8 +196,7 @@ class PermissionIntegrationTestCase(TestCase):
         gm = Player.objects.create(
             room=self.room,
             name='Gamemaster',
-            role=Role.GAMEMASTER,
-            is_also_player=False
+            role=Role.GAMEMASTER
         )
 
         # Set up session
@@ -254,8 +251,7 @@ class PermissionIntegrationTestCase(TestCase):
         gm = Player.objects.create(
             room=self.room,
             name='Gamemaster',
-            role=Role.GAMEMASTER,
-            is_also_player=False
+            role=Role.GAMEMASTER
         )
 
         # Set up session

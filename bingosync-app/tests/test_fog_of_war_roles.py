@@ -94,7 +94,6 @@ class FogOfWarRoleTestCase(TestCase):
             room=self.room,
             name='Gamemaster',
             role=Role.GAMEMASTER,
-            is_also_player=False,
             color_value=Color.orange.value
         )
 
@@ -250,13 +249,12 @@ class FogOfWarRoleTestCase(TestCase):
         self.assertIn(Color.red, square1.color.colors)
         self.assertIn(Color.blue, square5.color.colors)
 
-    def test_gamemaster_also_player_can_mark_squares(self, mock_put):
-        """Test that gamemaster who is also a player can mark squares."""
+    def test_gamemaster_can_mark_squares(self, mock_put):
+        """Test that gamemaster can mark squares (simplified model)."""
         gm_player = Player.objects.create(
             room=self.room,
             name='GM+Player',
             role=Role.GAMEMASTER,
-            is_also_player=True,
             color_value=Color.green.value
         )
 

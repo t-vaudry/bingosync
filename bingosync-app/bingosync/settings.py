@@ -270,14 +270,22 @@ USE_TZ = True
 # Cache Configuration
 # https://docs.djangoproject.com/en/4.2/topics/cache/
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/0'),
-        'KEY_PREFIX': 'bingosync',
-        'TIMEOUT': 300,  # 5 minutes default timeout
+if IS_TEST:
+    # Use dummy cache for tests to avoid Redis dependency
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/0'),
+            'KEY_PREFIX': 'bingosync',
+            'TIMEOUT': 300,  # 5 minutes default timeout
+        }
+    }
 
 
 # Logging

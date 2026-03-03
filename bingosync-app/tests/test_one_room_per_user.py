@@ -101,16 +101,21 @@ class OneRoomPerUserTests(TestCase):
             'hide_card': False,
             'fog_of_war': False,
         }
-        form = RoomForm(data=form_data)
+        form = RoomForm(data=form_data, user=self.user)
         self.assertTrue(form.is_valid())
         form.create_room(user=self.user)
 
-        # Create second room (as a different user/anonymous)
+        # Create second room as a different user
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@test.com',
+            password='testpass123'
+        )
         form_data['room_name'] = 'Second Room'
         form_data['seed'] = '54321'
-        form = RoomForm(data=form_data)
+        form = RoomForm(data=form_data, user=other_user)
         self.assertTrue(form.is_valid())
-        second_room = form.create_room(user=None)  # Anonymous room creation
+        second_room = form.create_room(user=other_user)
 
         # Try to join second room
         join_form_data = {
@@ -122,7 +127,7 @@ class OneRoomPerUserTests(TestCase):
             'passphrase': 'password123',
             'role': Role.PLAYER,
         }
-        join_form = JoinRoomForm(data=join_form_data)
+        join_form = JoinRoomForm(data=join_form_data, user=self.user)
         self.assertTrue(join_form.is_valid())
 
         # Should raise ValidationError
@@ -201,39 +206,31 @@ class OneRoomPerUserTests(TestCase):
         self.user.refresh_from_db()
         self.assertIsNone(self.user.current_room)
 
-    def test_anonymous_user_not_restricted(self):
-        """Test that anonymous users are not restricted to one room."""
+    def test_anonymous_user_cannot_create_room(self):
+        """Test that anonymous users cannot create rooms (authentication required)."""
         # Logout
         self.client.logout()
 
-        # Create first room as anonymous
+        # Try to create room as anonymous
         form_data = {
             'room_name': 'First Room',
             'passphrase': 'password123',
-            'nickname': 'AnonPlayer',
             'game_type': '50',
             'lockout_mode': '1',
             'seed': '12345',
-            'size': '5',
-            'is_spectator': False,
             'hide_card': False,
             'fog_of_war': False,
         }
-        form = RoomForm(data=form_data)
+        form = RoomForm(data=form_data, user=None)
+        
+        # Form should be valid (validation happens in create_room)
         self.assertTrue(form.is_valid())
-        first_room = form.create_room(user=None)
-
-        # Create second room as anonymous (should not raise error)
-        form_data['room_name'] = 'Second Room'
-        form_data['seed'] = '54321'
-        form = RoomForm(data=form_data)
-        self.assertTrue(form.is_valid())
-        second_room = form.create_room(user=None)
-
-        # Both rooms should be created successfully
-        self.assertIsNotNone(first_room)
-        self.assertIsNotNone(second_room)
-        self.assertNotEqual(first_room.uuid, second_room.uuid)
+        
+        # But create_room should raise ValidationError for anonymous users
+        with self.assertRaises(ValidationError) as context:
+            form.create_room(user=None)
+        
+        self.assertIn('You must be logged in to create a room', str(context.exception))
 
     def test_user_can_create_room_after_leaving(self):
         """Test that a user can create a new room after leaving the previous one."""

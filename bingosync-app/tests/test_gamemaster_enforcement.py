@@ -59,7 +59,6 @@ class GamemasterEnforcementTestCase(TestCase):
             room=self.room,
             name='Gamemaster',
             role=Role.GAMEMASTER,
-            is_also_player=True,
             user=self.gm_user,
             color_value=Color.orange.value
         )
@@ -101,16 +100,17 @@ class GamemasterEnforcementTestCase(TestCase):
             content_type='application/json'
         )
         
+        # Should return 400 Bad Request (validation error)
         self.assertEqual(response.status_code, 400)
-        self.assertIn(b'cannot change to Player', response.content)
+        self.assertIn(b'cannot change their own role', response.content)
         
         # Verify role unchanged
         self.gm_player.refresh_from_db()
         self.assertEqual(self.gm_player.role, Role.GAMEMASTER)
 
     @patch('bingosync.views.publish_role_change_event')
-    def test_gm_can_toggle_player_mode(self, mock_publish):
-        """Test that GM can toggle between GM and GM+Player."""
+    def test_gm_role_is_permanent(self, mock_publish):
+        """Test that GM role is permanent and cannot be changed."""
         self.client.force_login(self.gm_user)
         session = self.client.session
         session['authorized_rooms'] = {
@@ -118,27 +118,25 @@ class GamemasterEnforcementTestCase(TestCase):
         }
         session.save()
         
-        # Initially GM+Player
-        self.assertTrue(self.gm_player.is_also_player)
-        
-        # Toggle to GM-only
+        # Try to change GM role (should fail)
         response = self.client.post(
             '/api/assign-role',
             data=json.dumps({
                 'room': self.room.encoded_uuid,
                 'target_player_uuid': self.gm_player.encoded_uuid,
-                'new_role': Role.GAMEMASTER
+                'new_role': Role.PLAYER
             }),
             content_type='application/json'
         )
         
-        self.assertEqual(response.status_code, 200)
+        # Should return 400 Bad Request (validation error)
+        self.assertEqual(response.status_code, 400)
         self.gm_player.refresh_from_db()
-        self.assertFalse(self.gm_player.is_also_player)
+        self.assertEqual(self.gm_player.role, Role.GAMEMASTER)
 
     @patch('bingosync.views.publish_role_change_event')
-    def test_gm_transfer_makes_old_gm_spectator(self, mock_publish):
-        """Test that transferring GM makes old GM a spectator."""
+    def test_cannot_assign_gm_to_others(self, mock_publish):
+        """Test that GM role cannot be assigned to other players."""
         self.client.force_login(self.gm_user)
         session = self.client.session
         session['authorized_rooms'] = {
@@ -146,7 +144,7 @@ class GamemasterEnforcementTestCase(TestCase):
         }
         session.save()
         
-        # Transfer GM to player1
+        # Try to make player1 a GM (should fail)
         response = self.client.post(
             '/api/assign-role',
             data=json.dumps({
@@ -157,21 +155,16 @@ class GamemasterEnforcementTestCase(TestCase):
             content_type='application/json'
         )
         
-        self.assertEqual(response.status_code, 200)
+        # Should return 400 Bad Request (validation error)
+        self.assertEqual(response.status_code, 400)
         
-        # Old GM is now spectator
-        self.gm_player.refresh_from_db()
-        self.assertEqual(self.gm_player.role, Role.SPECTATOR)
-        self.assertFalse(self.gm_player.is_also_player)
-        
-        # New GM is GM+Player
+        # Player1 should still be a player
         self.player1.refresh_from_db()
-        self.assertEqual(self.player1.role, Role.GAMEMASTER)
-        self.assertTrue(self.player1.is_also_player)
+        self.assertEqual(self.player1.role, Role.PLAYER)
 
     @patch('bingosync.views.publish_role_change_event')
-    def test_gm_to_spectator_auto_transfers(self, mock_publish):
-        """Test that GM changing to spectator auto-transfers to next player."""
+    def test_gm_can_change_other_player_roles(self, mock_publish):
+        """Test that GM can change other players' roles (except to GM)."""
         self.client.force_login(self.gm_user)
         session = self.client.session
         session['authorized_rooms'] = {
@@ -179,12 +172,12 @@ class GamemasterEnforcementTestCase(TestCase):
         }
         session.save()
         
-        # GM changes to spectator
+        # Change player1 to spectator (should succeed)
         response = self.client.post(
             '/api/assign-role',
             data=json.dumps({
                 'room': self.room.encoded_uuid,
-                'target_player_uuid': self.gm_player.encoded_uuid,
+                'target_player_uuid': self.player1.encoded_uuid,
                 'new_role': Role.SPECTATOR
             }),
             content_type='application/json'
@@ -192,11 +185,8 @@ class GamemasterEnforcementTestCase(TestCase):
         
         self.assertEqual(response.status_code, 200)
         
-        # Old GM is spectator
-        self.gm_player.refresh_from_db()
-        self.assertEqual(self.gm_player.role, Role.SPECTATOR)
-        
-        # Next player became GM
+        # Player1 is now spectator
         self.player1.refresh_from_db()
-        self.assertEqual(self.player1.role, Role.GAMEMASTER)
-        self.assertTrue(self.player1.is_also_player)
+        self.assertEqual(self.player1.role, Role.SPECTATOR)
+
+
