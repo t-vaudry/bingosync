@@ -232,4 +232,88 @@
 
     // TODO: Handle chat send
 
+    QUnit.test("Handle system message", function(assert) {
+        var chatPanel = new ChatPanel(this.$chatPanel, this.$chatSettings, this.chatUrl, this.historyUrl);
+        chatPanel.populateChatHistory({events: [], allIncluded: true});
+
+        chatPanel.handleEvent({
+            type: "chat", 
+            text: "Player1 has been assigned the Counter role", 
+            timestamp: 1579385498.575778, 
+            player_color: "orange",
+            player: {uuid: "qciS9FzOQ_GoXb-My-x3pw", name: "Gamemaster", color: "orange", is_spectator: false},
+            is_system_message: true
+        });
+        
+        assert.elementsAre(this.chatBodyEl.children, assert.outerHtmlEquals.bind(assert), [
+            ('<div class="chat-history"></div>'),
+            ('<div class="chat-entry"><div class="system-message">' +
+              '<span class="chat-timestamp">14:11:38</span> ' +
+              '<span class="chat-message">Player1 has been assigned the Counter role</span>' +
+            '</div></div>')
+        ]);
+    });
+
+    QUnit.test("Handle counter assignment system message", function(assert) {
+        var chatPanel = new ChatPanel(this.$chatPanel, this.$chatSettings, this.chatUrl, this.historyUrl);
+        chatPanel.populateChatHistory({events: [], allIncluded: true});
+
+        chatPanel.handleEvent({
+            type: "chat", 
+            text: "Counter1 is now monitoring Player1's claims", 
+            timestamp: 1579385500.123456, 
+            player_color: "orange",
+            player: {uuid: "qciS9FzOQ_GoXb-My-x3pw", name: "Gamemaster", color: "orange", is_spectator: false},
+            is_system_message: true
+        });
+        
+        assert.elementsAre(this.chatBodyEl.children, assert.outerHtmlEquals.bind(assert), [
+            ('<div class="chat-history"></div>'),
+            ('<div class="chat-entry"><div class="system-message">' +
+              '<span class="chat-timestamp">14:11:40</span> ' +
+              '<span class="chat-message">Counter1 is now monitoring Player1\'s claims</span>' +
+            '</div></div>')
+        ]);
+    });
+
+    QUnit.test("System message distinct from regular chat", function(assert) {
+        var chatPanel = new ChatPanel(this.$chatPanel, this.$chatSettings, this.chatUrl, this.historyUrl);
+        chatPanel.populateChatHistory({events: [], allIncluded: true});
+
+        // Regular chat message
+        chatPanel.handleEvent({
+            type: "chat", 
+            text: "Hello everyone!", 
+            timestamp: 1579385498.575778, 
+            player_color: "blue",
+            player: {uuid: "abc123", name: "Player1", color: "blue", is_spectator: false},
+            is_system_message: false
+        });
+
+        // System message
+        chatPanel.handleEvent({
+            type: "chat", 
+            text: "Player1 has been assigned the Counter role", 
+            timestamp: 1579385500.123456, 
+            player_color: "orange",
+            player: {uuid: "def456", name: "Gamemaster", color: "orange", is_spectator: false},
+            is_system_message: true
+        });
+        
+        assert.elementsAre(this.chatBodyEl.children, assert.outerHtmlEquals.bind(assert), [
+            ('<div class="chat-history"></div>'),
+            // Regular message shows player name
+            ('<div class="chat-entry"><div>' +
+              '<span class="chat-timestamp">14:11:38</span> ' +
+              '<span class="chat-name blueplayer">Player1</span>: ' +
+              '<span class="chat-message">Hello everyone!</span>' +
+            '</div></div>'),
+            // System message does not show player name
+            ('<div class="chat-entry"><div class="system-message">' +
+              '<span class="chat-timestamp">14:11:40</span> ' +
+              '<span class="chat-message">Player1 has been assigned the Counter role</span>' +
+            '</div></div>')
+        ]);
+    });
+
 })();

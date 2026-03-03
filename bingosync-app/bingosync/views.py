@@ -758,6 +758,25 @@ def board_revealed(request):
     return HttpResponse("Received data: " + str(data))
 
 
+def create_system_chat_message(player, room, message_text):
+    """
+    Create and broadcast a system chat message.
+    
+    Args:
+        player: The player object to associate with the message (for event tracking)
+        room: The room where the message should appear
+        message_text: The text content of the system message
+    """
+    chat_event = ChatEvent(
+        player=player,
+        player_color_value=player.color.value,
+        body=message_text,
+        is_system_message=True
+    )
+    chat_event.save()
+    publish_chat_event(chat_event)
+
+
 @handle_ratelimit
 @ratelimit_authenticated_action
 def assign_role(request):
@@ -848,6 +867,16 @@ def assign_role(request):
             new_role=new_role
         )
         role_change_event.save()
+        
+        # Create system chat message
+        role_display_names = {
+            Role.GAMEMASTER: "Gamemaster",
+            Role.PLAYER: "Player",
+            Role.COUNTER: "Counter",
+            Role.SPECTATOR: "Spectator"
+        }
+        message = f"{target_player.name} has been assigned the {role_display_names.get(new_role, new_role)} role"
+        create_system_chat_message(player, room, message)
 
     # Broadcast the role change
     publish_role_change_event(role_change_event)
@@ -983,6 +1012,13 @@ def assign_counter(request):
             monitored_player=monitored_player
         )
         counter_assignment_event.save()
+        
+        # Create system chat message
+        if monitored_player:
+            message = f"{counter_player.name} is now monitoring {monitored_player.name}'s claims"
+        else:
+            message = f"{counter_player.name} is no longer monitoring any player"
+        create_system_chat_message(player, room, message)
 
     # Broadcast the counter assignment
     publish_counter_assignment_event(counter_assignment_event)

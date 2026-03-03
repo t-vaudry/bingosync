@@ -82,6 +82,7 @@ class Event(models.Model):
 
 class ChatEvent(Event):
     body = models.TextField()
+    is_system_message = models.BooleanField(default=False)
 
     def to_json(self):
         return {
@@ -89,7 +90,8 @@ class ChatEvent(Event):
             "player": self.player.to_json(),
             "player_color": self.player_color.name,
             "text": self.body,
-            "timestamp": self.json_timestamp
+            "timestamp": self.json_timestamp,
+            "is_system_message": self.is_system_message
         }
 
 

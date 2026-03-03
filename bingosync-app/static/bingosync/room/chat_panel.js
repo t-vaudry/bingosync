@@ -71,6 +71,12 @@ var ChatPanel = (function(){
         var playerSpan = processPlayerJson(json["player"], getPlayerColorClass(json["player_color"]));
         if(json["type"] === "chat") {
             var message = $("<span>", {"class": "chat-message", text: json["text"]}).toHtml();
+            
+            // Check if this is a system message
+            if (json["is_system_message"]) {
+                return $("<div>", {"class": "system-message", html: timeHtml + " " + message}).toHtml();
+            }
+            
             return $("<div>", {html: timeHtml + " " + playerSpan + ": " + message}).toHtml();
         }
         else if(json["type"] === "goal") {

@@ -999,6 +999,33 @@ Refactor the existing Gamemaster implementation to match the simplified model wh
 
 ---
 
+- [x] 3.16 Add Chat Messages for Role and Counter Events
+  **Priority:** Feature
+  **Estimated Time:** 4 hours
+  **Dependencies:** Task 2.9, Task 3.4
+
+  **Description:**
+Add automatic chat messages to notify all participants when role changes or counter assignments occur.
+
+**Acceptance Criteria:**
+- System chat message sent when a player's role is changed (e.g., "Alice has been assigned the Counter role")
+- System chat message sent when a counter is assigned to a player (e.g., "Bob is now monitoring Alice's claims")
+- System chat message sent when a counter assignment is removed (e.g., "Bob is no longer monitoring Alice")
+- Messages appear in the chat panel with distinct styling (system message style)
+- Messages are broadcast via WebSocket to all room participants
+- Messages include timestamp
+- Messages are stored in the Event model for chat history
+- System messages are visually distinct from user messages (e.g., italicized, different color)
+
+**Files to Modify:**
+- `bingosync-app/bingosync/views.py` (add chat message creation in assign_role and assign_counter endpoints)
+- `bingosync-app/bingosync/models/events.py` (ensure ChatEvent or similar can handle system messages)
+- `bingosync-websocket/app.py` (broadcast system chat messages)
+- `bingosync-app/static/bingosync/room/chat.js` (handle system message display)
+- `bingosync-app/static/bingosync/style.css` (add system message styling)
+
+---
+
 ## Phase 4: Statistics & Quality (Weeks 13-16)
 
 - [ ] 4.1 Create Achievement Model

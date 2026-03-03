@@ -486,6 +486,12 @@
     color: #888;
 }
 
+.system-message {
+    font-style: italic;
+    color: #9ab;
+    font-weight: 500;
+}
+
 .chat-timestamp {
     font-size: 80%;
     color: #888;
