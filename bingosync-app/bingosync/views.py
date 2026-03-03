@@ -1059,8 +1059,14 @@ def user_disconnected(request, encoded_player_uuid):
     if player is not ANON_PLAYER:
         connection_event = ConnectionEvent.atomically_disconnect(player)
         publish_connection_event(connection_event)
+
+        # Clear current_room for authenticated users to allow joining other rooms
+        if player.user and player.user.current_room == player.room:
+            player.user.current_room = None
+            player.user.save()
+
         # Note: Room can continue without Gamemaster until all players/counters disconnect
-    
+
     return HttpResponse()
 
 

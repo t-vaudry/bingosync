@@ -150,10 +150,10 @@ class Room(models.Model):
     def update_active(self):
         """
         Update room active status.
-        
+
         A room is active if it has at least one connected non-spectator
         (gamemaster, player, or counter). Spectators alone don't keep a room active.
-        
+
         When a room becomes inactive, all remaining spectators are disconnected.
         """
         non_spectator_players = [
@@ -162,19 +162,24 @@ class Room(models.Model):
         ]
         was_active = self.active
         self.active = len(non_spectator_players) > 0
-        
+
         self.save()
-        
+
         # If room just became inactive, disconnect all remaining spectators
         if was_active and not self.active:
             from bingosync.models.events import ConnectionEvent
             from bingosync.publish import publish_connection_event
-            
+
             for spectator in self.connected_spectators:
                 # Create and publish disconnect event for each spectator
                 disconnected_event = ConnectionEvent.make_disconnected_event(spectator)
                 disconnected_event.save()
                 publish_connection_event(disconnected_event)
+
+                # Clear current_room for authenticated spectators to allow joining other rooms
+                if spectator.user and spectator.user.current_room == self:
+                    spectator.user.current_room = None
+                    spectator.user.save()
 
     @property
     def creator(self):
