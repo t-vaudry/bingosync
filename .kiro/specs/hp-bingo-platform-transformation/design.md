@@ -481,21 +481,30 @@ def create_room(user, room_name, assign_gamemaster=False, gamemaster_user=None):
 └────┬─────┘
      │ Player marks square
      ▼
-┌──────────────┐
-│ under_review │ (Waiting for counter)
-└──┬────────┬──┘
-   │        │
-   │        │ Counter rejects
-   │        ▼
-   │    ┌──────────┐
-   │    │ rejected │ (Square unmarked)
-   │    └──────────┘
+┌──────────────────┐
+│ Pending Counter  │ (Counter notified, must decide)
+│    Decision      │
+└──┬────┬──────┬───┘
+   │    │      │
+   │    │      │ Counter chooses "Under Review"
+   │    │      ▼
+   │    │  ┌──────────────┐
+   │    │  │ under_review │ (Waiting for counter)
+   │    │  └──────────────┘
+   │    │
+   │    │ Counter chooses "Reject"
+   │    ▼
+   │  ┌──────────┐
+   │  │ rejected │ (Square unmarked, color removed)
+   │  └──────────┘
    │
-   │ Counter confirms
+   │ Counter chooses "Confirm"
    ▼
 ┌───────────┐
 │ confirmed │ (Square marked permanently)
 └───────────┘
+
+Note: If no counter assigned, square goes directly to 'confirmed' state
 ```
 
 ### Implementation
@@ -509,16 +518,16 @@ def mark_square(player, slot, color):
     counter = player.counters.first()
     
     if counter:
-        # Claim goes under review
-        square.claim_status = 'under_review'
-        square.claimed_by = player
+        # Counter exists - mark the square but wait for counter decision
+        # Square is marked visually but claim_status remains 'none' until counter decides
         square.colors.append(color)
+        square.claimed_by = player
         square.save()
         
-        # Notify counter via WebSocket
+        # Notify counter via WebSocket - counter must choose: under_review, confirm, or reject
         notify_counter(counter, player, slot, color)
     else:
-        # No counter, mark immediately
+        # No counter, mark immediately as confirmed (bypass claim_status)
         square.claim_status = 'confirmed'
         square.colors.append(color)
         square.save()
@@ -527,18 +536,23 @@ def mark_square(player, slot, color):
     GoalEvent.objects.create(
         player=player,
         slot=slot,
-        claim_status=square.claim_status
+        claim_status=square.claim_status if not counter else 'pending_decision'
     )
 
 def review_claim(counter, slot, action):
-    """Counter reviews a claim"""
+    """Counter reviews a claim - can choose under_review, confirm, or reject"""
     # Verify counter is assigned to the player who made the claim
     square = Square.objects.get(slot=slot)
     
     if square.claimed_by.counters.filter(id=counter.id).exists():
-        if action == 'confirm':
+        if action == 'under_review':
+            # Counter wants to review this later
+            square.claim_status = 'under_review'
+        elif action == 'confirm':
+            # Counter approves the claim
             square.claim_status = 'confirmed'
         elif action == 'reject':
+            # Counter rejects the claim
             square.claim_status = 'rejected'
             square.colors.remove(square.claimed_by.color)
             square.claimed_by = None

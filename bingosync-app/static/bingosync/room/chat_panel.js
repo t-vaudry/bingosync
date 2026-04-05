@@ -74,7 +74,8 @@ var ChatPanel = (function(){
             
             // Check if this is a system message
             if (json["is_system_message"]) {
-                return $("<div>", {"class": "system-message", html: timeHtml + " " + message}).toHtml();
+                var entryClass = json["is_counter_message"] ? "counter-entry" : "system-message";
+                return $("<div>", {"class": entryClass + " system-message", html: timeHtml + " " + message}).toHtml();
             }
             
             return $("<div>", {html: timeHtml + " " + playerSpan + ": " + message}).toHtml();

@@ -27,7 +27,7 @@ from bingosync.models.colors import Color
 from bingosync.models.game_type import GameType, ALL_VARIANTS
 from bingosync.models.events import (
     Event, ChatEvent, GoalEvent, RevealedEvent, ConnectionEvent,
-    NewCardEvent, RoleChangeEvent, CounterAssignmentEvent
+    NewCardEvent, RoleChangeEvent, CounterAssignmentEvent, ClaimReviewEvent
 )
 from bingosync.models.enums import Role
 from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
@@ -698,9 +698,22 @@ def goal_selected(request):
     color = Color.for_name(data["color"])
     remove_color = data["remove_color"]
 
-    goal_event = game.update_goal(player, slot, color, remove_color)
+    # Check if player has an assigned counter
+    counter = player.counters.first() if not remove_color else None
+    
+    # Determine claim status based on counter assignment
+    if counter and not remove_color:
+        # Counter exists - square needs counter decision
+        # Counter will be notified and must choose: under_review, confirm, or reject
+        claim_status = 'pending_decision'
+    else:
+        # No counter or removing color - bypass claim review
+        claim_status = 'confirmed'
+
+    goal_event = game.update_goal(player, slot, color, remove_color, claim_status=claim_status)
     if not goal_event:
         return HttpResponseBadRequest("Blocked by Lockout")
+    
     publish_goal_event(goal_event)
     return HttpResponse("Recieved data: " + str(data))
 
@@ -758,7 +771,7 @@ def board_revealed(request):
     return HttpResponse("Received data: " + str(data))
 
 
-def create_system_chat_message(player, room, message_text):
+def create_system_chat_message(player, room, message_text, is_counter_message=False):
     """
     Create and broadcast a system chat message.
     
@@ -766,6 +779,7 @@ def create_system_chat_message(player, room, message_text):
         player: The player object to associate with the message (for event tracking)
         room: The room where the message should appear
         message_text: The text content of the system message
+        is_counter_message: Whether this is a counter-related message (for chat filtering)
     """
     chat_event = ChatEvent(
         player=player,
@@ -774,7 +788,13 @@ def create_system_chat_message(player, room, message_text):
         is_system_message=True
     )
     chat_event.save()
-    publish_chat_event(chat_event)
+    # Add counter flag to the published JSON (not stored in DB)
+    data = chat_event.to_json()
+    if is_counter_message:
+        data["is_counter_message"] = True
+    data["room"] = room.encoded_uuid
+    from bingosync.publish import _publish_json
+    _publish_json(data, room)
 
 
 @handle_ratelimit
@@ -1018,12 +1038,114 @@ def assign_counter(request):
             message = f"{counter_player.name} is now monitoring {monitored_player.name}'s claims"
         else:
             message = f"{counter_player.name} is no longer monitoring any player"
-        create_system_chat_message(player, room, message)
+        create_system_chat_message(player, room, message, is_counter_message=True)
 
     # Broadcast the counter assignment
     publish_counter_assignment_event(counter_assignment_event)
 
     return HttpResponse("Counter assigned successfully")
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def review_claim(request):
+    """
+    Counter reviews a claim with three options: under_review, confirm, or reject.
+    
+    Actions:
+    - under_review: Mark claim for later review (square stays marked, pending)
+    - confirm: Approve the claim (square permanently marked)
+    - reject: Deny the claim and remove the marking
+    """
+    data = parse_body_json_or_400(
+        request,
+        required_keys=[
+            "room",
+            "slot",
+            "action"])
+
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    counter = _get_session_player(request.session, room)
+
+    # Verify the player is a counter
+    if counter.role != Role.COUNTER:
+        return HttpResponseForbidden("Only counters can review claims.")
+
+    # Get the square
+    game = room.current_game
+    slot = int(data["slot"])
+    
+    try:
+        square = game.squares[slot - 1]
+    except IndexError:
+        return HttpResponseBadRequest(f"Invalid slot: {slot}")
+
+    # Verify the square has a claim to review
+    if not square.claimed_by:
+        return HttpResponseBadRequest("This square has no claim to review.")
+
+    # Verify the counter is assigned to the player who made the claim
+    if square.claimed_by.counters.filter(id=counter.id).exists():
+        # Counter is assigned to this player
+        pass
+    else:
+        return HttpResponseForbidden(
+            "You can only review claims from players you are monitoring.")
+
+    # Validate action
+    action = data["action"]
+    valid_actions = ['under_review', 'confirm', 'reject']
+    if action not in valid_actions:
+        return HttpResponseBadRequest(
+            f"Invalid action: {action}. Must be one of: {', '.join(valid_actions)}")
+
+    # Perform the review action
+    with transaction.atomic():
+        reviewed_player = square.claimed_by
+        
+        if action == 'under_review':
+            # Counter wants to review this later
+            square.claim_status = 'under_review'
+            square.reviewed_by = counter
+            square.save()
+            message = f"{counter.name} is reviewing {square.goal}"
+            
+        elif action == 'confirm':
+            # Counter approves the claim
+            square.claim_status = 'confirmed'
+            square.reviewed_by = counter
+            square.save()
+            message = f"{counter.name} confirmed {reviewed_player.name}'s claim on {square.goal}"
+            
+        elif action == 'reject':
+            # Counter rejects the claim - remove the color
+            square_color = square.color
+            square_color.remove(reviewed_player.color)
+            square.color = square_color
+            square.claim_status = 'rejected'
+            square.reviewed_by = counter
+            square.claimed_by = None  # Clear claimed_by on rejection
+            square.save()
+            message = f"{counter.name} rejected {reviewed_player.name}'s claim on {square.goal}"
+
+        # Create claim review event
+        claim_review_event = ClaimReviewEvent(
+            player=counter,
+            player_color_value=counter.color.value,
+            square=square,
+            action=action,
+            reviewed_player=reviewed_player
+        )
+        claim_review_event.save()
+        
+        # Create system chat message
+        create_system_chat_message(counter, room, message, is_counter_message=True)
+
+    # Broadcast the claim review
+    from bingosync.publish import publish_claim_review_event
+    publish_claim_review_event(claim_review_event)
+
+    return HttpResponse("Claim reviewed successfully")
 
 
 

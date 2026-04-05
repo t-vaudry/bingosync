@@ -48,6 +48,11 @@ def publish_counter_assignment_event(counter_assignment_event):
     _publish_json(data, counter_assignment_event.player.room)
 
 
+def publish_claim_review_event(claim_review_event):
+    data = claim_review_event.to_json()
+    _publish_json(data, claim_review_event.player.room)
+
+
 def _publish_json(data, room):
     data["room"] = room.encoded_uuid
     try:

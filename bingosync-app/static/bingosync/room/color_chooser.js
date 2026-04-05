@@ -7,6 +7,7 @@ var ColorChooser = (function(){
         this.$collapseButton = $chooserPanel.find(".collapse-button");
         this.isSpectator = playerJson.is_spectator;
         this.colorSelectedUrl = colorSelectedUrl;
+        this.defaultColor = playerJson.color;
 
         var that = this;
         if (!this.isSpectator) {
@@ -17,7 +18,8 @@ var ColorChooser = (function(){
     };
 
     ColorChooser.prototype.getChosenColor = function() {
-        return this.$choosers.filter(".chosen-color").attr("squareColor");
+        var chosen = this.$choosers.filter(".chosen-color").attr("squareColor");
+        return chosen || this.defaultColor || "orange";
     };
 
     ColorChooser.prototype.setChosenColor = function(newColor) {

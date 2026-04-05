@@ -31,7 +31,8 @@ class Event(models.Model):
             ConnectionEvent,
             NewCardEvent,
             RoleChangeEvent,
-            CounterAssignmentEvent]
+            CounterAssignmentEvent,
+            ClaimReviewEvent]
 
     @staticmethod
     def get_all_for_room(room):
@@ -129,6 +130,12 @@ class GoalEvent(Event):
     square = models.ForeignKey("bingosync.Square", on_delete=models.CASCADE)
     color_value = models.IntegerField(choices=Color.goal_choices())
     remove_color = models.BooleanField(default=False)
+    claim_status = models.CharField(
+        "Claim Status",
+        max_length=20,
+        default='confirmed',
+        help_text="Status of the claim when event was created"
+    )
 
     @property
     def color(self):
@@ -142,6 +149,7 @@ class GoalEvent(Event):
             "player_color": self.player_color.name,
             "color": self.color.name,
             "remove": self.remove_color,
+            "claim_status": self.claim_status,
             "timestamp": self.json_timestamp
         }
 
@@ -232,6 +240,37 @@ class CounterAssignmentEvent(Event):
             "player_color": self.player_color.name,
             "counter_player": self.counter_player.to_json(),
             "monitored_player": self.monitored_player.to_json() if self.monitored_player else None,
+            "timestamp": self.json_timestamp
+        }
+
+
+class ClaimReviewEvent(Event):
+    """Event for tracking counter claim reviews."""
+    square = models.ForeignKey("bingosync.Square", on_delete=models.CASCADE)
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ('under_review', 'Under Review'),
+            ('confirm', 'Confirm'),
+            ('reject', 'Reject'),
+        ],
+        help_text="Action taken by counter: under_review, confirm, or reject"
+    )
+    reviewed_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='claim_reviews_received',
+        help_text="Player whose claim was reviewed"
+    )
+
+    def to_json(self):
+        return {
+            "type": "claim_review",
+            "player": self.player.to_json(),  # The counter who reviewed
+            "player_color": self.player_color.name,
+            "square": self.square.to_json(),
+            "action": self.action,
+            "reviewed_player": self.reviewed_player.to_json(),
             "timestamp": self.json_timestamp
         }
 

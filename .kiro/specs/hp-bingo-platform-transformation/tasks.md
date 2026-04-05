@@ -700,46 +700,55 @@ Allow Gamemaster to assign Counters to specific Players. Allow Counters to assig
 ---
 
 
-- [ ] 3.5 Implement Claim Under Review Logic
+- [x] 3.5 Implement Claim Review Logic
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 3.3, Task 3.4
 
   **Description:**
-When a player with an assigned counter marks a square, place it under review.
+When a player with an assigned counter marks a square, notify the counter who can then choose to place it under review, confirm it, or reject it. If no counter is assigned, the square is automatically confirmed.
 
 **Acceptance Criteria:**
 - mark_square checks if player has counter
-- If counter exists, claim_status = 'under_review'
-- If no counter, claim_status = 'confirmed'
+- If counter exists, square is marked but counter must decide: under_review, confirm, or reject
+- If no counter, claim_status = 'confirmed' (bypass claim_status entirely)
+- Counter receives notification when their assigned player marks a square
+- Counter can choose one of three actions: "Under Review", "Confirm", or "Reject"
+- "Under Review" sets claim_status = 'under_review' (square stays marked, pending review)
+- "Confirm" sets claim_status = 'confirmed' (square permanently marked)
+- "Reject" sets claim_status = 'rejected' and removes the color from the square
 - GoalEvent includes claim_status
 - WebSocket message includes claim_status
-- UI shows "under review" state
+- UI shows claim status state (under review, confirmed, rejected)
+- Counter UI shows pending claims with three action buttons for each
 
 **Files to Modify:**
 - `bingosync-app/bingosync/views.py`
 - `bingosync-app/bingosync/models/events.py`
 - `bingosync-app/static/bingosync/room/board.js`
+- `bingosync-app/static/bingosync/room/counter.js` (create)
 - `bingosync-websocket/app.py`
 
 ---
 
-- [ ] 3.6 Implement Claim Review Endpoint
+- [x] 3.6 Implement Claim Review Endpoint
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 3.5
 
   **Description:**
-Create endpoint for Counters to confirm or reject claims.
+Create endpoint for Counters to review claims with three options: under review, confirm, or reject.
 
 **Acceptance Criteria:**
 - review_claim endpoint created
 - Only assigned Counter can review
-- Confirm action sets claim_status = 'confirmed'
+- Three actions supported: 'under_review', 'confirm', 'reject'
+- Under Review action sets claim_status = 'under_review' (square stays marked, pending)
+- Confirm action sets claim_status = 'confirmed' (square permanently marked)
 - Reject action sets claim_status = 'rejected' and removes color
-- ClaimReviewEvent created
-- WebSocket broadcast of review
-- UI for counter to review claims
+- ClaimReviewEvent created with action type
+- WebSocket broadcast of review decision
+- UI for counter to review claims with three buttons per claim
 
 **Files to Modify:**
 - `bingosync-app/bingosync/views.py`
@@ -749,20 +758,24 @@ Create endpoint for Counters to confirm or reject claims.
 
 ---
 
-- [ ] 3.7 Create Counter UI Panel
+- [x] 3.7 Create Counter UI Panel
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 3.6
 
   **Description:**
-Create UI panel for Counters to review claims.
+Create UI panel for Counters to review claims with three action buttons.
 
 **Acceptance Criteria:**
 - Counter panel shows pending claims for assigned player
-- Confirm and Reject buttons
+- Three buttons per claim: "Under Review", "Confirm", and "Reject"
+- "Under Review" button marks claim for later review (claim_status = 'under_review')
+- "Confirm" button approves the claim (claim_status = 'confirmed')
+- "Reject" button denies the claim and removes the marking (claim_status = 'rejected')
 - Real-time updates via WebSocket
-- Shows claim history
+- Shows claim history with status
 - Only visible to Counters
+- Clear visual distinction between pending, under review, confirmed, and rejected claims
 
 **Files to Modify:**
 - `bingosync-app/templates/bingosync/bingosync.html`
