@@ -241,6 +241,14 @@ class Game(models.Model):
         choices=LockoutMode.choices(),
         default=LockoutMode.default_value())
     fog_of_war = models.BooleanField("Fog of War", default=False)
+    winner = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='won_games',
+        help_text="Player who won this lockout game (first to a majority of "
+                  "confirmed squares); null while the game is unwon")
 
     def __str__(self):
         return self.room.name + ": " + str(self.seed)

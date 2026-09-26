@@ -8,6 +8,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
+from django.db.models import F
 from django.template import loader
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -30,7 +31,8 @@ from bingosync.models.events import (
     NewCardEvent, RoleChangeEvent, CounterAssignmentEvent, ClaimReviewEvent
 )
 from bingosync.models.enums import Role
-from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player
+from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player, Square
+from bingosync.models.user import User
 from bingosync.publish import (
     publish_goal_event, publish_chat_event, publish_color_event,
     publish_revealed_event
@@ -715,6 +717,12 @@ def goal_selected(request):
         return HttpResponseBadRequest("Blocked by Lockout")
     
     publish_goal_event(goal_event)
+
+    # A confirmed mark may complete a lockout win (marks awaiting counter
+    # review are not yet confirmed, so they can't win until reviewed).
+    if not remove_color and claim_status == 'confirmed':
+        check_and_record_lockout_win(game, player)
+
     return HttpResponse("Recieved data: " + str(data))
 
 
@@ -795,6 +803,52 @@ def create_system_chat_message(player, room, message_text, is_counter_message=Fa
     data["room"] = room.encoded_uuid
     from bingosync.publish import _publish_json
     _publish_json(data, room)
+
+
+def check_and_record_lockout_win(game, player):
+    """Record a lockout win if `player` has just reached the winning threshold.
+
+    In lockout a square belongs to exactly one player, so the win condition is
+    simply being first to a majority of *confirmed* squares (13 on a 5x5).
+    Safe to call after any square becomes confirmed: it no-ops outside lockout,
+    once a game already has a winner, or before the threshold is met. On a win
+    it records the winner once, updates win/loss stats, and announces it in chat.
+
+    Returns the winning Player, or None.
+    """
+    if game.lockout_mode != LockoutMode.lockout or game.winner_id is not None:
+        return None
+
+    # Majority of the board; derived so it holds for any board size.
+    threshold = game.size * game.size // 2 + 1
+
+    confirmed_count = Square.objects.filter(
+        game=game, claimed_by=player, claim_status='confirmed').count()
+    if confirmed_count < threshold:
+        return None
+
+    with transaction.atomic():
+        game.winner = player
+        game.save(update_fields=['winner'])
+        _record_win_loss(game, player)
+
+    create_system_chat_message(
+        player, game.room,
+        f"{player.name} reached {threshold} goals and won the game!")
+    return player
+
+
+def _record_win_loss(game, winner):
+    """Give the winner a win and every other logged-in Player a loss.
+
+    Only Player-role participants with a linked account are scored; spectators,
+    counters, and the gamemaster are not.
+    """
+    scored_players = Player.objects.filter(
+        room=game.room, role=Role.PLAYER).exclude(user__isnull=True)
+    for scored in scored_players:
+        field = 'wins' if scored.id == winner.id else 'losses'
+        User.objects.filter(pk=scored.user_id).update(**{field: F(field) + 1})
 
 
 @handle_ratelimit
@@ -1144,6 +1198,10 @@ def review_claim(request):
     # Broadcast the claim review
     from bingosync.publish import publish_claim_review_event
     publish_claim_review_event(claim_review_event)
+
+    # Confirming a claim can push the reviewed player over the lockout threshold.
+    if action == 'confirm':
+        check_and_record_lockout_win(game, reviewed_player)
 
     return HttpResponse("Claim reviewed successfully")
 
