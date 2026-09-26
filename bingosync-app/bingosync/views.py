@@ -49,7 +49,7 @@ from bingosync.decorators import (
     handle_ratelimit,
     require_internal_api_secret
 )
-from bingosync.permissions import check_permission
+from bingosync.permissions import check_permission, can_generate_board
 
 from crispy_forms.layout import Layout, Field
 
@@ -534,8 +534,9 @@ def new_card(request):
     room = Room.get_for_encoded_uuid(data["room"])
     player = _get_session_player(request.session, room)
 
-    # Check permission to generate board
-    if not check_permission(player, 'generate_board'):
+    # Board generation is allowed for the Gamemaster, or any Player when the
+    # room has no Gamemaster.
+    if not can_generate_board(player):
         return HttpResponseForbidden(
             "You do not have permission to generate a new board.")
 

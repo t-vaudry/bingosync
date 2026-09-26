@@ -160,7 +160,14 @@ class PermissionIntegrationTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_player_cannot_generate_board(self, mock_put):
-        """Test that regular players cannot generate new boards."""
+        """A regular player cannot generate a new board when a Gamemaster runs
+        the room (a GM-less room does let players generate)."""
+        # A Gamemaster must be present for a Player to be blocked.
+        Player.objects.create(
+            room=self.room,
+            name='GM',
+            role=Role.GAMEMASTER
+        )
         # Create player
         player = Player.objects.create(
             room=self.room,

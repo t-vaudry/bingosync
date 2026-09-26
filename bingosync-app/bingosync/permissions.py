@@ -66,6 +66,25 @@ def check_permission(player, action):
     return permissions.get(action, False)
 
 
+def can_generate_board(player):
+    """Whether a player may generate a new board (card).
+
+    Allowed for the Gamemaster, and for any Player when the room has no
+    Gamemaster -- so a room created without a GM isn't stuck with one board,
+    while GM-run rooms keep board control with the GM.
+    """
+    if not player or not hasattr(player, 'role'):
+        return False
+    if player.role == Role.GAMEMASTER:
+        return True
+    if player.role == Role.PLAYER:
+        from bingosync.models.rooms import Player
+        room_has_gamemaster = Player.objects.filter(
+            room=player.room, role=Role.GAMEMASTER).exists()
+        return not room_has_gamemaster
+    return False
+
+
 def require_permission(action):
     """
     Decorator to require a specific permission for a view.
