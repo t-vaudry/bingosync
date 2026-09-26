@@ -85,6 +85,9 @@ class ChatEvent(Event):
     body = models.TextField()
     is_system_message = models.BooleanField(default=False)
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     def to_json(self):
         return {
             "type": "chat",
@@ -101,6 +104,9 @@ class NewCardEvent(Event):
     seed = models.BigIntegerField(default=0)
     hide_card = models.BooleanField(default=False)
     fog_of_war = models.BooleanField(default=False)
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def game_type(self):
@@ -137,6 +143,9 @@ class GoalEvent(Event):
         help_text="Status of the claim when event was created"
     )
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     @property
     def color(self):
         return Color.for_value(self.color_value)
@@ -157,6 +166,9 @@ class GoalEvent(Event):
 class ColorEvent(Event):
     color_value = models.IntegerField(choices=Color.player_choices())
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     @property
     def color(self):
         return Color.for_value(self.color_value)
@@ -172,6 +184,9 @@ class ColorEvent(Event):
 
 
 class RevealedEvent(Event):
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     def to_json(self):
         return {
@@ -208,6 +223,9 @@ class RoleChangeEvent(Event):
     old_role = models.CharField(max_length=20)
     new_role = models.CharField(max_length=20)
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     def to_json(self):
         return {
             "type": "role_change",
@@ -232,6 +250,9 @@ class CounterAssignmentEvent(Event):
         related_name='counter_assignments_received',
         null=True,
         blank=True)  # Null means unassignment
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     def to_json(self):
         return {
@@ -263,6 +284,9 @@ class ClaimReviewEvent(Event):
         help_text="Player whose claim was reviewed"
     )
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     def to_json(self):
         return {
             "type": "claim_review",
@@ -277,6 +301,9 @@ class ClaimReviewEvent(Event):
 
 class ConnectionEvent(Event):
     event = models.IntegerField(choices=ConnectionEventType.choices())
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def event_type(self):

@@ -23,12 +23,12 @@ STALE_THRESHOLD = datetime.timedelta(minutes=90)
 
 
 class Room(models.Model):
-    uuid = models.UUIDField(default=uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
     name = models.CharField(max_length=255)
     room_code = models.CharField(max_length=8, unique=True, db_index=True, help_text="Short code for joining room")
     created_date = models.DateTimeField("Creation Time", default=timezone.now)
     passphrase = models.CharField(max_length=255)
-    active = models.BooleanField("Active", default=False)
+    active = models.BooleanField("Active", default=False, db_index=True)
     hide_card = models.BooleanField("Initially Hide Card", default=False)
 
     def __str__(self):
@@ -407,7 +407,7 @@ class Square(models.Model):
 
 class Player(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
-    uuid = models.UUIDField(default=uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
     name = models.CharField(max_length=50)
     color_value = models.IntegerField(
         "Color",
@@ -440,6 +440,9 @@ class Player(models.Model):
         related_name='counters',
         help_text="For Counter role: the player being monitored"
     )
+
+    class Meta:
+        indexes = [models.Index(fields=['room', 'user'])]
 
     @staticmethod
     def get_for_encoded_uuid(encoded_player_uuid):
