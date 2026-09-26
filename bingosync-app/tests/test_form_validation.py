@@ -170,12 +170,15 @@ class JoinRoomFormValidationTestCase(TestCase):
         self.assertFalse(form.is_valid())
 
     def test_empty_passphrase(self):
-        """Empty passphrase should fail validation."""
+        """A blank passphrase against a password-protected room should fail.
+
+        Passwords are optional at the field level now, but a room that has a
+        password still rejects a blank one (as a non-field error)."""
         data = self.valid_data.copy()
         data['passphrase'] = ''
         form = JoinRoomForm(data=data, room=self.room)
         self.assertFalse(form.is_valid())
-        self.assertIn('passphrase', form.errors)
+        self.assertIn('Incorrect Password', str(form.errors))
 
 
 class ProfanityFilterTestCase(TestCase):

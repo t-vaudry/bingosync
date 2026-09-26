@@ -55,6 +55,8 @@ class RoomForm(forms.Form):
     passphrase = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(),
+        required=False,
+        help_text="Optional. Leave blank for a room anyone can join.",
         validators=[validate_passphrase]
     )
     # Hidden fields - automatically set to HP CoS (value 50)
@@ -199,7 +201,9 @@ class RoomForm(forms.Form):
             # Don't cache random boards (empty seed)
             seed, board_json = game_type.generator_instance().get_card(seed, custom_board, 5)
 
-        encrypted_passphrase = hashers.make_password(passphrase)
+        # Empty passphrase means an open (no-password) room; store "" so the
+        # join path can tell "no password required" from "wrong password".
+        encrypted_passphrase = hashers.make_password(passphrase) if passphrase else ""
         with transaction.atomic():
             room = Room(
                 name=room_name,
@@ -253,6 +257,7 @@ class JoinRoomForm(forms.Form):
     passphrase = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(),
+        required=False,
         validators=[validate_passphrase]
     )
     role = forms.ChoiceField(
@@ -316,9 +321,12 @@ class JoinRoomForm(forms.Form):
         passphrase = cleaned_data.get("passphrase")
         role = cleaned_data.get("role")
         
-        if room and passphrase and not hashers.check_password(
-                passphrase, room.passphrase):
-            raise ValidationError("Incorrect Password")
+        # Only enforce a password when the room actually has one. Open rooms
+        # (created with a blank password) store an empty passphrase.
+        if room and room.passphrase:
+            if not passphrase or not hashers.check_password(
+                    passphrase, room.passphrase):
+                raise ValidationError("Incorrect Password")
         
         # Prevent spectators from joining inactive rooms
         if room and role == Role.SPECTATOR and not room.active:
