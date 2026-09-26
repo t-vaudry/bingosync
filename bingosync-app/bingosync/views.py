@@ -352,7 +352,7 @@ def room_view(request, encoded_room_uuid):
                     # Pass the authenticated user to create_player
                     user = request.user if request.user.is_authenticated else None
                     player = join_form.create_player(user=user)
-                    _save_session_player(request.session, room)
+                    _save_session_player(request.session, player)
                     return redirect_params(
                         "room_view", encoded_room_uuid=encoded_room_uuid, params={
                             'password': join_form.cleaned_data['passphrase']})
@@ -747,7 +747,7 @@ def select_color(request):
 
     color_event = player.update_color(color)
     publish_color_event(color_event)
-    return HttpResponse("Received data: ", str(data))
+    return HttpResponse("Received data: " + str(data))
 
 
 @handle_ratelimit

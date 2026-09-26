@@ -142,6 +142,10 @@ var ChatPanel = (function(){
             var chatJson = result.events[i];
             this.chatData.push(chatJson);
             var message = processChatJson(chatJson);
+            // Skip types with no chat text of their own (see handleEvent).
+            if (message === undefined) {
+                continue;
+            }
             var entry = $("<div>", {"class": chatJson["type"] + "-entry", html: message});
             this.$chatHistory.append(entry);
         }
@@ -153,6 +157,12 @@ var ChatPanel = (function(){
 
     ChatPanel.prototype.handleEvent = function(json) {
         var result = processChatJson(json);
+        // role_change/counter_assignment/claim_review carry no chat text of
+        // their own (a companion system ChatEvent provides the readable
+        // line), so skip appending an empty entry for them.
+        if (result === undefined) {
+            return;
+        }
         this.appendChatMessage(result, json["type"] + "-entry");
     };
 
