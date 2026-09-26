@@ -92,6 +92,11 @@ var ChatSocket = (function(){
                 window.counterUI.handleClaimReviewEvent(json);
             }
         }
+        else if(json["type"] === "game_won") {
+            if (window.showWinCelebration) {
+                window.showWinCelebration(json["winner"], json["goals"]);
+            }
+        }
         else if(json["type"] === "new-card") {
             // TODO: remove this external dependency
             // if the card was never revealed show what the seed was in the chat anyway

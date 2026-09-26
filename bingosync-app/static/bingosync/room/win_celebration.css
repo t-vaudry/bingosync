@@ -1,0 +1,87 @@
+/* Winner celebration overlay + confetti */
+
+.win-confetti-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    /* Above the overlay backdrop (3001) so confetti rains over everything;
+       pointer-events:none keeps the Dismiss button clickable underneath. */
+    z-index: 3002;
+}
+
+.win-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    animation: win-fade 0.25s ease;
+}
+
+@keyframes win-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.win-card {
+    background: #1d241e;
+    color: #e7ede7;
+    border: 1px solid #3a463c;
+    border-radius: 14px;
+    padding: 30px 44px;
+    text-align: center;
+    max-width: 90vw;
+    box-shadow: 0 24px 70px -22px rgba(0, 0, 0, 0.85);
+    animation: win-pop 0.35s cubic-bezier(0.2, 1.2, 0.3, 1);
+}
+
+@keyframes win-pop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.win-trophy {
+    font-size: 56px;
+    line-height: 1;
+}
+
+.win-heading {
+    margin-top: 10px;
+    font-size: 13px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #a7b3aa;
+}
+
+.win-name {
+    margin: 6px 0 2px;
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffd54a;
+    word-break: break-word;
+}
+
+.win-sub {
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #a7b3aa;
+}
+
+.win-dismiss {
+    min-width: 130px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .win-overlay,
+    .win-card {
+        animation: none;
+    }
+}

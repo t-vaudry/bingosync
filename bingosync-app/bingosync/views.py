@@ -835,6 +835,15 @@ def check_and_record_lockout_win(game, player):
     create_system_chat_message(
         player, game.room,
         f"{player.name} reached {threshold} goals and won the game!")
+
+    # Transient celebration signal for the winner pop-up (the chat message
+    # above is the persistent record; this drives the confetti overlay).
+    from bingosync.publish import _publish_json
+    _publish_json({
+        "type": "game_won",
+        "winner": player.name,
+        "goals": threshold,
+    }, game.room)
     return player
 
 
