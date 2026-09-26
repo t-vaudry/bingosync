@@ -23,6 +23,7 @@ dependencies = [
     "django-bootstrap3",
     "psycopg2-binary",
     "redis",
+    "sentry-sdk[django]~=2.0",
 ]
 
 [build-system]
