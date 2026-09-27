@@ -17,7 +17,7 @@ from django.urls import re_path as url
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 
-from bingosync import views, settings
+from bingosync import views
 
 urlpatterns = [
     url(r'^$', views.landing, name='landing'),
@@ -97,9 +97,3 @@ urlpatterns = [
     url(r'^api/reconcile$', views.reconcile_connections, name='reconcile'),
     url(r'^admin/', admin.site.urls),
 ]
-
-# only add the route for running javascript tests in development mode
-if settings.DEBUG:
-    urlpatterns += [
-        url(r'^jstests', views.jstests, name='jstests'),
-    ]

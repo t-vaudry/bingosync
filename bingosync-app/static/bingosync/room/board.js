@@ -129,7 +129,6 @@ var Board = (function(){
         this.fogOfWar = fogOfWar;
         this.squares = [];
         this.$squares = null;
-        this.fogPersist = false;
     };
 
     Board.prototype.setup = function(size) {
@@ -264,9 +263,7 @@ var Board = (function(){
         var chosenColorClass = getSquareColorClass(chosenColor);
 
         for (let i = 0; i < this.size * this.size; i++) {
-            if (!this.fogPersist) {
-                this.squares[i].hidden = true
-            }
+            this.squares[i].hidden = true
 
             if (this.checkTile(i, chosenColorClass)) {
                 this.squares[i].hidden = false

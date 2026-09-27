@@ -85,12 +85,6 @@
                 <div class="flex-col-footer m-b-l" id="room-settings-container">
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>
-                <!-- Celeste Long New is the current name of the category extensions -->
-                {% if room.settings.game == "Celeste" or room.settings.game == "Celeste Long New" or room.settings.game == "Custom" %}
-                    <div class="flex-col-footer m-b-l" id="additional-settings-container">
-                        {% include 'bingosync/additional_settings_panel.html' %}
-                    </div>
-                {% endif %}
                 <div class="flex-col-footer">
                     {% include 'bingosync/chat_settings_panel.html' %}
                 </div>
@@ -108,7 +102,6 @@
 <script src="{% static "bingosync/room/board_cover.js" %}"></script>
 <script src="{% static "bingosync/room/players_panel.js" %}"></script>
 <script src="{% static "bingosync/room/room_settings_panel.js" %}"></script>
-<script src="{% static "bingosync/room/additional_settings_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_socket.js" %}"></script>
 <script src="{% static "bingosync/room/counter.js" %}"></script>
@@ -117,7 +110,6 @@
 <script>
     var chatPanel;
     var board;
-    var additionalSettingsPanel;
     $(document).ready(function() {
         ROOM_SETTINGS = JSON.parse('{{ room.settings|jsonify|escapejs }}');
         var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
@@ -141,13 +133,6 @@
         var playersPanel = new PlayersPanel($("#players-panel"), player);
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
 
-        additionalSettingsPanel = undefined;
-
-        // Celeste Long New is the current name of the category extensions
-        if (ROOM_SETTINGS.game == "Celeste" || ROOM_SETTINGS.game == "Celeste Long New" || ROOM_SETTINGS.game == "Custom"){
-            var additionalSettingsPanel = new AdditionalSettingsPanel($("#additional-settings-container"), $("#bingo"));
-        }
-
         chatPanel = new ChatPanel($("#bingo-chat"), $("#chat-settings"), chatUrl, chatHistoryUrl);
         initializeChatSettings($("#chat-settings"), $("#bingo-chat"), ROOM_SETTINGS.fog_of_war);
 
@@ -166,10 +151,6 @@
         // hacky callback to trigger an update of the playersPanel counters (& highlighter) whenever we update the board.
         var boardRefreshCallback = function() {
             playersPanel.updateGoalCounters(board);
-
-            if (additionalSettingsPanel !== undefined){
-                additionalSettingsPanel.newBoard();
-            }
         }
 
         // initialize magic global hack hooks

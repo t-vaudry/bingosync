@@ -118,17 +118,3 @@
 
 .counter-history-detail { color: #999; }
 .counter-history-time { color: #666; font-size: 0.85em; }
-
-/* Pending review indicator — subtle dashed border */
-.square.pending-review {
-    box-shadow: inset 0 0 0 2px #17a2b8;
-}
-
-.square.pending-review::after {
-    content: '⏳';
-    position: absolute;
-    top: 2px;
-    left: 4px;
-    font-size: 0.65em;
-    z-index: 11;
-}
