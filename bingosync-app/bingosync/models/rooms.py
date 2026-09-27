@@ -520,3 +520,21 @@ class Player(models.Model):
 
 
 ANON_PLAYER = Player(uuid=ANON_UUID, name="Anonymous", role=Role.SPECTATOR)
+
+
+class CompletedLine(models.Model):
+    """A line (row, column, or diagonal) a player has completed in a game.
+
+    One row per (game, player, line); the unique constraint makes crediting a
+    line idempotent so a bingo counts exactly once. `line` is a stable key
+    like "row-0", "col-3", "diag-main", "diag-anti".
+    """
+    game = models.ForeignKey(
+        Game, on_delete=models.CASCADE, related_name='completed_lines')
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='completed_lines')
+    line = models.CharField(max_length=16)
+    created_date = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = (("game", "player", "line"),)

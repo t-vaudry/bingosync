@@ -31,7 +31,9 @@ from bingosync.models.events import (
     NewCardEvent, RoleChangeEvent, CounterAssignmentEvent, ClaimReviewEvent
 )
 from bingosync.models.enums import Role
-from bingosync.models.rooms import ANON_PLAYER, Room, Game, LockoutMode, Player, Square
+from bingosync.models.rooms import (
+    ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine
+)
 from bingosync.models.user import User
 from bingosync.publish import (
     publish_goal_event, publish_chat_event, publish_color_event,
@@ -719,10 +721,12 @@ def goal_selected(request):
     
     publish_goal_event(goal_event)
 
-    # A confirmed mark may complete a lockout win (marks awaiting counter
-    # review are not yet confirmed, so they can't win until reviewed).
+    # A confirmed mark may complete a lockout win and/or one or more bingos
+    # (marks awaiting counter review are not yet confirmed, so they count for
+    # neither until reviewed).
     if not remove_color and claim_status == 'confirmed':
         check_and_record_lockout_win(game, player)
+        check_and_record_bingos(game, player)
 
     return HttpResponse("Recieved data: " + str(data))
 
@@ -859,6 +863,60 @@ def _record_win_loss(game, winner):
     for scored in scored_players:
         field = 'wins' if scored.id == winner.id else 'losses'
         User.objects.filter(pk=scored.user_id).update(**{field: F(field) + 1})
+
+
+def _board_lines(size):
+    """Every winning line on a size x size board as (key, [slot, ...]).
+
+    Keys are stable ("row-0", "col-3", "diag-main", "diag-anti") so they can be
+    stored and matched across calls. Slots are 1-indexed to match Square.slot.
+    """
+    lines = []
+    for r in range(size):
+        lines.append((f"row-{r}", [r * size + c + 1 for c in range(size)]))
+    for c in range(size):
+        lines.append((f"col-{c}", [r * size + c + 1 for r in range(size)]))
+    lines.append(("diag-main", [i * size + i + 1 for i in range(size)]))
+    lines.append(("diag-anti", [i * size + (size - 1 - i) + 1 for i in range(size)]))
+    return lines
+
+
+def check_and_record_bingos(game, player):
+    """Credit any newly completed lines for `player` and count them as bingos.
+
+    A line counts only when all of its squares are confirmed in the player's
+    color (pending/under-review/rejected claims don't count), and each line is
+    credited exactly once via the CompletedLine unique constraint. Increments
+    the player's total_bingos_completed. Applies in both lockout and
+    non-lockout. Returns the number of newly completed lines.
+    """
+    if not player or player.is_spectator:
+        return 0
+
+    player_color = player.color
+    confirmed_slots = {
+        square.slot
+        for square in Square.objects.filter(game=game, claim_status='confirmed')
+        if player_color in square.color.colors
+    }
+
+    already = set(
+        CompletedLine.objects.filter(game=game, player=player)
+        .values_list('line', flat=True))
+
+    new_lines = [
+        CompletedLine(game=game, player=player, line=key)
+        for key, slots in _board_lines(game.size)
+        if key not in already and all(slot in confirmed_slots for slot in slots)
+    ]
+    if not new_lines:
+        return 0
+
+    CompletedLine.objects.bulk_create(new_lines, ignore_conflicts=True)
+    if player.user_id:
+        User.objects.filter(pk=player.user_id).update(
+            total_bingos_completed=F('total_bingos_completed') + len(new_lines))
+    return len(new_lines)
 
 
 @handle_ratelimit
@@ -1209,9 +1267,11 @@ def review_claim(request):
     from bingosync.publish import publish_claim_review_event
     publish_claim_review_event(claim_review_event)
 
-    # Confirming a claim can push the reviewed player over the lockout threshold.
+    # Confirming a claim can push the reviewed player over the lockout
+    # threshold and/or complete one or more bingos.
     if action == 'confirm':
         check_and_record_lockout_win(game, reviewed_player)
+        check_and_record_bingos(game, reviewed_player)
 
     return HttpResponse("Claim reviewed successfully")
 
