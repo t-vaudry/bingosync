@@ -602,6 +602,9 @@ def new_card(request):
             room.hide_card = hide_card
         room.update_active()  # This saves the room
 
+        # The game just replaced counts as a completed game for its players.
+        _record_game_played(room)
+
         new_card_event = NewCardEvent(
             player=player,
             player_color_value=player.color.value,
@@ -725,6 +728,7 @@ def goal_selected(request):
     # (marks awaiting counter review are not yet confirmed, so they count for
     # neither until reviewed).
     if not remove_color and claim_status == 'confirmed':
+        _record_square_marked(player)
         check_and_record_lockout_win(game, player)
         check_and_record_bingos(game, player)
 
@@ -917,6 +921,28 @@ def check_and_record_bingos(game, player):
         User.objects.filter(pk=player.user_id).update(
             total_bingos_completed=F('total_bingos_completed') + len(new_lines))
     return len(new_lines)
+
+
+def _record_square_marked(player):
+    """Count one confirmed square mark toward the player's lifetime total."""
+    if player and player.user_id:
+        User.objects.filter(pk=player.user_id).update(
+            total_squares_marked=F('total_squares_marked') + 1)
+
+
+def _record_game_played(room):
+    """Credit a completed game to each logged-in Player in the room.
+
+    Called when a new card replaces the current game, so the game that just
+    ended counts once for every Player who was in the room. Spectators,
+    counters, and the gamemaster are not credited.
+    """
+    user_ids = (
+        Player.objects.filter(room=room, role=Role.PLAYER)
+        .exclude(user__isnull=True)
+        .values_list('user_id', flat=True))
+    User.objects.filter(pk__in=list(user_ids)).update(
+        total_games_played=F('total_games_played') + 1)
 
 
 @handle_ratelimit
@@ -1270,6 +1296,7 @@ def review_claim(request):
     # Confirming a claim can push the reviewed player over the lockout
     # threshold and/or complete one or more bingos.
     if action == 'confirm':
+        _record_square_marked(reviewed_player)
         check_and_record_lockout_win(game, reviewed_player)
         check_and_record_bingos(game, reviewed_player)
 
