@@ -32,6 +32,23 @@
         letter-spacing: 0.06em;
         color: #a7b3aa;
     }
+    .achievements {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+    .achievement {
+        border: 1px solid #3a463c;
+        border-radius: 8px;
+        padding: 14px 10px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .achievement.locked { opacity: 0.4; filter: grayscale(1); }
+    .achievement-icon { font-size: 28px; line-height: 1; }
+    .achievement-name { font-weight: 600; font-size: 13px; margin-top: 8px; color: #e7ede7; }
+    .achievement.earned .achievement-name { color: #ffd54a; }
+    .achievement-desc { font-size: 11px; color: #a7b3aa; margin-top: 3px; }
 </style>
 {% endblock %}
 
@@ -51,6 +68,23 @@
                             <div class="profile-stat">
                                 <div class="profile-stat-value">{{ value }}</div>
                                 <div class="profile-stat-label">{{ label }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Achievements <span class="text-muted">({{ earned_count }}/{{ achievements|length }})</span>
+                </div>
+                <div class="panel-body">
+                    <div class="achievements">
+                        {% for a in achievements %}
+                            <div class="achievement {% if a.earned %}earned{% else %}locked{% endif %}">
+                                <div class="achievement-icon">{{ a.icon }}</div>
+                                <div class="achievement-name">{{ a.name }}</div>
+                                <div class="achievement-desc">{{ a.desc }}</div>
                             </div>
                         {% endfor %}
                     </div>

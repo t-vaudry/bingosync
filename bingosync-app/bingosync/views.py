@@ -651,7 +651,9 @@ def about(request):
 
 
 def user_profile(request, username):
-    """Public player profile: lifetime stats for one user."""
+    """Public player profile: lifetime stats and achievements for one user."""
+    from bingosync.achievements import evaluate_achievements
+
     profile_user = get_object_or_404(User, username__iexact=username)
     stats = [
         ("Wins", profile_user.wins),
@@ -661,9 +663,13 @@ def user_profile(request, username):
         ("Squares marked", profile_user.total_squares_marked),
         ("Games played", profile_user.total_games_played),
     ]
+    achievements = evaluate_achievements(profile_user)
+    earned_count = sum(1 for a in achievements if a["earned"])
     return render(request, "bingosync/profile.html", {
         "profile_user": profile_user,
         "stats": stats,
+        "achievements": achievements,
+        "earned_count": earned_count,
     })
 
 
