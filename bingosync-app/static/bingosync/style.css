@@ -792,3 +792,88 @@
 .counter-assignment-dialog .m-t-s {
     margin-top: 15px;
 }
+
+
+/* ============================================================
+   Chamber of Secrets theme — cinematic teal & gold.
+   Layered after Bootswatch Slate to re-tint the app chrome;
+   game surfaces (board squares, player colors) are left alone.
+   ============================================================ */
+:root {
+    --cos-bg: #0e1a1c;           /* dark slate-teal ground */
+    --cos-surface: #16282b;      /* panels */
+    --cos-surface-2: #1c363b;    /* panel headings / raised */
+    --cos-border: #2a4f56;       /* teal-tinted borders */
+    --cos-ink: #dbe8e8;          /* primary text */
+    --cos-ink-soft: #9db3b5;     /* muted text */
+    --cos-teal: #2a6f7a;         /* primary accent */
+    --cos-teal-bright: #59b3c2;  /* links on dark */
+    --cos-gold: #c9a95a;         /* highlights / headings */
+    --cos-gold-bright: #e0c274;
+    --cos-serif: 'Cinzel', 'Palatino Linotype', Georgia, serif;
+}
+
+body {
+    background-color: var(--cos-bg);
+    color: var(--cos-ink);
+}
+
+.panel-default,
+.flex-col-content .panel {
+    background-color: var(--cos-surface);
+    border-color: var(--cos-border);
+}
+.panel-default > .panel-heading {
+    color: var(--cos-gold);
+    background-color: var(--cos-surface-2);
+    border-color: var(--cos-border);
+    font-family: var(--cos-serif);
+    letter-spacing: 0.04em;
+}
+
+a { color: var(--cos-teal-bright); }
+a:hover, a:focus { color: var(--cos-gold); }
+
+.btn-primary {
+    background-color: var(--cos-teal);
+    border-color: var(--cos-teal);
+    color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #35899a;
+    border-color: #35899a;
+    color: #fff;
+}
+
+h1, h2, h3, .panel-title { font-family: var(--cos-serif); }
+
+/* Header wordmark (h1 lives inside an <a>) */
+.flex-col-header h1 {
+    font-family: var(--cos-serif);
+    color: var(--cos-gold);
+    letter-spacing: 0.05em;
+}
+.flex-col-header a { text-decoration: none; }
+.flex-col-header a:hover h1 { color: var(--cos-gold-bright); }
+
+/* Footer */
+.footer-bar a { color: var(--cos-ink-soft); }
+.footer-bar a:hover { color: var(--cos-gold); }
+
+/* Form controls tinted to match */
+.form-control {
+    background-color: #0b1719;
+    border-color: var(--cos-border);
+    color: var(--cos-ink);
+}
+.form-control:focus {
+    border-color: var(--cos-teal-bright);
+    box-shadow: 0 0 0 2px rgba(89, 179, 194, 0.15);
+}
+
+/* Alert used for the room-code callout on the join page */
+.alert-info {
+    background-color: var(--cos-surface-2);
+    border-color: var(--cos-teal);
+    color: var(--cos-ink);
+}

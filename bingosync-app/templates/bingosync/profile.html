@@ -5,7 +5,7 @@
 
 {% block page_head %}
 <style>
-    .profile-since { color: #8a948c; margin: 0 0 4px; font-size: 13px; }
+    .profile-since { color: var(--cos-ink-soft); margin: 0 0 4px; font-size: 13px; }
     .profile-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -14,7 +14,7 @@
     }
     .profile-stat {
         background: rgba(255, 255, 255, 0.04);
-        border: 1px solid #3a463c;
+        border: 1px solid var(--cos-border);
         border-radius: 8px;
         padding: 18px 12px;
         text-align: center;
@@ -22,15 +22,16 @@
     .profile-stat-value {
         font-size: 30px;
         font-weight: 700;
-        color: #ffd54a;
+        color: var(--cos-gold-bright);
         line-height: 1.1;
+        font-family: var(--cos-serif);
     }
     .profile-stat-label {
         margin-top: 6px;
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: #a7b3aa;
+        color: var(--cos-ink-soft);
     }
     .achievements {
         display: grid;
@@ -38,7 +39,7 @@
         gap: 10px;
     }
     .achievement {
-        border: 1px solid #3a463c;
+        border: 1px solid var(--cos-border);
         border-radius: 8px;
         padding: 14px 10px;
         text-align: center;
@@ -46,9 +47,9 @@
     }
     .achievement.locked { opacity: 0.4; filter: grayscale(1); }
     .achievement-icon { font-size: 28px; line-height: 1; }
-    .achievement-name { font-weight: 600; font-size: 13px; margin-top: 8px; color: #e7ede7; }
-    .achievement.earned .achievement-name { color: #ffd54a; }
-    .achievement-desc { font-size: 11px; color: #a7b3aa; margin-top: 3px; }
+    .achievement-name { font-weight: 600; font-size: 13px; margin-top: 8px; color: var(--cos-ink); }
+    .achievement.earned .achievement-name { color: var(--cos-gold-bright); }
+    .achievement-desc { font-size: 11px; color: var(--cos-ink-soft); margin-top: 3px; }
 </style>
 {% endblock %}
 
