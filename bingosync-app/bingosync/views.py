@@ -2,7 +2,7 @@ from django.http import (
     HttpResponse, HttpResponseBadRequest, HttpResponseForbidden,
     JsonResponse, Http404
 )
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.exceptions import ValidationError
@@ -648,6 +648,23 @@ def history(request):
 
 def about(request):
     return render(request, "bingosync/about.html")
+
+
+def user_profile(request, username):
+    """Public player profile: lifetime stats for one user."""
+    profile_user = get_object_or_404(User, username__iexact=username)
+    stats = [
+        ("Wins", profile_user.wins),
+        ("Losses", profile_user.losses),
+        ("Win rate", f"{profile_user.win_rate:.0f}%"),
+        ("Bingos", profile_user.total_bingos_completed),
+        ("Squares marked", profile_user.total_squares_marked),
+        ("Games played", profile_user.total_games_played),
+    ]
+    return render(request, "bingosync/profile.html", {
+        "profile_user": profile_user,
+        "stats": stats,
+    })
 
 
 def room_feed(request, encoded_room_uuid):

@@ -62,7 +62,7 @@
                                 </a>
                                 <div class="user-nav">
                                     {% if user.is_authenticated %}
-                                        <span style="margin-right: 15px;">Welcome, <strong>{{ user.username }}</strong></span>
+                                        <span style="margin-right: 15px;">Welcome, <a href="{% url 'user_profile' user.username %}"><strong>{{ user.username }}</strong></a></span>
                                         <a href="{% url 'logout' %}" class="btn btn-sm btn-default">Logout</a>
                                     {% else %}
                                         <a href="{% url 'login' %}" class="btn btn-sm btn-primary" style="margin-right: 5px;">Login</a>
