@@ -659,7 +659,7 @@ Ensure fog of war works correctly with the new role system.
 
 ---
 
-- [ ] 3.3 Create Square Model with Claim Status
+- [x] 3.3 Create Square Model with Claim Status
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 1.1
@@ -678,17 +678,16 @@ Add claim_status field to Square model for claim review system.
 
 ---
 
-- [ ] 3.4 Implement Counter Assignment
+- [x] 3.4 Implement Counter Assignment
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 2.6, Task 3.3
 
   **Description:**
-Allow Gamemaster to assign Counters to specific Players.
+Allow Gamemaster to assign Counters to specific Players. Allow Counters to assign themselves to specific Players.
 
 **Acceptance Criteria:**
 - assign_counter endpoint created
-- Only Gamemaster can assign counters
 - Player.monitoring_player set correctly
 - UI for counter assignment in players panel
 - WebSocket broadcast of assignment
@@ -701,46 +700,55 @@ Allow Gamemaster to assign Counters to specific Players.
 ---
 
 
-- [ ] 3.5 Implement Claim Under Review Logic
+- [x] 3.5 Implement Claim Review Logic
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 3.3, Task 3.4
 
   **Description:**
-When a player with an assigned counter marks a square, place it under review.
+When a player with an assigned counter marks a square, notify the counter who can then choose to place it under review, confirm it, or reject it. If no counter is assigned, the square is automatically confirmed.
 
 **Acceptance Criteria:**
 - mark_square checks if player has counter
-- If counter exists, claim_status = 'under_review'
-- If no counter, claim_status = 'confirmed'
+- If counter exists, square is marked but counter must decide: under_review, confirm, or reject
+- If no counter, claim_status = 'confirmed' (bypass claim_status entirely)
+- Counter receives notification when their assigned player marks a square
+- Counter can choose one of three actions: "Under Review", "Confirm", or "Reject"
+- "Under Review" sets claim_status = 'under_review' (square stays marked, pending review)
+- "Confirm" sets claim_status = 'confirmed' (square permanently marked)
+- "Reject" sets claim_status = 'rejected' and removes the color from the square
 - GoalEvent includes claim_status
 - WebSocket message includes claim_status
-- UI shows "under review" state
+- UI shows claim status state (under review, confirmed, rejected)
+- Counter UI shows pending claims with three action buttons for each
 
 **Files to Modify:**
 - `bingosync-app/bingosync/views.py`
 - `bingosync-app/bingosync/models/events.py`
 - `bingosync-app/static/bingosync/room/board.js`
+- `bingosync-app/static/bingosync/room/counter.js` (create)
 - `bingosync-websocket/app.py`
 
 ---
 
-- [ ] 3.6 Implement Claim Review Endpoint
+- [x] 3.6 Implement Claim Review Endpoint
   **Priority:** Feature
   **Estimated Time:** 5 hours
   **Dependencies:** Task 3.5
 
   **Description:**
-Create endpoint for Counters to confirm or reject claims.
+Create endpoint for Counters to review claims with three options: under review, confirm, or reject.
 
 **Acceptance Criteria:**
 - review_claim endpoint created
 - Only assigned Counter can review
-- Confirm action sets claim_status = 'confirmed'
+- Three actions supported: 'under_review', 'confirm', 'reject'
+- Under Review action sets claim_status = 'under_review' (square stays marked, pending)
+- Confirm action sets claim_status = 'confirmed' (square permanently marked)
 - Reject action sets claim_status = 'rejected' and removes color
-- ClaimReviewEvent created
-- WebSocket broadcast of review
-- UI for counter to review claims
+- ClaimReviewEvent created with action type
+- WebSocket broadcast of review decision
+- UI for counter to review claims with three buttons per claim
 
 **Files to Modify:**
 - `bingosync-app/bingosync/views.py`
@@ -750,20 +758,24 @@ Create endpoint for Counters to confirm or reject claims.
 
 ---
 
-- [ ] 3.7 Create Counter UI Panel
+- [x] 3.7 Create Counter UI Panel
   **Priority:** Feature
   **Estimated Time:** 4 hours
   **Dependencies:** Task 3.6
 
   **Description:**
-Create UI panel for Counters to review claims.
+Create UI panel for Counters to review claims with three action buttons.
 
 **Acceptance Criteria:**
 - Counter panel shows pending claims for assigned player
-- Confirm and Reject buttons
+- Three buttons per claim: "Under Review", "Confirm", and "Reject"
+- "Under Review" button marks claim for later review (claim_status = 'under_review')
+- "Confirm" button approves the claim (claim_status = 'confirmed')
+- "Reject" button denies the claim and removes the marking (claim_status = 'rejected')
 - Real-time updates via WebSocket
-- Shows claim history
+- Shows claim history with status
 - Only visible to Counters
+- Clear visual distinction between pending, under review, confirmed, and rejected claims
 
 **Files to Modify:**
 - `bingosync-app/templates/bingosync/bingosync.html`
@@ -837,7 +849,7 @@ Use prefetch_related() to prevent N+1 queries on reverse relations.
 ---
 
 
-- [ ] 3.11 Implement Redis Caching
+- [x] 3.11 Implement Redis Caching
   **Priority:** P1 (Performance)
   **Estimated Time:** 5 hours
   **Dependencies:** Task 2.10
@@ -847,7 +859,6 @@ Add Redis caching for room settings and player lists.
 
 **Acceptance Criteria:**
 - Redis added to docker-compose.yml
-- django-redis added to requirements.txt
 - Cache backend configured in settings.py
 - Room settings cached (5 min TTL)
 - Player lists cached (1 min TTL)
@@ -855,14 +866,13 @@ Add Redis caching for room settings and player lists.
 
 **Files to Modify:**
 - `docker-compose.yml`
-- `requirements.txt`
 - `bingosync-app/bingosync/settings.py`
 - `bingosync-app/bingosync/cache.py` (create)
 - `bingosync-app/bingosync/views.py`
 
 ---
 
-- [ ] 3.12 Implement Board Caching by Seed
+- [x] 3.12 Implement Board Caching by Seed
   **Priority:** P1 (Performance)
   **Estimated Time:** 3 hours
   **Dependencies:** Task 3.11
@@ -880,6 +890,152 @@ Cache generated boards by seed value to avoid regeneration.
 **Files to Modify:**
 - `bingosync-app/bingosync/views.py`
 - `bingosync-app/bingosync/cache.py`
+
+---
+
+- [x] 3.13 Force login to create/join rooms as players/counters
+  **Priority:** Feature
+  **Estimated Time:** 4 hours
+  **Dependencies:** Task 2.2, Task 2.3
+
+  **Description:**
+For users to be able to use the application as a gamemaster, player or counter, they must login. Spectators can remain anonymous, and have a displayname.
+
+**Acceptance Criteria:**
+- Room creation requires authentication (redirect to login if not authenticated)
+- Joining as Player requires authentication (redirect to login if not authenticated)
+- Joining as Counter requires authentication (redirect to login if not authenticated)
+- Joining as Spectator does NOT require authentication (anonymous allowed)
+- Authenticated users: nickname automatically set to user.username (field pre-filled and read-only or hidden)
+- Anonymous spectators: nickname field remains editable and required
+- Authenticated users have their User instance linked to Player model
+- Anonymous spectators have NULL user field in Player model
+- Login redirect preserves intended action (return to room creation/join after login)
+- Clear UI messaging: "Login required to play" for Player/Counter roles
+- RoomForm validates user is authenticated when is_spectator=False
+- JoinRoomForm validates user is authenticated when role != SPECTATOR
+- Player.name is set to user.username for authenticated users automatically
+- Player model user field is nullable (for anonymous spectators)
+- WebSocket authentication works for both authenticated and anonymous users
+
+**Files to Modify:**
+- `bingosync-app/bingosync/views.py` (add @login_required decorator to room creation, conditional check for join)
+- `bingosync-app/bingosync/forms.py` (add validation in RoomForm.create_room() and JoinRoomForm.clean())
+- `bingosync-app/bingosync/models/rooms.py` (ensure Player.user is nullable with null=True, blank=True)
+- `bingosync-app/templates/bingosync/index.html` (add messaging about login requirement)
+- `bingosync-app/templates/bingosync/join_room.html` (add messaging about login requirement for non-spectators)
+- `bingosync-app/bingosync/decorators.py` (create conditional_login_required decorator if needed)
+- `bingosync-websocket/app.py` (ensure WebSocket handles anonymous spectators correctly)
+
+---
+
+- [x] 3.14 Gamemaster Role Management Enhancements
+  **Priority:** Feature
+  **Estimated Time:** 3 hours
+  **Dependencies:** Task 2.9, Task 3.13
+  **Status:** COMPLETED
+
+  **Description:**
+Enhance gamemaster capabilities to change player colors, kick players (including spectators), and enforce that Gamemaster cannot also be a Player. Allow logged-in users to join rooms as spectators.
+
+**Acceptance Criteria:**
+- ✅ Gamemaster can change any player's role (except their own, cannot create new GMs)
+- ✅ Gamemaster can change any player's color (already implemented via select_color)
+- ✅ Gamemaster can kick/remove any player from the room (new remove_player endpoint)
+- ✅ Gamemaster cannot kick themselves
+- ✅ Gamemaster cannot be a Player (mutually exclusive roles enforced)
+- ✅ Kick button appears in players panel for all players except the gamemaster themselves
+- ✅ Kick confirmation dialog before removing a player
+- ✅ Role change to Player/Counter validates that user is logged in
+- ✅ Anonymous spectators cannot be changed to Player/Counter roles
+- ✅ Logged-in spectators can be changed to Player/Counter roles
+- ✅ Logged-in spectators have displayname automatically set to username
+- ✅ Logged-in users can join rooms as spectators (added spectator option to join form)
+- ✅ Player removal broadcasts disconnection event to all participants
+- ✅ Room active status updates after player removal
+- ✅ All tests passing (24 tests including new spectator join tests)
+
+**Files Modified:**
+- `bingosync-app/bingosync/views.py` (added remove_player endpoint, enhanced assign_role validation)
+- `bingosync-app/bingosync/urls.py` (added /api/remove-player route)
+- `bingosync-app/static/bingosync/room/players_panel.js` (added kick button and handlers)
+- `bingosync-app/static/bingosync/style.css` (added kick button and dialog styles)
+- `bingosync-app/templates/bingosync/index.html` (added spectator option to join room form)
+- `bingosync-app/tests/test_spectator_join.py` (new test file for spectator join functionality)
+
+---
+
+- [x] 3.15 Refactor Gamemaster Role to Simplified Model
+  **Priority:** P2 (Code Quality / Refactoring)
+  **Estimated Time:** 6 hours
+  **Dependencies:** Task 3.14
+
+  **Description:**
+Refactor the existing Gamemaster implementation to match the simplified model where Gamemaster is optional, can only be assigned at room creation, cannot be transferred, and cannot also be a player.
+
+**Current Implementation Issues:**
+- Tasks 2.6-2.9 and 3.14 implemented a flexible Gamemaster model that may allow GM+Player combinations or role flexibility
+- Need to enforce stricter constraints: Gamemaster is mutually exclusive with Player role
+- Need to ensure Gamemaster can only be assigned at room creation time
+- Need to prevent Gamemaster role transfers
+
+**Acceptance Criteria:**
+- Room creation form has optional "Assign Gamemaster" checkbox (if not already present)
+- When checked, the room creator becomes Gamemaster ONLY (not also a player)
+- When unchecked, the room creator is a regular Player
+- Gamemaster role can ONLY be assigned during room creation (not after)
+- Gamemaster role cannot be transferred to another user after creation
+- Gamemaster and Player roles are mutually exclusive (enforced in model and views)
+- Gamemaster can mark/unmark goals for ANY player on the board (but not for themselves since they're not a player)
+- Gamemaster can change roles of all other participants (but not their own role)
+- Gamemaster can kick any participant including spectators (but not themselves)
+- Gamemaster cannot be changed to Player role (validation prevents this)
+- No other user can be changed to Gamemaster role (validation prevents this)
+- Remove any `is_also_player` field or similar concepts if they exist
+- Update permission checking logic to reflect Gamemaster cannot mark their own squares
+- Update UI to clearly show Gamemaster status and limitations
+- All existing tests pass with new constraints
+- Add new tests for Gamemaster creation-time-only assignment
+- Add new tests for Gamemaster role transfer prevention
+- Add new tests for Gamemaster/Player mutual exclusivity
+
+**Files to Modify:**
+- `bingosync-app/bingosync/models/rooms.py` (remove is_also_player if exists, add validation)
+- `bingosync-app/bingosync/forms.py` (update room creation form)
+- `bingosync-app/bingosync/views.py` (update create_room, assign_role with new constraints)
+- `bingosync-app/bingosync/permissions.py` (update permission logic)
+- `bingosync-app/templates/bingosync/index.html` (update room creation UI)
+- `bingosync-app/templates/bingosync/players_panel.html` (update role management UI)
+- `bingosync-app/static/bingosync/room/players.js` (update role change logic)
+- `bingosync-app/tests/test_gamemaster_constraints.py` (create new test file)
+- `bingosync-app/tests/test_spectator_join.py` (update existing tests if needed)
+
+---
+
+- [x] 3.16 Add Chat Messages for Role and Counter Events
+  **Priority:** Feature
+  **Estimated Time:** 4 hours
+  **Dependencies:** Task 2.9, Task 3.4
+
+  **Description:**
+Add automatic chat messages to notify all participants when role changes or counter assignments occur.
+
+**Acceptance Criteria:**
+- System chat message sent when a player's role is changed (e.g., "Alice has been assigned the Counter role")
+- System chat message sent when a counter is assigned to a player (e.g., "Bob is now monitoring Alice's claims")
+- System chat message sent when a counter assignment is removed (e.g., "Bob is no longer monitoring Alice")
+- Messages appear in the chat panel with distinct styling (system message style)
+- Messages are broadcast via WebSocket to all room participants
+- Messages include timestamp
+- Messages are stored in the Event model for chat history
+- System messages are visually distinct from user messages (e.g., italicized, different color)
+
+**Files to Modify:**
+- `bingosync-app/bingosync/views.py` (add chat message creation in assign_role and assign_counter endpoints)
+- `bingosync-app/bingosync/models/events.py` (ensure ChatEvent or similar can handle system messages)
+- `bingosync-websocket/app.py` (broadcast system chat messages)
+- `bingosync-app/static/bingosync/room/chat.js` (handle system message display)
+- `bingosync-app/static/bingosync/style.css` (add system message styling)
 
 ---
 

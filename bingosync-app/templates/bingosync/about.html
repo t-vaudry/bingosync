@@ -15,11 +15,9 @@
                         "bingo boards" for speedrunning games.
                     </p>
                     <p>
-                        When you create a bingosync room from the main page of
-                        <a href="http://bingosync.com">bingosync.com</a>,
-                        you will get a unique URL that you can share with other people to let
-                        them join your room. When multiple people are in the same room,
-                        the squares on the bingoboard are synchronized between them in
+                        When you create a room, you will get a unique URL that you can share with
+                        other people to let them join your room. When multiple people are in the
+                        same room, the squares on the bingoboard are synchronized between them in
                         real time. This lets you plan and keep track of bingo progress together.
                         You can left click on a goal to change its color publicly or right click
                         on a goal to "star" it privately. You can use starring to plan your goals
@@ -34,8 +32,6 @@
                 <div class="panel-body">
                     <p>
                         Here's a collection of different ways to play bingo that you can try out.
-                        If you have ideas for other ways of playing bingo that you don't see on this
-                        list, let me know so that I can add them :)
                     </p>
                     <div class="table-wrapper" style="margin: 5px; border-radius: 5px">
                         <table class="table" style="margin-bottom: 0px">
@@ -82,109 +78,9 @@
                                         a fixed time limit.
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td align="right"><strong>Flip Lockout</strong></td>
-                                    <td>
-                                        Like regular lockout, but you can also steal squares from your
-                                        opponent! Collect two squares adjacent to a square collected
-                                        by your opponent, excluding diagonals, to "flip" that square to
-                                        your color&mdash; even if you don't have the goal that's being stolen.
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    Adding or Updating Generators
-                </div>
-                <div class="panel-body">
-                    <p>
-                        New generators and generator variants are welcome from anyone! To add a new
-                        generator, just send me:
-                        <ol>
-                            <li>The generator or goal list you'd like to use</li>
-                            <li>The name you'd like (for the room creation dropdown)</li>
-                            <li>The abbreviated name you'd like, ideally no more than 10-12 characters
-                                (for the rooms list)</li>
-                        </ol>
-                        To update an existing generator, send me the new generator or goal list you'd
-                        like and make sure that you have permission from whoever requested the old
-                        version of that generator.
-                    </p>
-                    <p>
-                        If you're just starting out and need to make a goal list, there are two
-                        main ways to make one:
-                        <ol>
-                            <li>Make an SRL-style goal list with 25 difficulty tiers.
-                                (<a href="https://pastebin.com/G0mizGwV">example</a>)</li>
-                            <li>Make a simple list of just the goal names that you want.
-                                (<a href="https://pastebin.com/J8aRHmrM">example</a>)</li>
-                        </ol>
-                    </p>
-                    <p>
-                        An SRL-style goal list takes more work but can produce more balanced boards.
-                        The generator will try to use 1 goal from each difficulty tier and arrange
-                        them so that every row, column, and diagonal adds up to the same difficulty
-                        value. If 2 goals have one of the same "types" then it will refuse to put
-                        them in the same row. This lets you keep incompatible or broken goal pairs
-                        from appearing together.
-                    </p>
-                    <p>
-                        A generator made with a simple goal list will randomly choose goals from
-                        the list without regard for conflicts or synergy. This list can just be a
-                        pastebin with each goal name on a separate line.
-                    </p>
-                    <p>
-                        If your generator doesn't fit into one of these categories or has special
-                        requirements, get in contact with me and we can work it out.
-                    </p>
-                    <p>
-                        You can contact me on
-                        <a href="https://github.com/kbuzsaki/bingosync/issues">github</a>
-                        by filing an issue or creating a pull request.
-                    </p>
-                </div>
-            </div>
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    Custom Boards
-                </div>
-                <div class="panel-body">
-                    <p>
-                        You can make a room with a specific custom board without creating a generator
-                        by using the "Custom&nbsp;(Advanced)" game type. You can then paste a 25 element
-                        JSON list containing the goals for your card into the text box. Here's an
-                        example list: <a href="https://pastebin.com/kqGNx5A8">pastebin.com/kqGNx5A8</a>
-                    </p>
-                    <p>
-                        The custom board mode can only be used to make a board with a specific list
-                        of 25 goals. It won't randomize the card for you like a regular generator.
-                        If you want to have a randomized card you either need to randomize it yourself
-                        before creating the room or make a regular generator instead.
-                    </p>
-                </div>
-            </div>
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    Development
-                </div>
-                <div class="panel-body">
-                    <p>
-                        Bingosync's source code can be found on
-                        <a href="https://github.com/kbuzsaki/bingosync">github</a>.
-                        It's primarily written and maintained by me,
-                        <a href="http://github.com/kbuzsaki">kbuzsaki</a>, with contributions from
-                        several others. Issues and pull requests are welcome!
-                    </p>
-                    <p>
-                        If you have any questions, requests, or suggestions,
-                        you can contact me on
-                        <a href="https://github.com/kbuzsaki/bingosync/issues">github</a>
-                        by filing an issue or creating a pull request.
-                    </p>
                 </div>
             </div>
             <div class="panel panel-default">
@@ -193,21 +89,12 @@
                 </div>
                 <div class="panel-body">
                     <p>
-                        Bingosync stores any room information that you enter-- including room and
-                        player names, goal actions, and chat messages--  so that you can still
-                        access old rooms in the future.
-                        Bingosync uses browser cookies in order to keep track of which rooms you're
-                        logged into currently.
-                        Bingosync uses anonymized Google Analytics that does not transmit any personal data.
-                        The Bingosync server keeps a log of recent access to its web servers, including
-                        IP addresses and user agent strings, so that I can troubleshoot any issues that
-                        come up and identify problematic traffic patterns.
-                    </p>
-                    <p>
-                        Bingosync does not collect or store names, email addresses, or other
-                        personal information. The room and player information that Bingosync
-                        stores is anonymous: it can't be attributed back to the specific person who
-                        entered it.
+                        Bingosync stores any room information that you enter&mdash; including room and
+                        player names, goal actions, and chat messages&mdash; so that you can still
+                        access old rooms in the future. Bingosync uses browser cookies in order to
+                        keep track of which rooms you're logged into currently. The server keeps a log
+                        of recent access to its web servers, including IP addresses and user agent
+                        strings, to troubleshoot issues and identify problematic traffic patterns.
                     </p>
                 </div>
             </div>

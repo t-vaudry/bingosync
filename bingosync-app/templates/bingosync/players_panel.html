@@ -8,7 +8,7 @@
         <div id="players-panel">
             {% for player in room.connected_players %}
                 {% if not player.is_spectator %}
-                <div id="{{ player.encoded_uuid }}" class="player-panel-entry">
+                <div id="{{ player.encoded_uuid }}" class="player-panel-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}" data-role="{{ player.role }}" data-monitoring-player-uuid="{% if player.monitoring_player %}{{ player.monitoring_player.encoded_uuid }}{% endif %}">
                     <span class="goalcounter {{ player.color.goal_class }}">
                         <span class="squarecounter" title="Squares with color.">0</span>
                         <span class="rowcounter" title="Rows with color.">(0)</span>
@@ -18,15 +18,16 @@
                     </span>
                     <span class="player-role-badge" title="Role: {{ player.role }}">
                         {% if player.role == 'gamemaster' %}
-                            {% if player.is_also_player %}
-                                [GM+P]
-                            {% else %}
-                                [GM]
-                            {% endif %}
+                            [GM]
                         {% elif player.role == 'counter' %}
                             [C]
                         {% endif %}
                     </span>
+                    {% if player.role == 'counter' and player.monitoring_player %}
+                    <span class="counter-assignment-badge" title="Monitoring {{ player.monitoring_player.name }}">
+                        → {{ player.monitoring_player.name }}
+                    </span>
+                    {% endif %}
                 </div>
                 {% endif %}
             {% endfor %}
@@ -35,7 +36,7 @@
             <div class="spectators-section">
                 <div class="spectators-header">Spectators</div>
                 {% for player in room.connected_spectators %}
-                    <div id="{{ player.encoded_uuid }}" class="player-panel-entry spectator-entry">
+                    <div id="{{ player.encoded_uuid }}" class="player-panel-entry spectator-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}">
                         <span class="playername">
                             {{ player.name }}
                         </span>

@@ -1,7 +1,7 @@
 """
 Tests for user registration functionality (Task 2.2).
 """
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from bingosync.models.user import User
 from bingosync.forms import UserRegistrationForm
@@ -121,6 +121,15 @@ class UserRegistrationFormTests(TestCase):
         self.assertEqual(user.total_bingos_completed, 0)
 
 
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-test-cache',
+        }
+    },
+    RATELIMIT_ENABLE=False
+)
 class UserRegistrationViewTests(TestCase):
     """Test the user registration view."""
 

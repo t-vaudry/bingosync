@@ -11,7 +11,7 @@ from bingosync.models.enums import Role
 # Permission definitions for each role
 ROLE_PERMISSIONS = {
     Role.GAMEMASTER: {
-        'mark_square': False,  # Only if is_also_player is True
+        'mark_square': True,  # Gamemaster can mark squares
         'generate_board': True,
         'reveal_fog': True,
         'assign_roles': True,
@@ -42,7 +42,7 @@ def check_permission(player, action):
     Check if a player has permission to perform an action.
 
     Args:
-        player: Player instance with role and is_also_player fields
+        player: Player instance with role field
         action: String representing the action (e.g., 'mark_square', 'generate_board')
 
     Returns:
@@ -50,6 +50,8 @@ def check_permission(player, action):
 
     Examples:
         >>> check_permission(gamemaster_player, 'generate_board')
+        True
+        >>> check_permission(gamemaster_player, 'mark_square')
         True
         >>> check_permission(spectator_player, 'mark_square')
         False
@@ -60,12 +62,27 @@ def check_permission(player, action):
     # Get permissions for the player's role
     permissions = ROLE_PERMISSIONS.get(player.role, {})
 
-    # Special case: Gamemaster can only mark squares if they're also a player
-    if action == 'mark_square' and player.role == Role.GAMEMASTER:
-        return player.is_also_player
-
     # Check if the action is in the role's permissions
     return permissions.get(action, False)
+
+
+def can_generate_board(player):
+    """Whether a player may generate a new board (card).
+
+    Allowed for the Gamemaster, and for any Player when the room has no
+    Gamemaster -- so a room created without a GM isn't stuck with one board,
+    while GM-run rooms keep board control with the GM.
+    """
+    if not player or not hasattr(player, 'role'):
+        return False
+    if player.role == Role.GAMEMASTER:
+        return True
+    if player.role == Role.PLAYER:
+        from bingosync.models.rooms import Player
+        room_has_gamemaster = Player.objects.filter(
+            room=player.room, role=Role.GAMEMASTER).exists()
+        return not room_has_gamemaster
+    return False
 
 
 def require_permission(action):

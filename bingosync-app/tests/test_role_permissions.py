@@ -2,12 +2,19 @@
 Tests for role-based permissions system.
 """
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from bingosync.models import Room, Player, User
 from bingosync.models.enums import Role
 from bingosync.permissions import check_permission
 
 
+# Use locmem cache for testing instead of Redis
+@override_settings(CACHES={
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-test-cache',
+    }
+})
 class RolePermissionsTestCase(TestCase):
     """Test role-based permission checking."""
 
@@ -26,12 +33,11 @@ class RolePermissionsTestCase(TestCase):
 
     def test_gamemaster_permissions(self):
         """Test Gamemaster role permissions."""
-        # Create Gamemaster player (not also a player)
+        # Create Gamemaster player
         gm = Player.objects.create(
             room=self.room,
             name='Gamemaster',
-            role=Role.GAMEMASTER,
-            is_also_player=False
+            role=Role.GAMEMASTER
         )
 
         # Gamemaster can generate board
@@ -55,20 +61,19 @@ class RolePermissionsTestCase(TestCase):
         # Gamemaster can chat
         self.assertTrue(check_permission(gm, 'chat'))
 
-        # Gamemaster CANNOT mark squares (not also a player)
-        self.assertFalse(check_permission(gm, 'mark_square'))
+        # Gamemaster CAN mark squares (simplified model)
+        self.assertTrue(check_permission(gm, 'mark_square'))
 
-    def test_gamemaster_also_player_permissions(self):
-        """Test Gamemaster who is also a player can mark squares."""
-        # Create Gamemaster player who is also a player
+    def test_gamemaster_can_mark_squares(self):
+        """Test Gamemaster can mark squares (simplified model)."""
+        # Create Gamemaster player
         gm_player = Player.objects.create(
             room=self.room,
             name='GM+Player',
-            role=Role.GAMEMASTER,
-            is_also_player=True
+            role=Role.GAMEMASTER
         )
 
-        # Gamemaster+Player CAN mark squares
+        # Gamemaster CAN mark squares
         self.assertTrue(check_permission(gm_player, 'mark_square'))
 
         # Still has all other GM permissions

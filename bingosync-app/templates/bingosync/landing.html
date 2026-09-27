@@ -1,0 +1,128 @@
+{% extends "bingosync/base.html" %}
+{% load static %}
+{% load bootstrap3 %}
+
+{% block page_content %}
+    <div class="container" style="max-width: 800px; margin-top: 50px;">
+        <div class="text-center m-b-l">
+            <h1>HP Chamber of Secrets Bingo</h1>
+            <p class="lead">Collaborative bingo for Harry Potter speedruns</p>
+        </div>
+
+        {% if request.GET.error == 'invalid_code' %}
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <strong>Error:</strong> Room code not found. Please check the code and try again.
+        </div>
+        {% elif request.GET.error == 'room_inactive' %}
+        <div class="alert alert-warning alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <strong>Room Closed:</strong> This room is no longer active. All players have left.
+        </div>
+        {% elif request.GET.error == 'missing_fields' %}
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <strong>Error:</strong> Please fill in all fields.
+        </div>
+        {% elif request.GET.error == 'Incorrect password' %}
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <strong>Error:</strong> Incorrect password for this room.
+        </div>
+        {% elif request.GET.error %}
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <strong>Error:</strong> {{ request.GET.error }}
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- Join Room as Spectator -->
+            <div class="col-md-6">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Join Room as Spectator</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p>Watch a game in progress without logging in.</p>
+                        <form action="{% url 'join_as_spectator' %}" method="post">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="spectator_room_code">Room Code</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="spectator_room_code" 
+                                       name="room_code" 
+                                       placeholder="Enter 6-character code" 
+                                       maxlength="6"
+                                       style="text-transform: uppercase;"
+                                       required>
+                            </div>
+                            <div class="form-group">
+                                <label for="spectator_password">Password</label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="spectator_password" 
+                                       name="password" 
+                                       placeholder="Room password"
+                                       required>
+                            </div>
+                            <div class="form-group">
+                                <label for="spectator_name">Display Name</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="spectator_name" 
+                                       name="display_name" 
+                                       placeholder="Your display name"
+                                       maxlength="50"
+                                       required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Join as Spectator</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Login/Register -->
+            <div class="col-md-6">
+                <div class="panel panel-success">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Create or Join Room</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p>Log in to create rooms or join as Player/Counter.</p>
+                        {% if user.is_authenticated %}
+                            <p class="text-success"><strong>Logged in as {{ user.username }}</strong></p>
+                            <a href="{% url 'rooms' %}" class="btn btn-success btn-block">Go to Dashboard</a>
+                            <a href="{% url 'logout' %}" class="btn btn-default btn-block">Logout</a>
+                        {% else %}
+                            <a href="{% url 'login' %}" class="btn btn-success btn-block">Login</a>
+                            <a href="{% url 'register' %}" class="btn btn-default btn-block">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="panel panel-default m-t-l">
+            <div class="panel-heading">
+                <h3 class="panel-title">Global Stats</h3>
+            </div>
+            <div class="panel-body">
+                <p>There have been {{ stats.rooms }} rooms with {{ stats.games }} games played in them. 
+                   There have been {{ stats.ticks }} ticks and {{ stats.unticks }} unticks.</p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

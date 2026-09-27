@@ -1,0 +1,120 @@
+/**
+ * Claim Status & Counter Panel Styling
+ */
+
+/* Hide confirmed/rejected badges on board — only show under review */
+.claim-status-badge { display: none; }
+
+/* Under Review: diagonal stripes + review icon */
+.square.under-review {
+    overflow: hidden;
+}
+
+.square.under-review::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 6px,
+        rgba(255, 193, 7, 0.25) 6px,
+        rgba(255, 193, 7, 0.25) 12px
+    );
+    z-index: 5;
+    pointer-events: none;
+}
+
+.square.under-review::after {
+    content: '⏳';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 12px;
+    z-index: 6;
+    pointer-events: none;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+}
+
+/* Counter panel — fill its container properly */
+#counter-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.counter-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.counter-history-divider {
+    border-top: 1px solid #444;
+    margin: 6px 0;
+}
+
+.counter-history-header {
+    font-size: 80%;
+    color: #888;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+/* Pending claim items — compact with icon buttons */
+.counter-claim-item {
+    border-left: 3px solid #17a2b8;
+    padding: 4px 6px;
+    margin-bottom: 5px;
+    background-color: rgba(255,255,255,0.03);
+    border-radius: 0 3px 3px 0;
+}
+
+.counter-claim-item.status-under-review {
+    border-left-color: #ffc107;
+}
+
+.counter-claim-goal {
+    font-size: 0.85em;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.counter-claim-meta {
+    font-size: 0.75em;
+    color: #888;
+}
+
+/* Icon action buttons — single row, compact */
+.counter-claim-actions {
+    margin-top: 3px;
+    display: flex;
+    gap: 3px;
+}
+
+.counter-claim-actions .btn {
+    padding: 1px 8px;
+    font-size: 0.8em;
+    line-height: 1.4;
+}
+
+/* History items — compact */
+.counter-history-item {
+    padding: 3px 6px;
+    margin-bottom: 3px;
+    border-left: 2px solid #444;
+    font-size: 0.78em;
+}
+
+.counter-history-item.history-confirmed { border-left-color: #28a745; }
+.counter-history-item.history-rejected { border-left-color: #dc3545; }
+.counter-history-item.history-under-review { border-left-color: #ffc107; }
+
+.counter-history-action { font-weight: bold; }
+.counter-history-action.text-success { color: #62c462; }
+.counter-history-action.text-danger { color: #ee5f5b; }
+.counter-history-action.text-warning { color: #ffc107; }
+
+.counter-history-detail { color: #999; }
+.counter-history-time { color: #666; font-size: 0.85em; }

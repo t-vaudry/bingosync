@@ -17,10 +17,14 @@ from django.urls import re_path as url
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 
-from bingosync import views, settings
+from bingosync import views
 
 urlpatterns = [
-    url(r'^$', views.rooms, name='rooms'),
+    url(r'^$', views.landing, name='landing'),
+    url(r'^dashboard$', views.rooms, name='rooms'),
+    url(r'^join$', views.join_by_code, name='join_by_code'),
+    url(r'^join-spectator$', views.join_as_spectator, name='join_as_spectator'),
+    url(r'^join-room$', views.join_room_by_code, name='join_room_by_code'),
     url(r'^register/$', views.register, name='register'),
     url(r'^login/$', views.login, name='login'),
     url(r'^logout/$', views.logout, name='logout'),
@@ -77,6 +81,9 @@ urlpatterns = [
     url(r'^api/color$', views.select_color, name='select_color'),
     url(r'^api/revealed$', views.board_revealed, name='board_revealed'),
     url(r'^api/assign-role$', views.assign_role, name='assign_role'),
+    url(r'^api/assign-counter$', views.assign_counter, name='assign_counter'),
+    url(r'^api/review-claim$', views.review_claim, name='review_claim'),
+    url(r'^api/remove-player$', views.remove_player, name='remove_player'),
     url(r'^api/new-card$', views.new_card, name='new_card'),
     url(r'^api/join-room$', views.join_room_api, name='join_room_api'),
     url(r'^api/get-socket-key/(?P<encoded_room_uuid>.+)$',
@@ -90,9 +97,3 @@ urlpatterns = [
     url(r'^api/reconcile$', views.reconcile_connections, name='reconcile'),
     url(r'^admin/', admin.site.urls),
 ]
-
-# only add the route for running javascript tests in development mode
-if settings.DEBUG:
-    urlpatterns += [
-        url(r'^jstests', views.jstests, name='jstests'),
-    ]

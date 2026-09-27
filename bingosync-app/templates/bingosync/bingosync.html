@@ -7,16 +7,12 @@
      layout that the chat and sidebar use
  -->
 {% block page_body %}
-<div class="container" style="height: 97vh">
+<div style="height: 97vh; width: 66.67%; margin: 0 auto;">
     <div style="position: relative">
         <h1 style="display: inline-block;"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
         <h4 style="display: inline-block; position: absolute; right: 0; bottom: 0;">
             {% if player.role == 'gamemaster' %}
-                {% if player.is_also_player %}
-                    Gamemaster + Player as: {{ player.name }}
-                {% else %}
-                    Gamemaster as: {{ player.name }}
-                {% endif %}
+                Gamemaster as: {{ player.name }}
             {% elif player.role == 'counter' %}
                 Counter as: {{ player.name }}
             {% elif player.role == 'spectator' %}
@@ -30,7 +26,42 @@
         </h4>
     </div>
     <div class="row m-b-l" style="height: calc(100% - 70px);">
-        <div class="col-md-6">
+        {% if player.role == 'counter' %}
+        {# Counter layout: claims(2) | board(5) | feed(3) | sidebar(2) #}
+        <div class="col-md-2" style="height: 93%">
+            {% include 'bingosync/counter_panel.html' %}
+        </div>
+        <div class="col-md-5">
+            <div class="fill-parent" style="text-align: center">
+                <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
+                    {% include 'bingosync/board.html' %}
+                    <div class="board-cover" style="z-index: 3;">
+                        <div class="board-cover-text unselectable">
+                            Click to Reveal
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3" style="height: 93%">
+            {% include 'bingosync/chat_panel.html' %}
+        </div>
+        <div class="col-md-2" style="height: 93%">
+            <div class="flex-col-container">
+                <div class="flex-col-content m-b-l">
+                    {% include 'bingosync/players_panel.html' %}
+                </div>
+                <div class="flex-col-footer m-b-l" id="room-settings-container">
+                    {% include 'bingosync/room_settings_panel.html' %}
+                </div>
+                <div class="flex-col-footer">
+                    {% include 'bingosync/chat_settings_panel.html' %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        {# Standard layout: board(5) | chat(4) | sidebar(3) #}
+        <div class="col-md-5">
             <div class="fill-parent" style="text-align: center">
                     {% include 'bingosync/color_chooser.html' %}
                 <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
@@ -43,49 +74,42 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6" style="height: 93%">
-            <div class="row" style="height: 100%">
-                <div class="col-md-8" style="height: 100%">
-                    {% include 'bingosync/chat_panel.html' %}
+        <div class="col-md-4" style="height: 93%">
+            {% include 'bingosync/chat_panel.html' %}
+        </div>
+        <div class="col-md-3" style="height: 93%">
+            <div class="flex-col-container">
+                <div class="flex-col-content m-b-l">
+                    {% include 'bingosync/players_panel.html' %}
                 </div>
-                <div class="col-md-4" style="height: 100%">
-                    <div class="flex-col-container">
-                        <div class="flex-col-content m-b-l">
-                            {% include 'bingosync/players_panel.html' %}
-                        </div>
-                        <div class="flex-col-footer m-b-l" id="room-settings-container">
-                            {% include 'bingosync/room_settings_panel.html' %}
-                        </div>
-                        <!-- Celeste Long New is the current name of the category extensions -->
-                        {% if room.settings.game == "Celeste" or room.settings.game == "Celeste Long New" or room.settings.game == "Custom" %}
-                            <div class="flex-col-footer m-b-l" id="additional-settings-container">
-                                {% include 'bingosync/additional_settings_panel.html' %}
-                            </div>
-                        {% endif %}
-                        <div class="flex-col-footer">
-                            {% include 'bingosync/chat_settings_panel.html' %}
-                        </div>
-                    </div>
+                <div class="flex-col-footer m-b-l" id="room-settings-container">
+                    {% include 'bingosync/room_settings_panel.html' %}
+                </div>
+                <div class="flex-col-footer">
+                    {% include 'bingosync/chat_settings_panel.html' %}
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% include 'bingosync/new_card_dialog.html' %}
+<link rel="stylesheet" href="{% static 'bingosync/room/claim-status.css' %}">
+<link rel="stylesheet" href="{% static 'bingosync/room/win_celebration.css' %}">
 <script src="{% static "bingosync/room/util.js" %}"></script>
 <script src="{% static "bingosync/room/color_chooser.js" %}"></script>
 <script src="{% static "bingosync/room/board.js" %}"></script>
 <script src="{% static "bingosync/room/board_cover.js" %}"></script>
 <script src="{% static "bingosync/room/players_panel.js" %}"></script>
 <script src="{% static "bingosync/room/room_settings_panel.js" %}"></script>
-<script src="{% static "bingosync/room/additional_settings_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_socket.js" %}"></script>
+<script src="{% static "bingosync/room/counter.js" %}"></script>
+<script src="{% static "bingosync/room/win_celebration.js" %}"></script>
 <script src="{% static "bingosync/bingosync.js" %}"></script>
 <script>
     var chatPanel;
     var board;
-    var additionalSettingsPanel;
     $(document).ready(function() {
         ROOM_SETTINGS = JSON.parse('{{ room.settings|jsonify|escapejs }}');
         var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
@@ -109,25 +133,24 @@
         var playersPanel = new PlayersPanel($("#players-panel"), player);
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
 
-        additionalSettingsPanel = undefined;
-
-        // Celeste Long New is the current name of the category extensions
-        if (ROOM_SETTINGS.game == "Celeste" || ROOM_SETTINGS.game == "Celeste Long New" || ROOM_SETTINGS.game == "Custom"){
-            var additionalSettingsPanel = new AdditionalSettingsPanel($("#additional-settings-container"), $("#bingo"));
-        }
-
         chatPanel = new ChatPanel($("#bingo-chat"), $("#chat-settings"), chatUrl, chatHistoryUrl);
         initializeChatSettings($("#chat-settings"), $("#bingo-chat"), ROOM_SETTINGS.fog_of_war);
 
-        var chatSocket = new ChatSocket(chatPanel, board, playersPanel, socketsUrl);
+        var chatSocket = new ChatSocket(chatPanel, board, playersPanel, socketsUrl, player);
+
+        // Initialize counter UI if player is a counter
+        if (player.role === 'counter') {
+            window.counterUI = new Counter(
+                window.location.origin,
+                "{{ room.encoded_uuid }}",
+                player.uuid,
+                player.role
+            );
+        }
 
         // hacky callback to trigger an update of the playersPanel counters (& highlighter) whenever we update the board.
         var boardRefreshCallback = function() {
             playersPanel.updateGoalCounters(board);
-
-            if (additionalSettingsPanel !== undefined){
-                additionalSettingsPanel.newBoard();
-            }
         }
 
         // initialize magic global hack hooks
@@ -152,5 +175,25 @@
         chatPanel.reloadChatHistory(/*full=*/false);
         chatSocket.init(temporarySocketKey);
     });
+    
+    // Function to copy room code to clipboard
+    function copyRoomCode(event) {
+        var roomCode = "{{ room.room_code }}";
+        navigator.clipboard.writeText(roomCode).then(function() {
+            // Show success feedback
+            var btn = event.target.closest('button');
+            var originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="glyphicon glyphicon-ok"></span>';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-default');
+            setTimeout(function() {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-default');
+            }, 2000);
+        }).catch(function(err) {
+            alert('Failed to copy room code: ' + err);
+        });
+    }
 </script>
 {% endblock %}

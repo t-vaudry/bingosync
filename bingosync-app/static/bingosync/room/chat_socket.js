@@ -1,11 +1,12 @@
 var ChatSocket = (function(){
     "use strict";
 
-    var ChatSocket = function(chatPanel, board, playersPanel, socketsUrl) {
+    var ChatSocket = function(chatPanel, board, playersPanel, socketsUrl, currentPlayer) {
         this.chatPanel = chatPanel;
         this.board = board;
         this.playersPanel = playersPanel;
         this.socketsUrl = socketsUrl;
+        this.currentPlayer = currentPlayer;
     };
 
     ChatSocket.prototype.init = function(socketKey) {
@@ -30,30 +31,71 @@ var ChatSocket = (function(){
 
     ChatSocket.prototype.onSocketMessage = function(evt) {
         var json = JSON.parse(evt.data);
-        //console.log(json);
         if (json["type"] === "error") {
             console.log("Got error message from socket: ", json);
             return;
         } else if (json["type"] === "goal") {
-            this.board.getSquare(json["square"]["slot"]).setColors(json["square"]["colors"]);
+            var square = this.board.getSquare(json["square"]["slot"]);
+            square.setColors(json["square"]["colors"]);
+            square.setClaimStatus(json["square"]["claim_status"] || null);
             this.playersPanel.updateGoalCounters(this.board);
             this.board.hideSquares();
+            
+            // If counter UI exists and claim needs review, notify it
+            if (window.counterUI && json["claim_status"] === "pending_decision") {
+                window.counterUI.handleGoalEvent(json);
+            }
         }
         else if(json["type"] === "color") {
             this.playersPanel.setPlayer(json["player"]);
             this.playersPanel.updateGoalCounters(this.board);
         }
         else if(json["type"] === "connection") {
-            if(json["event_type"] === "connected" && !json["player"]["is_spectator"]) {
+            if(json["event_type"] === "connected") {
                 this.playersPanel.setPlayer(json["player"]);
                 this.playersPanel.updateGoalCounters(this.board);
             }
             else if(json["event_type"] === "disconnected") {
-                this.playersPanel.removePlayer(json["player"]);
+                // Check if the disconnected player is the current user
+                if(json["player"]["uuid"] === this.currentPlayer.uuid) {
+                    // Current user was disconnected (e.g., room closed), redirect to landing page
+                    var disconnectText = "*** You have been disconnected from the room.";
+                    var message = $("<div>", {"class": "connection-message", text: disconnectText}).toHtml();
+                    this.chatPanel.appendChatMessage(message);
+                    
+                    // Redirect after a short delay to show the message
+                    setTimeout(function() {
+                        window.location.href = "/";
+                    }, 1500);
+                } else {
+                    // Another player disconnected, just remove them from the panel
+                    this.playersPanel.removePlayer(json["player"]);
+                }
             }
         }
         else if(json["type"] === "role_change") {
             this.playersPanel.handleRoleChange(json);
+        }
+        else if(json["type"] === "counter_assignment") {
+            this.playersPanel.handleCounterAssignment(json);
+        }
+        else if(json["type"] === "claim_review") {
+            // Handle claim review event — update colors and claim status for ALL clients
+            var square = this.board.getSquare(json["square"]["slot"]);
+            square.setColors(json["square"]["colors"]);
+            square.setClaimStatus(json["square"]["claim_status"] || null);
+            this.playersPanel.updateGoalCounters(this.board);
+            this.board.hideSquares();
+            
+            // If counter UI exists, notify it
+            if (window.counterUI) {
+                window.counterUI.handleClaimReviewEvent(json);
+            }
+        }
+        else if(json["type"] === "game_won") {
+            if (window.showWinCelebration) {
+                window.showWinCelebration(json["winner"], json["goals"]);
+            }
         }
         else if(json["type"] === "new-card") {
             // TODO: remove this external dependency

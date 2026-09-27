@@ -30,7 +30,9 @@ class Event(models.Model):
             RevealedEvent,
             ConnectionEvent,
             NewCardEvent,
-            RoleChangeEvent]
+            RoleChangeEvent,
+            CounterAssignmentEvent,
+            ClaimReviewEvent]
 
     @staticmethod
     def get_all_for_room(room):
@@ -81,6 +83,10 @@ class Event(models.Model):
 
 class ChatEvent(Event):
     body = models.TextField()
+    is_system_message = models.BooleanField(default=False)
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     def to_json(self):
         return {
@@ -88,7 +94,8 @@ class ChatEvent(Event):
             "player": self.player.to_json(),
             "player_color": self.player_color.name,
             "text": self.body,
-            "timestamp": self.json_timestamp
+            "timestamp": self.json_timestamp,
+            "is_system_message": self.is_system_message
         }
 
 
@@ -97,6 +104,9 @@ class NewCardEvent(Event):
     seed = models.BigIntegerField(default=0)
     hide_card = models.BooleanField(default=False)
     fog_of_war = models.BooleanField(default=False)
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def game_type(self):
@@ -126,6 +136,15 @@ class GoalEvent(Event):
     square = models.ForeignKey("bingosync.Square", on_delete=models.CASCADE)
     color_value = models.IntegerField(choices=Color.goal_choices())
     remove_color = models.BooleanField(default=False)
+    claim_status = models.CharField(
+        "Claim Status",
+        max_length=20,
+        default='confirmed',
+        help_text="Status of the claim when event was created"
+    )
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def color(self):
@@ -139,12 +158,16 @@ class GoalEvent(Event):
             "player_color": self.player_color.name,
             "color": self.color.name,
             "remove": self.remove_color,
+            "claim_status": self.claim_status,
             "timestamp": self.json_timestamp
         }
 
 
 class ColorEvent(Event):
     color_value = models.IntegerField(choices=Color.player_choices())
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def color(self):
@@ -161,6 +184,9 @@ class ColorEvent(Event):
 
 
 class RevealedEvent(Event):
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     def to_json(self):
         return {
@@ -197,6 +223,9 @@ class RoleChangeEvent(Event):
     old_role = models.CharField(max_length=20)
     new_role = models.CharField(max_length=20)
 
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
     def to_json(self):
         return {
             "type": "role_change",
@@ -209,8 +238,72 @@ class RoleChangeEvent(Event):
         }
 
 
+class CounterAssignmentEvent(Event):
+    """Event for tracking counter assignments to players."""
+    counter_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='counter_assignments_made')
+    monitored_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='counter_assignments_received',
+        null=True,
+        blank=True)  # Null means unassignment
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
+    def to_json(self):
+        return {
+            "type": "counter_assignment",
+            "player": self.player.to_json(),  # The gamemaster or counter who made the assignment
+            "player_color": self.player_color.name,
+            "counter_player": self.counter_player.to_json(),
+            "monitored_player": self.monitored_player.to_json() if self.monitored_player else None,
+            "timestamp": self.json_timestamp
+        }
+
+
+class ClaimReviewEvent(Event):
+    """Event for tracking counter claim reviews."""
+    square = models.ForeignKey("bingosync.Square", on_delete=models.CASCADE)
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ('under_review', 'Under Review'),
+            ('confirm', 'Confirm'),
+            ('reject', 'Reject'),
+        ],
+        help_text="Action taken by counter: under_review, confirm, or reject"
+    )
+    reviewed_player = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        related_name='claim_reviews_received',
+        help_text="Player whose claim was reviewed"
+    )
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
+
+    def to_json(self):
+        return {
+            "type": "claim_review",
+            "player": self.player.to_json(),  # The counter who reviewed
+            "player_color": self.player_color.name,
+            "square": self.square.to_json(),
+            "action": self.action,
+            "reviewed_player": self.reviewed_player.to_json(),
+            "timestamp": self.json_timestamp
+        }
+
+
 class ConnectionEvent(Event):
     event = models.IntegerField(choices=ConnectionEventType.choices())
+
+    class Meta(Event.Meta):
+        indexes = [models.Index(fields=['timestamp'])]
 
     @property
     def event_type(self):

@@ -1,8 +1,11 @@
 import requests
 import json
+import logging
 
 from bingosync.settings import SOCKETS_PUBLISH_URL
 from bingosync.util import get_internal_api_headers
+
+logger = logging.getLogger(__name__)
 
 
 def publish_goal_event(goal_event):
@@ -40,9 +43,26 @@ def publish_role_change_event(role_change_event):
     _publish_json(data, role_change_event.player.room)
 
 
+def publish_counter_assignment_event(counter_assignment_event):
+    data = counter_assignment_event.to_json()
+    _publish_json(data, counter_assignment_event.player.room)
+
+
+def publish_claim_review_event(claim_review_event):
+    data = claim_review_event.to_json()
+    _publish_json(data, claim_review_event.player.room)
+
+
 def _publish_json(data, room):
     data["room"] = room.encoded_uuid
-    requests.put(
-        SOCKETS_PUBLISH_URL,
-        data=json.dumps(data),
-        headers=get_internal_api_headers())
+    try:
+        response = requests.put(
+            SOCKETS_PUBLISH_URL,
+            data=json.dumps(data),
+            headers=get_internal_api_headers(),
+            timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to publish event to Tornado: {e}")
+        logger.error(f"URL: {SOCKETS_PUBLISH_URL}")
+        logger.error(f"Data: {data}")

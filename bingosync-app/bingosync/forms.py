@@ -55,15 +55,10 @@ class RoomForm(forms.Form):
     passphrase = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(),
+        required=False,
+        help_text="Optional. Leave blank for a room anyone can join.",
         validators=[validate_passphrase]
     )
-    nickname = forms.CharField(
-        label="Nickname",
-        max_length=PLAYER_NAME_MAX_LENGTH,
-        validators=[
-            validate_player_name,
-            validate_no_html_tags,
-            validate_no_script_tags])
     # Hidden fields - automatically set to HP CoS (value 50)
     game_type = forms.CharField(
         widget=forms.HiddenInput(),
@@ -89,28 +84,20 @@ class RoomForm(forms.Form):
         required=False,
         validators=[validate_seed]
     )
-    size = forms.CharField(
-        label="Board Size",
-        widget=forms.NumberInput(attrs={"min": 1}),
-        help_text="Leave blank for the generator's default size (usually 5)",
-        required=False,
-        validators=[validate_board_size]
-    )
-    is_spectator = forms.BooleanField(
-        label="Create as Spectator", required=False)
-    gamemaster_only = forms.BooleanField(
-        label="Gamemaster Only",
+    assign_gamemaster = forms.BooleanField(
+        label="Assign Gamemaster",
         required=False,
         help_text=(
-            "If checked, you will be Gamemaster only (cannot mark "
-            "squares). If unchecked, you will be Gamemaster + Player "
-            "(can mark squares)."
+            "If checked, you will be Gamemaster (can manage roles, generate boards, "
+            "but cannot mark squares). If unchecked, you will be a regular Player."
         )
     )
     hide_card = forms.BooleanField(label="Hide Card Initially", required=False)
     fog_of_war = forms.BooleanField(label="Fog of War", required=False)
 
     def __init__(self, *args, **kwargs):
+        # Extract user from kwargs if provided
+        self.user = kwargs.pop('user', None)
         super(RoomForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper(self)
         self.helper.form_tag = False
@@ -130,15 +117,6 @@ class RoomForm(forms.Form):
         room_name = FilteredPattern.filter_string(room_name)
         return room_name
 
-    def clean_nickname(self):
-        """Clean and sanitize nickname."""
-        nickname = self.cleaned_data.get('nickname', '')
-        # Sanitize input
-        nickname = sanitize_text_input(nickname)
-        # Apply profanity filter
-        nickname = FilteredPattern.filter_string(nickname)
-        return nickname
-
     def clean_seed(self):
         """Clean and validate seed."""
         seed = self.cleaned_data.get('seed', '')
@@ -146,14 +124,6 @@ class RoomForm(forms.Form):
             # Additional validation is done by the validator
             return str(seed).strip()
         return seed
-
-    def clean_size(self):
-        """Clean and validate board size."""
-        size = self.cleaned_data.get('size', '')
-        if size:
-            # Additional validation is done by the validator
-            return str(size).strip()
-        return size
 
     def clean(self):
         cleaned_data = super(RoomForm, self).clean()
@@ -165,8 +135,9 @@ class RoomForm(forms.Form):
 
         custom_json = cleaned_data.get("custom_json", "")
         try:
+            # Always use 5x5 board
             cleaned_data["custom_board"] = generator.validate_custom_json(
-                custom_json, size=cleaned_data.get('size') or 5)
+                custom_json, size=5)
         except InvalidBoardException as e:
             raise forms.ValidationError(e)
 
@@ -177,48 +148,66 @@ class RoomForm(forms.Form):
         Create a new room with the specified settings.
 
         Args:
-            user: Optional authenticated User instance
+            user: Authenticated User instance (required)
 
         Returns:
             Room instance
 
         Raises:
-            ValidationError: If authenticated user is already in another room
+            ValidationError: If user is not authenticated or already in another room
         """
         room_name = self.cleaned_data["room_name"]
         passphrase = self.cleaned_data["passphrase"]
-        nickname = self.cleaned_data["nickname"]
         game_type = GameType.for_value(int(self.cleaned_data["game_type"]))
         lockout_mode = LockoutMode.for_value(
             int(self.cleaned_data["lockout_mode"]))
         seed = self.cleaned_data["seed"]
-        size = self.cleaned_data["size"]
         custom_board = self.cleaned_data.get("custom_board", [])
-        is_spectator = self.cleaned_data["is_spectator"]
-        gamemaster_only = self.cleaned_data.get("gamemaster_only", False)
+        assign_gamemaster = self.cleaned_data.get("assign_gamemaster", False)
         hide_card = self.cleaned_data["hide_card"]
         fog_of_war = self.cleaned_data["fog_of_war"]
 
-        # Note: room_name and nickname are already sanitized and filtered in
-        # clean_* methods
+        # Room creation always requires authentication
+        if not user or not user.is_authenticated:
+            raise ValidationError(
+                "You must be logged in to create a room. "
+                "Please log in or register first."
+            )
 
         # Check if authenticated user is already in a room
-        if user and user.is_authenticated:
-            if user.current_room:
-                raise ValidationError(
-                    f"You are already in room '{user.current_room.name}'. "
-                    f"Please leave that room before creating another."
-                )
+        if user.current_room:
+            raise ValidationError(
+                f"You are already in room '{user.current_room.name}'. "
+                f"Please leave that room before creating another."
+            )
+        
+        # Use username as display name
+        nickname = user.username
 
         if not seed:
             seed = "" if game_type.uses_seed else "0"
 
-        seed, board_json = game_type.generator_instance().get_card(seed, custom_board, size)
+        # Always use 5x5 board
+        # Use caching for board generation by seed
+        from bingosync.cache import get_board_by_seed
+        
+        # Only cache if we have a valid seed (not empty/random)
+        if seed and seed != "":
+            def generate_board(s):
+                return game_type.generator_instance().get_card(s, custom_board, 5)
+            
+            seed, board_json = get_board_by_seed(seed, generate_board)
+        else:
+            # Don't cache random boards (empty seed)
+            seed, board_json = game_type.generator_instance().get_card(seed, custom_board, 5)
 
-        encrypted_passphrase = hashers.make_password(passphrase)
+        # Empty passphrase means an open (no-password) room; store "" so the
+        # join path can tell "no password required" from "wrong password".
+        encrypted_passphrase = hashers.make_password(passphrase) if passphrase else ""
         with transaction.atomic():
             room = Room(
                 name=room_name,
+                room_code=Room.generate_room_code(),
                 passphrase=encrypted_passphrase,
                 hide_card=hide_card)
             room.save()
@@ -231,32 +220,25 @@ class RoomForm(forms.Form):
                 seed=seed,
                 fog_of_war=fog_of_war)
 
-            # Determine role and is_also_player based on form inputs
-            if is_spectator:
-                # User chose to be a spectator
-                role = Role.SPECTATOR
-                is_also_player_flag = False
-            elif gamemaster_only:
-                # User chose Gamemaster-only (cannot mark squares)
+            # Determine role based on assign_gamemaster checkbox
+            # If checked: Gamemaster (cannot mark squares)
+            # If unchecked: Player (can mark squares)
+            if assign_gamemaster:
                 role = Role.GAMEMASTER
-                is_also_player_flag = False
             else:
-                # Default: Gamemaster + Player (can mark squares)
-                role = Role.GAMEMASTER
-                is_also_player_flag = True
+                role = Role.PLAYER
 
             creator = Player(
                 room=room,
                 name=nickname,
                 role=role,
-                is_also_player=is_also_player_flag
+                user=user
             )
             creator.save()
 
             # Set current_room for authenticated users
-            if user and user.is_authenticated:
-                user.current_room = room
-                user.save()
+            user.current_room = room
+            user.save()
 
             room.update_active()
         return room
@@ -275,6 +257,7 @@ class JoinRoomForm(forms.Form):
     passphrase = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(),
+        required=False,
         validators=[validate_passphrase]
     )
     role = forms.ChoiceField(
@@ -290,13 +273,20 @@ class JoinRoomForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.room = kwargs.pop('room', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if self.room:
             self.fields['encoded_room_uuid'].initial = self.room.encoded_uuid
 
+        # If user is authenticated, pre-fill nickname with username and make it read-only
+        if self.user and self.user.is_authenticated:
+            self.fields['player_name'].initial = self.user.username
+            self.fields['player_name'].widget.attrs['readonly'] = 'readonly'
+            self.fields['player_name'].help_text = 'Your username will be used as your display name'
+
     @staticmethod
-    def for_room(room):
-        return JoinRoomForm(room=room)
+    def for_room(room, user=None):
+        return JoinRoomForm(room=room, user=user)
 
     def get_room(self):
         if not self.room:
@@ -329,9 +319,21 @@ class JoinRoomForm(forms.Form):
         cleaned_data = super().clean()
         room = self.get_room()
         passphrase = cleaned_data.get("passphrase")
-        if room and passphrase and not hashers.check_password(
-                passphrase, room.passphrase):
-            raise ValidationError("Incorrect Password")
+        role = cleaned_data.get("role")
+        
+        # Only enforce a password when the room actually has one. Open rooms
+        # (created with a blank password) store an empty passphrase.
+        if room and room.passphrase:
+            if not passphrase or not hashers.check_password(
+                    passphrase, room.passphrase):
+                raise ValidationError("Incorrect Password")
+        
+        # Prevent spectators from joining inactive rooms
+        if room and role == Role.SPECTATOR and not room.active:
+            raise ValidationError(
+                "This room is no longer active. Spectators cannot join inactive rooms."
+            )
+        
         return cleaned_data
 
     def create_player(self, user=None):
@@ -346,6 +348,7 @@ class JoinRoomForm(forms.Form):
 
         Raises:
             ValidationError: If authenticated user is already in another room
+                           or if authentication is required but not provided
         """
         room = Room.get_for_encoded_uuid(
             self.cleaned_data["encoded_room_uuid"])
@@ -355,6 +358,15 @@ class JoinRoomForm(forms.Form):
         # Note: player_name is already sanitized and filtered in clean_player_name()
         # (HTML tags stripped, whitespace normalized)
 
+        # Validate authentication requirements
+        if role != Role.SPECTATOR:
+            # Player/Counter roles require authentication
+            if not user or not user.is_authenticated:
+                raise ValidationError(
+                    f"You must be logged in to join as {role}. "
+                    f"Please log in or register first, or join as a Spectator."
+                )
+
         # Check if authenticated user is already in a room
         if user and user.is_authenticated:
             if user.current_room and user.current_room != room:
@@ -362,9 +374,16 @@ class JoinRoomForm(forms.Form):
                     f"You are already in room '{user.current_room.name}'. "
                     f"Please leave that room before joining another."
                 )
+            # For authenticated users, use their username as nickname
+            nickname = user.username
 
         with transaction.atomic():
-            player = Player(room=room, name=nickname, role=role)
+            player = Player(
+                room=room,
+                name=nickname,
+                role=role,
+                user=user if user and user.is_authenticated else None
+            )
             player.save()
 
             # Set current_room for authenticated users

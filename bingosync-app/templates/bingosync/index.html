@@ -5,6 +5,24 @@
 {% load crispy_forms_tags %}
 
 {% block page_content %}
+    {% if request.GET.error %}
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        <strong>Error:</strong> 
+        {% if request.GET.error == 'invalid_code' %}
+            Room code not found. Please check the code and try again.
+        {% elif request.GET.error == 'missing_code' %}
+            Please enter a room code.
+        {% elif request.GET.error == 'Incorrect password' %}
+            Incorrect password for this room.
+        {% else %}
+            {{ request.GET.error }}
+        {% endif %}
+    </div>
+    {% endif %}
+    
     <div class="row m-b-l">
         <div class="col-md-7">
             <div id="rooms_panel" class="panel panel-default">
@@ -15,6 +33,48 @@
                     There have been {{ stats.rooms }} rooms with {{ stats.games }} games played in them. There have been {{ stats.ticks }} ticks and {{ stats.unticks }} unticks.
                 </div>
             </div>
+            
+            <!-- Join Room Section -->
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    Join Room
+                </div>
+                <div class="panel-body">
+                    <p>Enter a room code to join an existing room.</p>
+                    <form action="{% url 'join_room_by_code' %}" method="post">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="room_code_input">Room Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="room_code_input" 
+                                   name="room_code" 
+                                   placeholder="Enter 6-character code" 
+                                   maxlength="6"
+                                   style="text-transform: uppercase;"
+                                   required>
+                        </div>
+                        <div class="form-group">
+                            <label for="join_password">Password</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="join_password" 
+                                   name="password" 
+                                   placeholder="Room password"
+                                   required>
+                        </div>
+                        <div class="form-group">
+                            <label for="join_role">Join as</label>
+                            <select class="form-control" id="join_role" name="role" required>
+                                <option value="player">Player</option>
+                                <option value="counter">Counter</option>
+                                <option value="spectator">Spectator</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Join Room</button>
+                    </form>
+                </div>
+            </div>
         </div>
         <div class="col-md-5">
             <div class="panel panel-default">
@@ -22,7 +82,14 @@
                     New Room
                 </div>
                 <div id="new_room_form" class="panel-body">
-                    <form class="form-horizontal" action="/" method="post">
+                    {% if not user.is_authenticated %}
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Authentication Required:</strong> You must be logged in to create a room.
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="alert-link">Log in</a> or 
+                        <a href="{% url 'register' %}" class="alert-link">register</a>.
+                    </div>
+                    {% else %}
+                    <form class="form-horizontal" action="/dashboard" method="post">
                         {% csrf_token %}
                         {% crispy form %}
                         <div class="form-group">
@@ -41,6 +108,7 @@
                             initializeRoomsPanel($roomsPanel);
                         });
                     </script>
+                    {% endif %}
                 </div>
             </div>
         </div>

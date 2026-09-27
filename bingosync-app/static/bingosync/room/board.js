@@ -97,10 +97,26 @@ var Board = (function(){
 
     Square.prototype.setJson = function(json) {
         this.$square.html('<div class="starred hidden"></div><div class="shadow"></div>' +
-                          '<div class="vertical-center text-container"></div>');
+                          '<div class="vertical-center text-container"></div>' +
+                          '<div class="claim-status-badge"></div>');
         this.$square.children(".text-container").text(json["name"]);
-        this.tier = json["tier"]
+        this.tier = json["tier"];
         setSquareColors(this.$square, json["colors"]);
+        
+        // Set claim status badge if present
+        if (json["claim_status"]) {
+            this.setClaimStatus(json["claim_status"]);
+        }
+    };
+
+    Square.prototype.setClaimStatus = function(claimStatus) {
+        var $badge = this.$square.find('.claim-status-badge');
+        $badge.empty().removeClass('status-pending status-under-review status-confirmed status-rejected');
+        this.$square.removeClass('under-review');
+        
+        if (claimStatus === 'under_review') {
+            this.$square.addClass('under-review');
+        }
     };
 
     var Board = function($board, playerJson, colorChooser, getBoardUrl, selectGoalUrl, fogOfWar) {
@@ -113,7 +129,6 @@ var Board = (function(){
         this.fogOfWar = fogOfWar;
         this.squares = [];
         this.$squares = null;
-        this.fogPersist = false;
     };
 
     Board.prototype.setup = function(size) {
@@ -248,9 +263,7 @@ var Board = (function(){
         var chosenColorClass = getSquareColorClass(chosenColor);
 
         for (let i = 0; i < this.size * this.size; i++) {
-            if (!this.fogPersist) {
-                this.squares[i].hidden = true
-            }
+            this.squares[i].hidden = true
 
             if (this.checkTile(i, chosenColorClass)) {
                 this.squares[i].hidden = false

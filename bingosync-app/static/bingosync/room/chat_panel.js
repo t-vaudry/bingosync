@@ -71,6 +71,13 @@ var ChatPanel = (function(){
         var playerSpan = processPlayerJson(json["player"], getPlayerColorClass(json["player_color"]));
         if(json["type"] === "chat") {
             var message = $("<span>", {"class": "chat-message", text: json["text"]}).toHtml();
+            
+            // Check if this is a system message
+            if (json["is_system_message"]) {
+                var entryClass = json["is_counter_message"] ? "counter-entry" : "system-message";
+                return $("<div>", {"class": entryClass + " system-message", html: timeHtml + " " + message}).toHtml();
+            }
+            
             return $("<div>", {html: timeHtml + " " + playerSpan + ": " + message}).toHtml();
         }
         else if(json["type"] === "goal") {
@@ -135,6 +142,10 @@ var ChatPanel = (function(){
             var chatJson = result.events[i];
             this.chatData.push(chatJson);
             var message = processChatJson(chatJson);
+            // Skip types with no chat text of their own (see handleEvent).
+            if (message === undefined) {
+                continue;
+            }
             var entry = $("<div>", {"class": chatJson["type"] + "-entry", html: message});
             this.$chatHistory.append(entry);
         }
@@ -146,6 +157,12 @@ var ChatPanel = (function(){
 
     ChatPanel.prototype.handleEvent = function(json) {
         var result = processChatJson(json);
+        // role_change/counter_assignment/claim_review carry no chat text of
+        // their own (a companion system ChatEvent provides the readable
+        // line), so skip appending an empty entry for them.
+        if (result === undefined) {
+            return;
+        }
         this.appendChatMessage(result, json["type"] + "-entry");
     };
 

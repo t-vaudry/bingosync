@@ -436,32 +436,37 @@ def check_permission(player, action):
         Role.SPECTATOR: [],
     }
     
-    # Gamemaster can only mark if they're also a player
-    if action == 'mark_square' and player.role == Role.GAMEMASTER:
-        return player.is_also_player  # New field or check
-    
     return action in permissions.get(player.role, [])
 ```
 
 ### Gamemaster Assignment
 ```python
 # Room creation
-def create_room(user, room_name, is_gamemaster_only=False):
+def create_room(user, room_name, assign_gamemaster=False, gamemaster_user=None):
+    """Create a room with optional gamemaster assignment at creation time only"""
     room = Room.objects.create(name=room_name, creator=user)
     
-    if is_gamemaster_only:
-        role = Role.GAMEMASTER
-        is_also_player = False
-    else:
-        role = Role.GAMEMASTER  # Can also mark squares
-        is_also_player = True
-    
-    player = Player.objects.create(
+    # Creator joins as a player by default
+    creator_player = Player.objects.create(
         user=user,
         room=room,
-        role=role,
-        is_also_player=is_also_player
+        role=Role.PLAYER
     )
+    
+    # Optionally assign a gamemaster (can be the creator or another user)
+    if assign_gamemaster and gamemaster_user:
+        # If gamemaster is the creator, update their role
+        if gamemaster_user == user:
+            creator_player.role = Role.GAMEMASTER
+            creator_player.save()
+        else:
+            # Create a separate gamemaster player
+            Player.objects.create(
+                user=gamemaster_user,
+                room=room,
+                role=Role.GAMEMASTER
+            )
+    
     return room
 ```
 
@@ -476,21 +481,30 @@ def create_room(user, room_name, is_gamemaster_only=False):
 └────┬─────┘
      │ Player marks square
      ▼
-┌──────────────┐
-│ under_review │ (Waiting for counter)
-└──┬────────┬──┘
-   │        │
-   │        │ Counter rejects
-   │        ▼
-   │    ┌──────────┐
-   │    │ rejected │ (Square unmarked)
-   │    └──────────┘
+┌──────────────────┐
+│ Pending Counter  │ (Counter notified, must decide)
+│    Decision      │
+└──┬────┬──────┬───┘
+   │    │      │
+   │    │      │ Counter chooses "Under Review"
+   │    │      ▼
+   │    │  ┌──────────────┐
+   │    │  │ under_review │ (Waiting for counter)
+   │    │  └──────────────┘
+   │    │
+   │    │ Counter chooses "Reject"
+   │    ▼
+   │  ┌──────────┐
+   │  │ rejected │ (Square unmarked, color removed)
+   │  └──────────┘
    │
-   │ Counter confirms
+   │ Counter chooses "Confirm"
    ▼
 ┌───────────┐
 │ confirmed │ (Square marked permanently)
 └───────────┘
+
+Note: If no counter assigned, square goes directly to 'confirmed' state
 ```
 
 ### Implementation
@@ -504,16 +518,16 @@ def mark_square(player, slot, color):
     counter = player.counters.first()
     
     if counter:
-        # Claim goes under review
-        square.claim_status = 'under_review'
-        square.claimed_by = player
+        # Counter exists - mark the square but wait for counter decision
+        # Square is marked visually but claim_status remains 'none' until counter decides
         square.colors.append(color)
+        square.claimed_by = player
         square.save()
         
-        # Notify counter via WebSocket
+        # Notify counter via WebSocket - counter must choose: under_review, confirm, or reject
         notify_counter(counter, player, slot, color)
     else:
-        # No counter, mark immediately
+        # No counter, mark immediately as confirmed (bypass claim_status)
         square.claim_status = 'confirmed'
         square.colors.append(color)
         square.save()
@@ -522,18 +536,23 @@ def mark_square(player, slot, color):
     GoalEvent.objects.create(
         player=player,
         slot=slot,
-        claim_status=square.claim_status
+        claim_status=square.claim_status if not counter else 'pending_decision'
     )
 
 def review_claim(counter, slot, action):
-    """Counter reviews a claim"""
+    """Counter reviews a claim - can choose under_review, confirm, or reject"""
     # Verify counter is assigned to the player who made the claim
     square = Square.objects.get(slot=slot)
     
     if square.claimed_by.counters.filter(id=counter.id).exists():
-        if action == 'confirm':
+        if action == 'under_review':
+            # Counter wants to review this later
+            square.claim_status = 'under_review'
+        elif action == 'confirm':
+            # Counter approves the claim
             square.claim_status = 'confirmed'
         elif action == 'reject':
+            # Counter rejects the claim
             square.claim_status = 'rejected'
             square.colors.remove(square.claimed_by.color)
             square.claimed_by = None

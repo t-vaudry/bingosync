@@ -156,6 +156,10 @@ class SquareAdmin(admin.ModelAdmin):
 def disconnect_players(modeladmin, request, queryset):
     for player in queryset:
         ConnectionEvent.atomically_disconnect(player)
+        # Clear current_room for authenticated users to allow joining other rooms
+        if player.user and player.user.current_room == player.room:
+            player.user.current_room = None
+            player.user.save()
 
 
 disconnect_players.short_description = "Mark players disconnected"
@@ -165,6 +169,10 @@ def disconnect_players_if_connected(modeladmin, request, queryset):
     for player in queryset:
         if player.connected:
             ConnectionEvent.atomically_disconnect(player)
+            # Clear current_room for authenticated users to allow joining other rooms
+            if player.user and player.user.current_room == player.room:
+                player.user.current_room = None
+                player.user.save()
 
 
 disconnect_players_if_connected.short_description = "Mark players disconnected if connected"

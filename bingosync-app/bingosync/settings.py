@@ -115,6 +115,29 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bingosync.com')
 PASSWORD_RESET_TIMEOUT = 86400
 
 
+# Sentry error monitoring
+# Active only when SENTRY_DSN is set, so environments without it (including the
+# test runner and dev setups that omit it) run with Sentry fully disabled and
+# make no network calls.
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN and not IS_TEST:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        environment=os.getenv(
+            "SENTRY_ENVIRONMENT",
+            "production" if IS_PROD else "development"),
+        # Errors only by default; set SENTRY_TRACES_SAMPLE_RATE to sample
+        # performance traces (e.g. 0.1 for 10% of requests).
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0")),
+        # Never forward user PII (usernames, emails, IP addresses) to Sentry.
+        send_default_pii=False,
+    )
+
+
 # Application definition
 
 INSTALLED_APPS = (
@@ -127,7 +150,7 @@ INSTALLED_APPS = (
     'crispy_forms',
     'bootstrap3',
     'crispy_bootstrap3',
-    'bingosync'
+    'bingosync.apps.BingosyncConfig'
 )
 
 # Custom User Model
@@ -265,6 +288,27 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
+
+# Cache Configuration
+# https://docs.djangoproject.com/en/4.2/topics/cache/
+
+if IS_TEST:
+    # Use dummy cache for tests to avoid Redis dependency
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/0'),
+            'KEY_PREFIX': 'bingosync',
+            'TIMEOUT': 300,  # 5 minutes default timeout
+        }
+    }
 
 
 # Logging

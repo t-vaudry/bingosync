@@ -44,7 +44,7 @@ class BingoGenerator:
     def reload(game_name):
         BingoGenerator.CACHED_INSTANCES[game_name] = load_generator(game_name)
 
-    def __init__(self, game_name, generator_js):
+    def __init__(self, game_name, generator_js, goal_list_js=None):
         self.game_name = game_name
         self.generator_js_bytes = generator_js.encode("utf-8")
 
@@ -58,8 +58,7 @@ class BingoGenerator:
         js_eval = "\nconsole.log(JSON.stringify(" + js_command + "));"
         full_command = self.generator_js_bytes + js_eval.encode("utf-8")
 
-        # For generators that use require(), we need to write to a temp file
-        # so Node.js can resolve relative paths correctly
+        # Write to temp file in GEN_DIR so require() paths work correctly
         try:
             with tempfile.NamedTemporaryFile(
                 mode='wb', suffix='.js', delete=False, dir=GEN_DIR
@@ -69,20 +68,27 @@ class BingoGenerator:
 
             try:
                 out = subprocess.check_output(
-                    ["node", temp_file_path], timeout=GENERATOR_TIMEOUT_SECONDS, cwd=GEN_DIR)
+                    ["node", temp_file_path], 
+                    timeout=GENERATOR_TIMEOUT_SECONDS, 
+                    cwd=GEN_DIR,
+                    stderr=subprocess.STDOUT
+                )
+            except subprocess.CalledProcessError as e:
+                error_output = e.output.decode("utf-8") if e.output else "No error output"
+                error_message = (
+                    f"Generator '{self.game_name}' failed with exit code {e.returncode}. "
+                    f"Error output: {error_output}"
+                )
+                logger.error(error_message)
+                raise GeneratorException(error_message)
             finally:
-                # Clean up temp file
                 try:
                     os.unlink(temp_file_path)
                 except OSError:
                     pass
         except subprocess.TimeoutExpired:
-            error_message = (
-                "Took too long to generate a bingo board for game '"
-                + self.game_name
-                + "'"
-            )
-            logging.error(error_message)
+            error_message = f"Took too long to generate a bingo board for game '{self.game_name}'"
+            logger.error(error_message)
             raise GeneratorException(error_message)
 
         return json.loads(out.decode("utf-8"))

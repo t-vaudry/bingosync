@@ -89,21 +89,22 @@ This document specifies the requirements for transforming the Bingosync codebase
 #### Acceptance Criteria
 
 1. THE HP_Platform SHALL define four distinct roles: Gamemaster, Player, Counter, and Spectator
-2. WHEN a user creates a room, THE HP_Platform SHALL allow them to choose between Gamemaster-only or Gamemaster+Player role
-3. THE HP_Platform SHALL allow a user to be both Gamemaster and Player simultaneously
-4. THE HP_Platform SHALL allow Gamemaster to mark and unmark squares on the board (if also a Player)
-5. THE HP_Platform SHALL allow Player to mark and unmark squares on the board
-6. THE HP_Platform SHALL prevent Spectator from marking or unmarking squares
-7. THE HP_Platform SHALL allow Spectator to view the board and chat
-8. THE HP_Platform SHALL allow Gamemaster to change participant roles
-9. THE HP_Platform SHALL allow Gamemaster to remove participants from the room
-10. THE HP_Platform SHALL allow Gamemaster to generate new boards
-11. THE HP_Platform SHALL allow Gamemaster to reveal the board in Fog_of_War mode
-12. THE HP_Platform SHALL store role information in the Player model
-13. WHEN a role change occurs, THE HP_Platform SHALL broadcast the change to all room participants via WebSocket
-14. THE HP_Platform SHALL validate role permissions before processing board actions
-15. THE HP_Platform SHALL allow rooms to exist without a dedicated Gamemaster (all players are equal)
-16. THE HP_Platform SHALL allow rooms to have a Gamemaster who is not a Player (observer/admin only)
+2. WHEN a user creates a room, THE HP_Platform SHALL allow them to optionally designate one user as Gamemaster
+3. THE HP_Platform SHALL allow Gamemaster to be assigned ONLY at room creation time
+4. THE HP_Platform SHALL prevent Gamemaster role from being transferred to another user after room creation
+5. THE HP_Platform SHALL prevent a user from being both Gamemaster and Player (mutually exclusive roles)
+6. THE HP_Platform SHALL allow Gamemaster to mark and unmark goals for ANY player on the board
+7. THE HP_Platform SHALL allow Player to mark and unmark squares on the board
+8. THE HP_Platform SHALL prevent Spectator from marking or unmarking squares
+9. THE HP_Platform SHALL allow Spectator to view the board and chat
+10. THE HP_Platform SHALL allow Gamemaster to change roles of all other participants (but not their own role)
+11. THE HP_Platform SHALL allow Gamemaster to remove any participant from the room (including spectators)
+12. THE HP_Platform SHALL allow Gamemaster to generate new boards
+13. THE HP_Platform SHALL allow Gamemaster to reveal the board in Fog_of_War mode
+14. THE HP_Platform SHALL store role information in the Player model
+15. WHEN a role change occurs, THE HP_Platform SHALL broadcast the change to all room participants via WebSocket
+16. THE HP_Platform SHALL validate role permissions before processing board actions
+17. THE HP_Platform SHALL allow rooms to exist without a Gamemaster (all players are equal)
 
 ### Requirement 5: Fog of War Feature Integration
 
@@ -416,8 +417,12 @@ The following questions have been answered by the user:
    - This is a claim verification/review system
 
 4. **Gamemaster Role:**
-   - Rooms MAY have a gamemaster OR 1 player can be both gamemaster and player
-   - Flexible role assignment (GM-only, GM+Player, or no GM)
+   - Gamemaster is OPTIONAL (rooms can exist without one)
+   - Only 1 Gamemaster possible per room
+   - Can ONLY be assigned at room creation (not after)
+   - Cannot be transferred to another user
+   - Cannot also be a player (mutually exclusive roles)
+   - Has all-powerful permissions: mark/unmark goals for any player, change roles of all other participants, kick spectators
 
 5. **Fog of War:**
    - Implementation details should be extracted from the feature/fog-of-war branch

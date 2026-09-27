@@ -486,6 +486,12 @@
     color: #888;
 }
 
+.system-message {
+    font-style: italic;
+    color: #9ab;
+    font-weight: 500;
+}
+
 .chat-timestamp {
     font-size: 80%;
     color: #888;
@@ -660,5 +666,129 @@
 }
 
 .role-change-dialog .m-t-s {
+    margin-top: 15px;
+}
+
+/* Kick player button and dialog styles */
+.kick-player-btn {
+    margin-left: 5px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+}
+
+.kick-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.kick-confirm-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 10001;
+    min-width: 300px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.kick-confirm-dialog .m-t-s {
+    margin-top: 15px;
+}
+
+/* Toggle GM player button styles */
+.toggle-gm-player-btn {
+    margin-left: 5px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+}
+
+/* Transfer GM button and dialog styles */
+.transfer-gm-btn {
+    margin-left: 5px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+}
+
+.transfer-gm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.transfer-gm-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 10001;
+    min-width: 300px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.transfer-gm-dialog .m-t-s {
+    margin-top: 15px;
+}
+
+
+/* Counter assignment button and dialog styles */
+.assign-counter-btn {
+    margin-left: 5px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+}
+
+.counter-assignment-badge {
+    margin-left: 5px;
+    font-size: 0.85em;
+    color: #5bc0de;
+    font-style: italic;
+}
+
+.counter-assignment-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.counter-assignment-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 10001;
+    min-width: 300px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.counter-assignment-dialog .player-select {
+    margin: 10px 0;
+}
+
+.counter-assignment-dialog .m-t-s {
     margin-top: 15px;
 }
