@@ -1,0 +1,95 @@
+{% extends "bingosync/base.html" %}
+{% load static %}
+
+{% block page_title %}{{ profile_user.username }} · Bingosync{% endblock %}
+
+{% block page_head %}
+<style>
+    .profile-since { color: #8a948c; margin: 0 0 4px; font-size: 13px; }
+    .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .profile-stat {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid #3a463c;
+        border-radius: 8px;
+        padding: 18px 12px;
+        text-align: center;
+    }
+    .profile-stat-value {
+        font-size: 30px;
+        font-weight: 700;
+        color: #ffd54a;
+        line-height: 1.1;
+    }
+    .profile-stat-label {
+        margin-top: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #a7b3aa;
+    }
+    .achievements {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+    .achievement {
+        border: 1px solid #3a463c;
+        border-radius: 8px;
+        padding: 14px 10px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .achievement.locked { opacity: 0.4; filter: grayscale(1); }
+    .achievement-icon { font-size: 28px; line-height: 1; }
+    .achievement-name { font-weight: 600; font-size: 13px; margin-top: 8px; color: #e7ede7; }
+    .achievement.earned .achievement-name { color: #ffd54a; }
+    .achievement-desc { font-size: 11px; color: #a7b3aa; margin-top: 3px; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+    <div class="row m-b-l">
+        <div class="col-md-8 col-md-offset-2">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Player Profile
+                </div>
+                <div class="panel-body">
+                    <h2 style="margin-top: 0;">{{ profile_user.username }}</h2>
+                    <p class="profile-since">Member since {{ profile_user.date_joined|date:"F j, Y" }}</p>
+
+                    <div class="profile-stats">
+                        {% for label, value in stats %}
+                            <div class="profile-stat">
+                                <div class="profile-stat-value">{{ value }}</div>
+                                <div class="profile-stat-label">{{ label }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Achievements <span class="text-muted">({{ earned_count }}/{{ achievements|length }})</span>
+                </div>
+                <div class="panel-body">
+                    <div class="achievements">
+                        {% for a in achievements %}
+                            <div class="achievement {% if a.earned %}earned{% else %}locked{% endif %}">
+                                <div class="achievement-icon">{{ a.icon }}</div>
+                                <div class="achievement-name">{{ a.name }}</div>
+                                <div class="achievement-desc">{{ a.desc }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

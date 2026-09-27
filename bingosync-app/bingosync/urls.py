@@ -76,6 +76,7 @@ urlpatterns = [
     url(r'^history', views.history, name='history'),
     url(r'^convert', views.goal_converter, name='goal_converter'),
     url(r'^about', views.about, name='about'),
+    url(r'^users/(?P<username>[\w.@+-]+)$', views.user_profile, name='user_profile'),
     url(r'^api/select$', views.goal_selected, name='goal_selected'),
     url(r'^api/chat$', views.chat_message, name='chat_message'),
     url(r'^api/color$', views.select_color, name='select_color'),
