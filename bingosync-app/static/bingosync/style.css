@@ -792,3 +792,121 @@
 .counter-assignment-dialog .m-t-s {
     margin-top: 15px;
 }
+
+
+/* ============================================================
+   Chamber of Secrets theme — cinematic teal & gold.
+   Layered after Bootswatch Slate to re-tint the app chrome;
+   game surfaces (board squares, player colors) are left alone.
+   ============================================================ */
+:root {
+    --cos-bg: #0e1a1c;           /* dark slate-teal ground */
+    --cos-surface: #16282b;      /* panels */
+    --cos-surface-2: #1c363b;    /* panel headings / raised */
+    --cos-border: #2a4f56;       /* teal-tinted borders */
+    --cos-ink: #dbe8e8;          /* primary text */
+    --cos-ink-soft: #9db3b5;     /* muted text */
+    --cos-teal: #2a6f7a;         /* primary accent */
+    --cos-teal-bright: #59b3c2;  /* links on dark */
+    --cos-gold: #c9a95a;         /* highlights / headings */
+    --cos-gold-bright: #e0c274;
+    --cos-serif: 'Cinzel', 'Palatino Linotype', Georgia, serif;
+    --cos-display: 'Cinzel Decorative', 'Cinzel', 'Palatino Linotype', Georgia, serif;
+}
+
+body {
+    background-color: var(--cos-bg);
+    color: var(--cos-ink);
+}
+
+/* All panel variants share the teal surface / gold heading — the
+   contextual colors (primary/success) are used structurally here, not
+   semantically, so we unify them. */
+.panel {
+    background-color: var(--cos-surface);
+    border-color: var(--cos-border);
+}
+.panel > .panel-heading {
+    color: var(--cos-gold);
+    background-color: var(--cos-surface-2);
+    border-color: var(--cos-border);
+    font-family: var(--cos-display);
+    letter-spacing: 0.02em;
+}
+.panel > .panel-heading .panel-title { color: var(--cos-gold); }
+.panel > .panel-footer {
+    background-color: var(--cos-surface-2);
+    border-color: var(--cos-border);
+    color: var(--cos-ink-soft);
+}
+
+a { color: var(--cos-teal-bright); }
+a:hover, a:focus { color: var(--cos-gold); }
+
+/* Slate paints buttons with a gray gradient background-image; clear it
+   so the teal fill shows through. */
+.btn-primary {
+    background-color: var(--cos-teal);
+    background-image: none;
+    border-color: var(--cos-teal);
+    color: #fff;
+    text-shadow: none;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active,
+.btn-primary:active:hover, .btn-primary:active:focus {
+    background-color: #35899a;
+    background-image: none;
+    border-color: #3f9db0;
+    color: #fff;
+}
+
+h1, h2, h3, .panel-title { font-family: var(--cos-display); }
+
+/* Header wordmark (h1 lives inside an <a>) */
+.flex-col-header h1 {
+    font-family: var(--cos-display);
+    font-weight: 700;
+    color: var(--cos-gold);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.flex-col-header a { text-decoration: none; }
+.flex-col-header a:hover h1 { color: var(--cos-gold-bright); }
+
+/* Footer */
+.footer-bar a { color: var(--cos-ink-soft); }
+.footer-bar a:hover { color: var(--cos-gold); }
+
+/* Form controls tinted to match */
+.form-control {
+    background-color: #0b1719;
+    border-color: var(--cos-border);
+    color: var(--cos-ink);
+}
+.form-control:focus {
+    border-color: var(--cos-teal-bright);
+    box-shadow: 0 0 0 2px rgba(89, 179, 194, 0.15);
+}
+
+/* Alert used for the room-code callout on the join page */
+.alert-info {
+    background-color: var(--cos-surface-2);
+    border-color: var(--cos-teal);
+    color: var(--cos-ink);
+}
+
+/* Board coordinate labels (A–E across the top, 1–5 down the left side)
+   were royal blue — retint to gold with teal borders. The mark squares
+   and player colors are left untouched. */
+#bingo tr:first-child td,
+#bingo tr:last-child td,
+#bingo tr td:first-child {
+    color: var(--cos-gold);
+    border-color: var(--cos-border);
+}
+#bingo tr:first-child td:hover,
+#bingo tr:last-child td:hover,
+#bingo tr td:first-child:hover {
+    color: #fff;
+    background: var(--cos-teal);
+}
