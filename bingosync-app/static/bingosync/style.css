@@ -810,8 +810,8 @@
     --cos-teal-bright: #59b3c2;  /* links on dark */
     --cos-gold: #c9a95a;         /* highlights / headings */
     --cos-gold-bright: #e0c274;
-    --cos-serif: 'Cinzel', 'Palatino Linotype', Georgia, serif;
-    --cos-display: 'Cinzel Decorative', 'Cinzel', 'Palatino Linotype', Georgia, serif;
+    --cos-serif: 'Fraunces', 'Palatino Linotype', Georgia, serif;
+    --cos-display: 'Fraunces', 'Palatino Linotype', Georgia, serif;
 }
 
 body {
@@ -831,9 +831,10 @@ body {
     background-color: var(--cos-surface-2);
     border-color: var(--cos-border);
     font-family: var(--cos-display);
-    letter-spacing: 0.02em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
-.panel > .panel-heading .panel-title { color: var(--cos-gold); }
+.panel > .panel-heading .panel-title { color: var(--cos-gold); font-weight: 600; }
 .panel > .panel-footer {
     background-color: var(--cos-surface-2);
     border-color: var(--cos-border);
@@ -865,9 +866,9 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
 /* Header wordmark (h1 lives inside an <a>) */
 .flex-col-header h1 {
     font-family: var(--cos-display);
-    font-weight: 700;
+    font-weight: 900;
     color: var(--cos-gold);
-    letter-spacing: 0.03em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
 }
 .flex-col-header a { text-decoration: none; }
