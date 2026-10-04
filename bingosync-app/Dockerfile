@@ -26,7 +26,7 @@ COPY pyproject.toml /app/
 
 # Install dependencies using uv
 RUN uv pip install --system -r pyproject.toml && \
-    uv pip install --system gunicorn
+    uv pip install --system "gunicorn~=26.2"
 
 # Stage 2: Runtime - Create minimal production image
 FROM python:3.11-slim
@@ -81,5 +81,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Set entrypoint
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
-# Run Gunicorn with 4 workers
-CMD ["gunicorn", "bingosync.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--enable-stdio-inheritance"]
+# Run Gunicorn with 4 workers. The control socket (an admin interface we don't
+# use) is disabled; it would try to write under the django user's home, which
+# doesn't exist.
+CMD ["gunicorn", "bingosync.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--enable-stdio-inheritance", "--no-control-socket"]

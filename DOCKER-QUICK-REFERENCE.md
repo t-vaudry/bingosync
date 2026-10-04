@@ -75,10 +75,14 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ## Production Deployment
 
+For the full walkthrough (Unraid + Nginx Proxy Manager), see
+[DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### Prerequisites
 1. Docker and Docker Compose installed
-2. Domain name configured (optional but recommended)
-3. SSL certificates (for HTTPS)
+2. A domain name pointing at your reverse proxy
+3. A reverse proxy that terminates HTTPS (e.g. Nginx Proxy Manager) and
+   forwards to this stack's `HTTP_PORT` with websocket support enabled
 
 ### Initial Production Setup
 
@@ -88,53 +92,28 @@ cp .env.example .env
 nano .env  # Edit with your production values
 ```
 
-2. **Update critical environment variables in .env:**
+2. **Fill in the required values in .env:**
 ```bash
-# Generate a strong Django secret key
-python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+# Generate each secret with:
+openssl rand -hex 32
 
-# Generate a strong internal API secret
-python -c 'import secrets; print(secrets.token_urlsafe(32))'
-
-# Set production values
-DEBUG=0
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+DOMAIN=bingo.yourdomain.com
+HTTP_PORT=8088
 DB_USER=bingosync
-DB_PASSWORD=your_strong_password_here
-DJANGO_SECRET_KEY=your_generated_secret_key
-INTERNAL_API_SECRET=your_generated_api_secret
+DB_PASSWORD=<generated>
+DJANGO_SECRET_KEY=<generated>
+INTERNAL_API_SECRET=<generated>
 ```
 
-3. **Configure SSL (optional but recommended):**
+3. **Build and start services** (migrations and static files run automatically
+   when the Django container starts):
 ```bash
-# Create SSL directory
-mkdir -p ssl
-
-# Copy your SSL certificates
-cp /path/to/cert.pem ssl/
-cp /path/to/key.pem ssl/
-
-# Update nginx.conf to enable HTTPS server block
+docker compose up -d --build
 ```
 
-4. **Build and start services:**
+4. **Create superuser:**
 ```bash
-docker-compose up -d
-```
-
-5. **Run initial migrations:**
-```bash
-docker-compose exec django python manage.py migrate
-```
-
-6. **Create superuser:**
-```bash
-docker-compose exec django python manage.py createsuperuser
-```
-
-7. **Collect static files:**
-```bash
-docker-compose exec django python manage.py collectstatic --noinput
+docker compose exec django python manage.py createsuperuser
 ```
 
 ### Production Commands
@@ -229,8 +208,8 @@ docker volume prune
 # Check logs
 docker-compose logs
 
-# Check if ports are already in use
-netstat -tulpn | grep -E ':(80|443|5432|6379)'
+# Check if the HTTP port is already in use (default 8088)
+netstat -tulpn | grep -E ':8088'
 
 # Verify environment variables
 docker-compose config
@@ -261,9 +240,9 @@ Before deploying to production, ensure:
 - [ ] Strong DJANGO_SECRET_KEY generated
 - [ ] Strong INTERNAL_API_SECRET generated (32+ characters)
 - [ ] Strong DB_PASSWORD set
-- [ ] ALLOWED_HOSTS configured with actual domain(s)
-- [ ] SSL certificates configured in nginx
-- [ ] Firewall configured (only ports 80, 443 open)
+- [ ] DOMAIN set to the public hostname
+- [ ] Reverse proxy serves DOMAIN over HTTPS with websocket support enabled
+- [ ] HTTP_PORT only reachable from the reverse proxy / LAN, not the internet
 - [ ] Regular database backups scheduled
 - [ ] Sentry or error monitoring configured (optional)
 - [ ] Log rotation configured

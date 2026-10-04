@@ -52,11 +52,27 @@ if IS_TEST and not INTERNAL_API_SECRET:
     INTERNAL_API_SECRET = 'test-secret-for-testing-purposes-only-32-chars'
 
 # PostgreSQL-only database configuration
-# DATABASE_URL is required and must point to a PostgreSQL database
+# Set DATABASE_URL directly, or DB_HOST (+ DB_PORT, DB_NAME, DB_USER,
+# DB_PASSWORD) as docker-compose.yml does, which allows pointing at an
+# existing Postgres server.
+def _database_url_from_parts(env):
+    """Build a PostgreSQL URL from DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD,
+    escaping the credentials so any characters are allowed."""
+    return "postgresql://{user}:{password}@{host}:{port}/{name}".format(
+        user=urllib.parse.quote(env.get("DB_USER") or "bingosync", safe=""),
+        password=urllib.parse.quote(env.get("DB_PASSWORD", ""), safe=""),
+        host=env["DB_HOST"],
+        port=env.get("DB_PORT") or "5432",
+        name=env.get("DB_NAME") or "bingosync",
+    )
+
+
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL and os.getenv("DB_HOST"):
+    DATABASE_URL = _database_url_from_parts(os.environ)
 if not DATABASE_URL and not IS_TEST:
     raise ValueError(
-        "DATABASE_URL environment variable is required. "
+        "DATABASE_URL (or DB_HOST) environment variable is required. "
         "Please set it to a valid PostgreSQL connection string. "
         "Example: postgresql://user:password@localhost:5432/bingosync"
     )
@@ -84,31 +100,28 @@ if "HTTP_SOCK" in os.environ:
 # - EMAIL_USE_TLS: Use TLS encryption (recommended: True)
 # - DEFAULT_FROM_EMAIL: Email address to send from
 
-if DEBUG:
-    # In development, print emails to console instead of sending
+#
+# Empty values count as unset: docker-compose passes every EMAIL_* variable
+# through, blank when it isn't configured.
+if DEBUG or not os.getenv('EMAIL_HOST'):
+    # Development, or production without SMTP configured: write emails
+    # (including password-reset links) to the log instead of sending them.
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
     # In production, use SMTP
-    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND',
-                              'django.core.mail.backends.smtp.EmailBackend')
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_BACKEND = (os.getenv('EMAIL_BACKEND')
+                     or 'django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST = os.getenv('EMAIL_HOST')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT') or '587')
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    EMAIL_USE_TLS = os.getenv(
-        'EMAIL_USE_TLS',
-        'True').lower() in (
-        'true',
-        '1',
-        'yes')
-    EMAIL_USE_SSL = os.getenv(
-        'EMAIL_USE_SSL',
-        'False').lower() in (
-        'true',
-        '1',
-        'yes')
+    EMAIL_USE_TLS = (os.getenv('EMAIL_USE_TLS') or 'True').lower() in (
+        'true', '1', 'yes')
+    EMAIL_USE_SSL = (os.getenv('EMAIL_USE_SSL') or 'False').lower() in (
+        'true', '1', 'yes')
 
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bingosync.com')
+DEFAULT_FROM_EMAIL = (os.getenv('DEFAULT_FROM_EMAIL')
+                      or 'noreply@bingosync.com')
 
 # Password reset token expiry (in seconds)
 # Default: 86400 seconds = 24 hours
@@ -203,6 +216,21 @@ if IS_PROD:
 # Enforce HTTPS in production (but not in tests)
 if IS_PROD and not IS_TEST:
     SECURE_SSL_REDIRECT = True
+    # TLS is terminated by the reverse proxy in front (e.g. Nginx Proxy
+    # Manager), which forwards plain HTTP. Trust its X-Forwarded-Proto so
+    # Django knows the original request was HTTPS and doesn't redirect again.
+    # The bundled nginx passes this header through from the upstream proxy.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # The websocket server calls these over the internal Docker network in
+    # plain HTTP, and the container healthcheck hits /health.
+    SECURE_REDIRECT_EXEMPT = [
+        r'^api/(socket|connected|disconnected)/',
+        r'^health$',
+    ]
+    # Every request reaches gunicorn from the nginx container, so
+    # REMOTE_ADDR is the same for everyone. nginx resolves the real client
+    # address from the proxy chain and sends it as X-Real-IP.
+    RATELIMIT_IP_META_KEY = 'HTTP_X_REAL_IP'
 else:
     SECURE_SSL_REDIRECT = False  # Explicitly disable in dev/test
 
@@ -371,7 +399,18 @@ else:
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.CachedStaticFilesStorage'
+if IS_PROD and not IS_TEST:
+    # Content-hashed filenames (style.3f2a9c.css) so browsers pick up new
+    # CSS/JS after every deploy; nginx caches /static/ for 30 days.
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage."
+                       "ManifestStaticFilesStorage",
+        },
+    }
 
 STATIC_URL = '/static/'
 
@@ -405,12 +444,15 @@ else:
         INTERNAL_SOCKETS_URL)
     SOCKETS_PUBLISH_URL = "http://" + SOCKETS_PUBLISH_HOST
 
-# Update CSP to allow WebSocket connections
+# Update CSP to allow WebSocket connections. SOCKETS_DOMAIN may include a
+# path (e.g. "bingo.example.com/websocket"); a CSP source with a path only
+# matches that exact path, so allow the host part.
 SOCKETS_DOMAIN = os.getenv("SOCKETS_DOMAIN", INTERNAL_SOCKETS_URL)
+_sockets_host = SOCKETS_DOMAIN.split("/", 1)[0]
 if IS_PROD:
-    CSP_CONNECT_SRC = ("'self'", f"wss://{SOCKETS_DOMAIN}")
+    CSP_CONNECT_SRC = ("'self'", f"wss://{_sockets_host}")
 else:
-    CSP_CONNECT_SRC = ("'self'", f"ws://{SOCKETS_DOMAIN}")
+    CSP_CONNECT_SRC = ("'self'", f"ws://{_sockets_host}")
 
 
 # crispy forms confiuguration

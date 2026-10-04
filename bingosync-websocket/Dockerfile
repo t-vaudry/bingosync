@@ -31,9 +31,10 @@ USER tornado
 # Expose WebSocket port
 EXPOSE 8888
 
-# Health check - verify the server is responding
+# Health check - verify the server accepts connections. (Its HTTP routes all
+# require the internal API secret, so a plain GET would always get a 401.)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8888').read()" || exit 1
+    CMD python -c "import socket; socket.create_connection(('localhost', 8888), 5).close()" || exit 1
 
 # Run the application
 CMD ["python", "app.py"]

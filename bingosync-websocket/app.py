@@ -55,11 +55,11 @@ if 'HTTP_SOCK' in os.environ:
     BASE_DJANGO_URL = (
         f"http+unix://{urllib.parse.quote_plus(os.environ['HTTP_SOCK'])}/")
 else:
-    # In Docker, use the service name for internal communication
+    # Talk to Django directly (in Docker, the service name). Requests still
+    # carry Host: DOMAIN in production so Django's ALLOWED_HOSTS accepts
+    # them; they never leave the internal network.
     DJANGO_HOST = os.getenv('DJANGO_INTERNAL_HOST', 'localhost:8000')
-    BASE_DJANGO_URL = (
-        f"http://{os.environ['DOMAIN']}/" if IS_PROD
-        else f"http://{DJANGO_HOST}/")
+    BASE_DJANGO_URL = f"http://{DJANGO_HOST}/"
 BASE_API_URL = BASE_DJANGO_URL + "api/"
 
 SOCKET_VERIFICATION_URL = BASE_API_URL + "socket/"

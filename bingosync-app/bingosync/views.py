@@ -1443,6 +1443,11 @@ def reconcile_connections(request):
     return HttpResponse()
 
 
+def health(request):
+    """Liveness check used by the container healthcheck."""
+    return HttpResponse("ok", content_type="text/plain")
+
+
 def goal_converter(request):
     if request.method == "POST":
         form = GoalListConverterForm(request.POST)

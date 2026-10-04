@@ -1,20 +1,26 @@
-version: '3.8'
+# Production stack. Runs behind a TLS-terminating reverse proxy such as
+# Nginx Proxy Manager, which forwards https://DOMAIN to this host's HTTP_PORT.
+# See DEPLOYMENT.md. Configure everything in .env (template: .env.example).
 
 services:
-  # PostgreSQL Database
+  # Bundled PostgreSQL. Enabled by COMPOSE_PROFILES=bundled-db in .env; remove
+  # that line and set DB_HOST to use an existing Postgres server instead.
   postgres:
     image: postgres:15-alpine
     container_name: bingosync-postgres
+    profiles: ["bundled-db"]
     environment:
-      POSTGRES_DB: bingosync
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-bingosync}
+      POSTGRES_USER: ${DB_USER:-bingosync}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # A host folder (not a Docker volume), so the data survives the Docker
+      # image being recreated and is included in appdata backups.
+      - ${POSTGRES_DATA_DIR:-./postgres-data}:/var/lib/postgresql/data
     networks:
       - bingosync-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-bingosync}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,29 +49,43 @@ services:
       dockerfile: Dockerfile
     container_name: bingosync-django
     environment:
-      # Database
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/bingosync
-      DB_USER: ${DB_USER}
-      
+      # Database: the bundled "postgres" service unless DB_HOST says otherwise
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-bingosync}
+      DB_USER: ${DB_USER:-bingosync}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+
       # Redis
       REDIS_URL: redis://redis:6379/0
-      
+
       # Django Settings
-      SECRET_KEY: ${DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
       DEBUG: ${DEBUG:-0}
       STATIC_ROOT: /app/staticfiles
-      
+
       # Internal API
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
-      
-      # WebSocket
-      SOCKETS_DOMAIN: ${SOCKETS_DOMAIN:-tornado:8888}
-      SOCKETS_PUBLISH_HOST: ${SOCKETS_PUBLISH_HOST:-tornado:8888}
-      
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET in .env}
+
+      # WebSocket: browsers connect to wss://DOMAIN/websocket/ (routed to
+      # Tornado by nginx); Django publishes events to Tornado internally.
+      SOCKETS_DOMAIN: ${DOMAIN}/websocket
+      SOCKETS_PUBLISH_HOST: tornado:8888
+
       # Optional Settings
       DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
       SENTRY_DSN: ${SENTRY_DSN:-}
+
+      # Optional SMTP for password-reset emails. Without EMAIL_HOST, reset
+      # links are written to this container's log instead.
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
     volumes:
       - static_files:/app/staticfiles
       - media_files:/app/media
@@ -74,6 +94,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Not started when using your own database (profile disabled)
+        required: false
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -86,49 +108,33 @@ services:
     container_name: bingosync-tornado
     command: python app.py
     environment:
-      # Database
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/bingosync
-      
-      # Redis
-      REDIS_URL: redis://redis:6379/0
-      
       # Internal API
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
-      
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET in .env}
+
       # WebSocket Settings
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       DEBUG: ${DEBUG:-0}
-      DOMAIN: ${DOMAIN:-localhost}
-      DJANGO_INTERNAL_HOST: ${DJANGO_INTERNAL_HOST:-django:8000}
-      
-      # Optional Settings
-      SENTRY_DSN: ${SENTRY_DSN:-}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      DJANGO_INTERNAL_HOST: django:8000
     networks:
       - bingosync-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - django
     restart: unless-stopped
 
-  # Nginx Reverse Proxy
+  # Nginx: serves static files and routes /websocket/ to Tornado and
+  # everything else to Django. Point your reverse proxy at HTTP_PORT.
   nginx:
     image: nginx:1.24-alpine
     container_name: bingosync-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-8088}:80"
     volumes:
       # Configuration
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      
+
       # Static and media files
       - static_files:/app/staticfiles:ro
       - media_files:/app/media:ro
-      
-      # SSL certificates (optional, for HTTPS)
-      - ./ssl:/etc/nginx/ssl:ro
     networks:
       - bingosync-network
     depends_on:
@@ -138,8 +144,6 @@ services:
 
 # Persistent volumes for data storage
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   static_files:

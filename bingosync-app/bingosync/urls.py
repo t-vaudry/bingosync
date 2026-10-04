@@ -96,5 +96,6 @@ urlpatterns = [
     url(r'^api/socket/(?P<socket_key>.+)$',
         views.check_socket_key, name='check_socket_key'),
     url(r'^api/reconcile$', views.reconcile_connections, name='reconcile'),
+    url(r'^health$', views.health, name='health'),
     url(r'^admin/', admin.site.urls),
 ]
