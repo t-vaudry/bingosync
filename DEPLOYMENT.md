@@ -1,422 +1,227 @@
-# HP Bingo Platform - Deployment Guide
+# Deployment: Unraid + Nginx Proxy Manager
 
-This guide covers deploying the HP Bingo Platform using Docker Compose.
+This guide runs BingoSync on an Unraid server with Docker Compose, behind
+Nginx Proxy Manager (NPM) for HTTPS. It works the same on any Docker host with
+a reverse proxy that terminates HTTPS and supports websockets.
 
-## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Production Deployment](#production-deployment)
-- [Configuration](#configuration)
-- [Maintenance](#maintenance)
-- [Troubleshooting](#troubleshooting)
-
-## Prerequisites
-
-### Required Software
-- Docker Engine 20.10+
-- Docker Compose 2.0+
-- Git
-
-### System Requirements
-- **Minimum**: 2 CPU cores, 4GB RAM, 20GB disk
-- **Recommended**: 4 CPU cores, 8GB RAM, 50GB disk
-
-### Domain & SSL (Production)
-- Domain name pointing to your server
-- SSL certificate (Let's Encrypt recommended)
-
-## Quick Start
-
-For local testing or development:
-
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd bingosync
-
-# 2. Copy environment file
-cp .env.example .env
-
-# 3. Start services
-docker-compose up -d
-
-# 4. Run migrations
-docker-compose exec django python manage.py migrate
-
-# 5. Create admin user
-docker-compose exec django python manage.py createsuperuser
-
-# 6. Access the platform
-# Open http://localhost in your browser
+```
+players ──https──▶ NPM (TLS, Let's Encrypt) ──http──▶ <unraid-ip>:8088
+                                                        │
+                                              bingosync-nginx
+                                         /static/  ·  /websocket/ ──▶ tornado
+                                                        └── everything else ──▶ django
 ```
 
-## Production Deployment
+The stack is five containers: `bingosync-nginx`, `bingosync-django`,
+`bingosync-tornado` (live sync), `bingosync-postgres`, and `bingosync-redis`.
+Only nginx publishes a port. If you
+[use your own Postgres](#using-your-own-postgres), `bingosync-postgres` isn't
+started.
 
-### Step 1: Server Setup
+## 1. Install Docker Compose Manager
+
+In the Unraid web UI, open **Apps**, search for **Docker Compose Manager**, and
+install it. This adds the `docker compose` command.
+
+## 2. Get the code onto Unraid
+
+Open the Unraid terminal (the `>_` icon at the top right of the web UI):
 
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Install Docker Compose
-sudo apt install docker-compose-plugin
-
-# Add user to docker group
-sudo usermod -aG docker $USER
-newgrp docker
+mkdir -p /mnt/user/appdata/bingosync
+cd /mnt/user/appdata/bingosync
+git clone https://github.com/t-vaudry/bingosync.git .
 ```
 
-### Step 2: Clone and Configure
+If `git` isn't available, download the code instead:
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd bingosync
+curl -L https://github.com/t-vaudry/bingosync/archive/refs/heads/main.tar.gz \
+  | tar xz --strip-components=1
+```
 
-# Copy and edit environment file
+## 3. Configure
+
+```bash
 cp .env.example .env
 nano .env
 ```
 
-### Step 3: Configure Environment Variables
+Fill in the required values. Generate each secret with `openssl rand -hex 32`
+and paste the output in:
 
-Edit `.env` with production values:
+| Variable | What to put |
+|----------|-------------|
+| `DOMAIN` | The public hostname, e.g. `bingo.example.com` (no `https://`) |
+| `HTTP_PORT` | Port on Unraid for NPM to forward to. Default `8088`; don't use 80/443 |
+| `DB_PASSWORD` | Generated secret |
+| `DJANGO_SECRET_KEY` | Generated secret |
+| `INTERNAL_API_SECRET` | Generated secret |
 
-```bash
-# Database credentials
-DB_USER=bingosync
-DB_PASSWORD=<generate-strong-password>
+Leave `COMPOSE_PROFILES=bundled-db` in place to use the bundled database. Its
+files go in `/mnt/user/appdata/bingosync/postgres-data`, so they survive the
+Docker image being recreated. To use a Postgres container you already run, see
+[Using your own Postgres](#using-your-own-postgres) before starting.
 
-# Django settings
-DJANGO_SECRET_KEY=<generate-secret-key>
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-DEBUG=0
+Optional: `SENTRY_DSN` for error reporting, and the `EMAIL_*` settings for
+password-reset emails (see [Password resets](#password-resets-without-email)).
 
-# Internal API security
-INTERNAL_API_SECRET=<generate-32-char-secret>
-
-# WebSocket
-SOCKETS_DOMAIN=tornado:8888
-
-# Redis
-REDIS_URL=redis://redis:6379/0
-```
-
-**Generate secrets:**
-```bash
-# Django secret key
-python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
-
-# Internal API secret
-python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
-```
-
-### Step 4: SSL Configuration (Recommended)
+## 4. Start the stack
 
 ```bash
-# Create SSL directory
-mkdir -p ssl
-
-# Option A: Let's Encrypt (recommended)
-sudo apt install certbot
-sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/cert.pem
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/key.pem
-sudo chown $USER:$USER ssl/*.pem
-
-# Option B: Self-signed (testing only)
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout ssl/key.pem -out ssl/cert.pem
+docker compose up -d --build
 ```
 
-Edit `nginx.conf` to enable HTTPS:
-- Uncomment the HTTPS server block
-- Update `server_name` with your domain
-
-### Step 5: Deploy
+The first build takes a few minutes. Database migrations and static files run
+automatically each time the Django container starts. Check that everything is
+up:
 
 ```bash
-# Build and start services
-docker-compose up -d
-
-# Wait for services to be healthy
-docker-compose ps
-
-# Run database migrations
-docker-compose exec django python manage.py migrate
-
-# Collect static files
-docker-compose exec django python manage.py collectstatic --noinput
-
-# Create superuser
-docker-compose exec django python manage.py createsuperuser
-
-# Load initial data (optional)
-docker-compose exec django python manage.py loaddata achievements
+docker compose ps
 ```
 
-### Step 6: Verify Deployment
+All the containers should be running, and `bingosync-django` should show as
+healthy after about a minute. They also appear in Unraid's **Docker** tab.
+
+## 5. Add the proxy host in Nginx Proxy Manager
+
+1. Point a DNS record for your hostname at your home connection, the same way
+   as your other NPM-proxied apps.
+2. In NPM, add a **Proxy Host**:
+   - **Domain Names:** your `DOMAIN`
+   - **Scheme:** `http`
+   - **Forward Hostname / IP:** the address you use for your other Unraid apps
+     (usually the Unraid server's LAN IP)
+   - **Forward Port:** your `HTTP_PORT` (default `8088`)
+   - **Websockets Support:** on. Without it, boards won't update live.
+3. On the **SSL** tab, request a new Let's Encrypt certificate and turn on
+   **Force SSL**.
+
+## 6. Create your admin account
 
 ```bash
-# Check service status
-docker-compose ps
-
-# Check logs
-docker-compose logs -f
-
-# Test endpoints
-curl http://localhost/health
-curl http://yourdomain.com
+docker compose exec django python manage.py createsuperuser
 ```
 
-## Configuration
+## 7. Check it works
 
-### Environment Variables
+1. Open `https://<your DOMAIN>`, log in, and create a room.
+2. The room feed should say you **connected**. That means live sync works.
+3. Open the room in a second browser (or a private window) as another user and
+   mark a square. It should appear in the first browser without refreshing.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DB_USER` | Yes | - | PostgreSQL username |
-| `DB_PASSWORD` | Yes | - | PostgreSQL password |
-| `DJANGO_SECRET_KEY` | Yes | - | Django secret key |
-| `ALLOWED_HOSTS` | Yes | - | Comma-separated list of allowed domains |
-| `INTERNAL_API_SECRET` | Yes | - | Shared secret for Django-Tornado auth |
-| `DEBUG` | No | 0 | Debug mode (0=off, 1=on) |
-| `DJANGO_LOG_LEVEL` | No | INFO | Logging level |
-| `SOCKETS_DOMAIN` | No | tornado:8888 | WebSocket server address |
-| `REDIS_URL` | No | redis://redis:6379/0 | Redis connection URL |
-| `SENTRY_DSN` | No | - | Sentry error tracking DSN |
-
-### Service Ports
-
-| Service | Internal Port | External Port | Description |
-|---------|--------------|---------------|-------------|
-| Nginx | 80, 443 | 80, 443 | HTTP/HTTPS entry point |
-| Django | 8000 | - | Django application (internal) |
-| Tornado | 8888 | - | WebSocket server (internal) |
-| PostgreSQL | 5432 | - | Database (internal) |
-| Redis | 6379 | - | Cache (internal) |
-
-### Volumes
-
-| Volume | Purpose | Backup Priority |
-|--------|---------|-----------------|
-| `postgres_data` | Database storage | **Critical** |
-| `redis_data` | Cache persistence | Low |
-| `static_files` | Static assets | Low (regenerable) |
-| `media_files` | User uploads | High |
-
-## Maintenance
-
-### Updates
+## Updating
 
 ```bash
-# Pull latest code
-git pull
-
-# Rebuild services
-docker-compose build
-
-# Restart with new code
-docker-compose up -d
-
-# Run migrations
-docker-compose exec django python manage.py migrate
-
-# Collect static files
-docker-compose exec django python manage.py collectstatic --noinput
+cd /mnt/user/appdata/bingosync
+git pull            # or re-run the curl command from step 2
+docker compose up -d --build
 ```
 
-### Backups
+Your `.env` and the database are kept. Static filenames are content-hashed, so
+players get new CSS and JavaScript without a hard refresh.
 
-#### Database Backup
-```bash
-# Manual backup
-docker-compose exec -T postgres pg_dump -U $DB_USER bingosync | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+## Using your own Postgres
 
-# Restore backup
-gunzip < backup.sql.gz | docker-compose exec -T postgres psql -U $DB_USER bingosync
-```
+To store BingoSync's data in a Postgres container you already run on Unraid:
 
-#### Automated Backups
-```bash
-# Create backup script
-cat > /usr/local/bin/backup-bingosync.sh << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/backups/bingosync"
-DATE=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
-cd /path/to/bingosync
-docker-compose exec -T postgres pg_dump -U $DB_USER bingosync | gzip > $BACKUP_DIR/db_$DATE.sql.gz
-find $BACKUP_DIR -name "db_*.sql.gz" -mtime +30 -delete
-EOF
+1. Create a user and database for it. Replace `<your-postgres>` with that
+   container's name, and choose a password:
 
-chmod +x /usr/local/bin/backup-bingosync.sh
+   ```bash
+   docker exec -it <your-postgres> psql -U postgres \
+     -c "CREATE USER bingosync WITH PASSWORD '<password>';" \
+     -c "CREATE DATABASE bingosync OWNER bingosync;"
+   ```
 
-# Add to crontab (daily at 2 AM)
-echo "0 2 * * * /usr/local/bin/backup-bingosync.sh" | crontab -
-```
+2. In `.env`, delete the `COMPOSE_PROFILES=bundled-db` line and set:
 
-### Monitoring
+   ```bash
+   DB_HOST=<unraid-lan-ip>
+   DB_PORT=<port your Postgres container publishes, usually 5432>
+   DB_NAME=bingosync
+   DB_USER=bingosync
+   DB_PASSWORD=<password>
+   ```
 
-#### View Logs
-```bash
-# All services
-docker-compose logs -f
+3. Run `docker compose up -d --build`. The tables are created on first start.
 
-# Specific service
-docker-compose logs -f django
-docker-compose logs -f tornado
-docker-compose logs -f nginx
+If you switch an existing install over, `bingosync-postgres` keeps running
+until you remove it with `docker compose rm -sf postgres`. Its data stays in
+`postgres-data` until you delete that folder.
 
-# Last 100 lines
-docker-compose logs --tail=100 django
-```
+## Backups
 
-#### Resource Usage
-```bash
-# Container stats
-docker stats
-
-# Disk usage
-docker system df
-docker volume ls
-```
-
-#### Health Checks
-```bash
-# Service status
-docker-compose ps
-
-# Database health
-docker-compose exec postgres pg_isready -U $DB_USER
-
-# Redis health
-docker-compose exec redis redis-cli ping
-
-# Application health
-curl http://localhost/health
-```
-
-### Scaling
+With the bundled database, the data files are in
+`/mnt/user/appdata/bingosync/postgres-data`. They survive the Docker image
+being recreated. Copying them while Postgres is running doesn't give a
+consistent backup, though, so take a dump as well:
 
 ```bash
-# Scale Django workers
-docker-compose up -d --scale django=3
-
-# Scale Tornado workers
-docker-compose up -d --scale tornado=2
+cd /mnt/user/appdata/bingosync
+mkdir -p backups
+docker compose exec -T postgres pg_dump -U bingosync bingosync \
+  | gzip > backups/db_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
+
+Restore a dump:
+
+```bash
+gunzip < backups/<file>.sql.gz \
+  | docker compose exec -T postgres psql -U bingosync bingosync
+```
+
+To run the dump on a schedule, the **User Scripts** plugin can run the dump
+commands daily. Take one before every tournament. If you use your own
+Postgres, back it up the way you already do for that container.
+
+## Password resets without email
+
+Without `EMAIL_HOST`, password-reset emails aren't sent. The full email,
+including the reset link, is written to the Django log instead:
+
+```bash
+docker compose logs --tail=100 django
+```
+
+Copy the link to the player. To send real emails, fill in the `EMAIL_*`
+settings in `.env` and run `docker compose up -d`.
 
 ## Troubleshooting
 
-### Services Won't Start
+| Symptom | Likely cause |
+|---------|--------------|
+| `Bad Request (400)` on every page | `DOMAIN` in `.env` doesn't match the hostname in the browser |
+| "Too many redirects" | NPM is forwarding to the wrong port; it must point at `HTTP_PORT` |
+| Room feed never says "connected"; marks only show after refresh | **Websockets Support** is off in the NPM proxy host |
+| `docker compose up` stops with "Set … in .env" | A required value in `.env` is empty |
+| `bingosync-django` keeps restarting; log says "PostgreSQL … is not reachable" | Bundled: `COMPOSE_PROFILES=bundled-db` is missing from `.env`. Your own: `DB_HOST`/`DB_PORT` are wrong |
+| Port already in use | Something else uses `HTTP_PORT`; pick another port and update NPM |
+
+Logs:
 
 ```bash
-# Check logs
-docker-compose logs
-
-# Check if ports are in use
-sudo netstat -tulpn | grep -E ':(80|443|5432|6379)'
-
-# Verify configuration
-docker-compose config
-
-# Check disk space
-df -h
+docker compose logs -f django
+docker compose logs -f tornado
+docker compose logs -f nginx
 ```
 
-### Database Connection Issues
+## Environment variables
 
-```bash
-# Check PostgreSQL status
-docker-compose ps postgres
-docker-compose logs postgres
-
-# Test connection
-docker-compose exec postgres pg_isready -U $DB_USER
-
-# Check environment variables
-docker-compose exec django env | grep DATABASE_URL
-```
-
-### WebSocket Connection Issues
-
-```bash
-# Check Tornado logs
-docker-compose logs tornado
-
-# Verify nginx configuration
-docker-compose exec nginx nginx -t
-
-# Test WebSocket endpoint
-wscat -c ws://localhost/websocket/test-room-uuid
-```
-
-### Performance Issues
-
-```bash
-# Check resource usage
-docker stats
-
-# Check database connections
-docker-compose exec postgres psql -U $DB_USER -d bingosync -c "SELECT count(*) FROM pg_stat_activity;"
-
-# Check Redis memory
-docker-compose exec redis redis-cli INFO memory
-
-# Optimize database
-docker-compose exec django python manage.py dbshell
-VACUUM ANALYZE;
-```
-
-### SSL Certificate Issues
-
-```bash
-# Verify certificate files
-ls -la ssl/
-
-# Test SSL configuration
-docker-compose exec nginx nginx -t
-
-# Check certificate expiration
-openssl x509 -in ssl/cert.pem -noout -dates
-
-# Renew Let's Encrypt certificate
-sudo certbot renew
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/cert.pem
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/key.pem
-docker-compose restart nginx
-```
-
-## Security Checklist
-
-Before going to production:
-
-- [ ] `DEBUG=0` in `.env`
-- [ ] Strong `DJANGO_SECRET_KEY` generated
-- [ ] Strong `INTERNAL_API_SECRET` generated (32+ characters)
-- [ ] Strong `DB_PASSWORD` set
-- [ ] `ALLOWED_HOSTS` configured with actual domain(s)
-- [ ] SSL certificates configured
-- [ ] Firewall configured (only ports 80, 443 open)
-- [ ] Regular database backups scheduled
-- [ ] Log rotation configured
-- [ ] Sentry or error monitoring configured (optional)
-- [ ] Security headers enabled in nginx
-- [ ] Rate limiting configured
-- [ ] CSRF protection enabled
-
-## Support
-
-For issues and questions:
-- Check logs: `docker-compose logs`
-- Review documentation: `README.md`, `DOCKER-QUICK-REFERENCE.md`
-- Check GitHub issues: <repository-url>/issues
-
-## License
-
-See LICENSE file for details.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DOMAIN` | Yes | – | Public hostname; also used for allowed hosts, CSRF, and the websocket URL |
+| `DB_PASSWORD` | Yes | – | PostgreSQL password |
+| `DJANGO_SECRET_KEY` | Yes | – | Django secret key |
+| `INTERNAL_API_SECRET` | Yes | – | Shared secret between Django and the websocket server (32+ characters) |
+| `HTTP_PORT` | No | `8088` | Host port nginx listens on |
+| `COMPOSE_PROFILES` | No | – | `bundled-db` runs the bundled Postgres; remove it to use your own |
+| `POSTGRES_DATA_DIR` | No | `./postgres-data` | Where the bundled Postgres stores its files |
+| `DB_HOST` | No | `postgres` (bundled) | Postgres server to connect to |
+| `DB_PORT` | No | `5432` | Postgres port |
+| `DB_NAME` | No | `bingosync` | Database name |
+| `DB_USER` | No | `bingosync` | PostgreSQL user |
+| `DEBUG` | No | `0` | Must stay `0` in production |
+| `DJANGO_LOG_LEVEL` | No | `INFO` | Logging level |
+| `SENTRY_DSN` | No | – | Sentry error reporting |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` | No | – | SMTP for password-reset emails |

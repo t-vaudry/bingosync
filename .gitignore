@@ -88,3 +88,6 @@ bingosync-websocket/pyproject.toml
 
 # vscode settings
 .vscode/
+
+# Bundled Postgres data (docker-compose.yml default location)
+postgres-data/
