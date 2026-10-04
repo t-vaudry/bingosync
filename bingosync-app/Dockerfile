@@ -57,15 +57,14 @@ RUN groupadd -r django && useradd -r -g django django
 # Set work directory
 WORKDIR /app
 
-# Copy entrypoint script
-COPY --chown=django:django docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
-
-# Copy application code
+# Copy application code (includes docker-entrypoint.sh)
 COPY --chown=django:django . /app/
 
-# Create directories and set permissions
-RUN mkdir -p /app/staticfiles /app/media && \
+# Create directories and set permissions. The entrypoint is made executable
+# here, after the copy: file modes come from the build machine (a Linux clone
+# keeps git's 644; Docker on Windows marks everything 755).
+RUN chmod +x /app/docker-entrypoint.sh && \
+    mkdir -p /app/staticfiles /app/media && \
     chown -R django:django /app/staticfiles /app/media && \
     chmod -R 775 /app/generators && \
     chown -R django:django /app/generators
