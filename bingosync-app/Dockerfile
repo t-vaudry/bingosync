@@ -21,8 +21,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Set work directory
 WORKDIR /app
 
-# Copy dependency file
-COPY pyproject.toml /app/
+# Copy dependency file. Dependencies are declared in the repository-root
+# pyproject.toml, which docker-compose.yml supplies as the "project_root"
+# build context (bingosync-app/pyproject.toml is a gitignored local file).
+COPY --from=project_root pyproject.toml /app/
 
 # Install dependencies using uv
 RUN uv pip install --system -r pyproject.toml && \

@@ -53,3 +53,7 @@ testdata/
 .env
 .env.*
 !.env.example
+
+# Production data next to docker-compose.yml (bundled Postgres, backups)
+postgres-data/
+backups/

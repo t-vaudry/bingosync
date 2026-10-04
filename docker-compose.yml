@@ -47,6 +47,9 @@ services:
     build:
       context: ./bingosync-app
       dockerfile: Dockerfile
+      # The dependency list is the repo-root pyproject.toml
+      additional_contexts:
+        project_root: .
     container_name: bingosync-django
     environment:
       # Database: the bundled "postgres" service unless DB_HOST says otherwise
