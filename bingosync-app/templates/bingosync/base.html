@@ -23,23 +23,10 @@
     <script src="{% static "bingosync/misc.js" %}"></script>
     <script src="{% static "bingosync/modal.min.js" %}"></script>
     <script>
-        // CSRF token setup for AJAX requests
-        function getCookie(name) {
-            var cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                var cookies = document.cookie.split(';');
-                for (var i = 0; i < cookies.length; i++) {
-                    var cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        var csrftoken = getCookie('csrftoken');
+        // CSRF token for AJAX requests. Rendered into the page rather than read
+        // from the csrftoken cookie: in production that cookie is HttpOnly,
+        // so scripts can't see it.
+        var csrftoken = "{{ csrf_token }}";
         
         // Setup AJAX to include CSRF token in headers
         $.ajaxSetup({
