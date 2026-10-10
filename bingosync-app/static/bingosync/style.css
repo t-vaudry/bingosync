@@ -911,3 +911,13 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
     color: #fff;
     background: var(--cos-teal);
 }
+
+/* Show/hide toggle for password fields (see password_toggle.js) */
+.password-toggle-wrap { position: relative; display: block; }
+.password-toggle-wrap > input { padding-right: 4.5em; }
+.password-toggle-btn {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    padding: 0 12px; border: 0; background: transparent;
+    color: inherit; font-size: 0.85em; text-decoration: underline; cursor: pointer;
+}
+.password-toggle-btn:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
