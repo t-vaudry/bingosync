@@ -7,10 +7,10 @@
      layout that the chat and sidebar use
  -->
 {% block page_body %}
-<div style="height: 97vh; width: 66.67%; margin: 0 auto;">
-    <div style="position: relative">
-        <h1 style="display: inline-block;"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
-        <h4 style="display: inline-block; position: absolute; right: 0; bottom: 0;">
+<div class="room-page {% if player.role == 'counter' %}room-page-counter{% else %}room-page-standard{% endif %}">
+    <div class="room-header">
+        <h1 class="room-title"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
+        <h4 class="room-identity">
             {% if player.role == 'gamemaster' %}
                 Gamemaster as: {{ player.name }}
             {% elif player.role == 'counter' %}
@@ -25,72 +25,43 @@
             </a>
         </h4>
     </div>
-    <div class="row m-b-l" style="height: calc(100% - 70px);">
+    {# The board column keeps the board at its full size; chat takes the #}
+    {# remaining width. See "Room page layout" in style.css.              #}
+    <div class="room-layout">
         {% if player.role == 'counter' %}
-        {# Counter layout: claims(2) | board(5) | feed(3) | sidebar(2) #}
-        <div class="col-md-2" style="height: 93%">
+        <div class="room-col room-claims-col">
             {% include 'bingosync/counter_panel.html' %}
         </div>
-        <div class="col-md-5">
-            <div class="fill-parent" style="text-align: center">
-                <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
-                    {% include 'bingosync/board.html' %}
-                    <div class="board-cover" style="z-index: 3;">
-                        <div class="board-cover-text unselectable">
-                            Click to Reveal
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3" style="height: 93%">
-            {% include 'bingosync/chat_panel.html' %}
-        </div>
-        <div class="col-md-2" style="height: 93%">
-            <div class="flex-col-container">
-                <div class="flex-col-content m-b-l">
-                    {% include 'bingosync/players_panel.html' %}
-                </div>
-                <div class="flex-col-footer m-b-l" id="room-settings-container">
-                    {% include 'bingosync/room_settings_panel.html' %}
-                </div>
-                <div class="flex-col-footer">
-                    {% include 'bingosync/chat_settings_panel.html' %}
-                </div>
-            </div>
-        </div>
-        {% else %}
-        {# Standard layout: board(5) | chat(4) | sidebar(3) #}
-        <div class="col-md-5">
-            <div class="fill-parent" style="text-align: center">
-                    {% include 'bingosync/color_chooser.html' %}
-                <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
-                    {% include 'bingosync/board.html' %}
-                    <div class="board-cover" style="z-index: 3;">
-                        <div class="board-cover-text unselectable">
-                            Click to Reveal
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4" style="height: 93%">
-            {% include 'bingosync/chat_panel.html' %}
-        </div>
-        <div class="col-md-3" style="height: 93%">
-            <div class="flex-col-container">
-                <div class="flex-col-content m-b-l">
-                    {% include 'bingosync/players_panel.html' %}
-                </div>
-                <div class="flex-col-footer m-b-l" id="room-settings-container">
-                    {% include 'bingosync/room_settings_panel.html' %}
-                </div>
-                <div class="flex-col-footer">
-                    {% include 'bingosync/chat_settings_panel.html' %}
-                </div>
-            </div>
-        </div>
         {% endif %}
+        <div class="room-col room-board-col">
+            {% if player.role != 'counter' %}
+                {% include 'bingosync/color_chooser.html' %}
+            {% endif %}
+            <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
+                {% include 'bingosync/board.html' %}
+                <div class="board-cover" style="z-index: 3;">
+                    <div class="board-cover-text unselectable">
+                        Click to Reveal
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="room-col room-chat-col">
+            {% include 'bingosync/chat_panel.html' %}
+        </div>
+        <div class="room-col room-sidebar-col">
+            <div class="flex-col-container">
+                <div class="flex-col-content m-b-l">
+                    {% include 'bingosync/players_panel.html' %}
+                </div>
+                <div class="flex-col-footer m-b-l" id="room-settings-container">
+                    {% include 'bingosync/room_settings_panel.html' %}
+                </div>
+                <div class="flex-col-footer">
+                    {% include 'bingosync/chat_settings_panel.html' %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% include 'bingosync/new_card_dialog.html' %}
