@@ -24,7 +24,7 @@
 <script src="{% static "bingosync/bingosync.js" %}"></script>
 <script>
     $(document).ready(function() {
-        ROOM_SETTINGS = JSON.parse('{{ room.settings|jsonify|escapejs }}');
+        ROOM_SETTINGS = JSON.parse('{{ room_settings|jsonify|escapejs }}');
         var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
         window.sessionStorage.setItem("room", "{{ room.encoded_uuid }}");
 

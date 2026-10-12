@@ -35,7 +35,13 @@ def publish_connection_event(connection_event):
 
 def publish_new_card_event(new_card_event):
     data = new_card_event.to_json()
-    _publish_json(data, new_card_event.player.room)
+    room = new_card_event.player.room
+    # Broadcasts reach everyone in the room. Under a Gamemaster, players and
+    # spectators mustn't get the seed; the Gamemaster and counters fetch it
+    # from the room settings endpoint, which the new card triggers a reload of.
+    if room.has_gamemaster:
+        data["seed"] = None
+    _publish_json(data, room)
 
 
 def publish_role_change_event(role_change_event):

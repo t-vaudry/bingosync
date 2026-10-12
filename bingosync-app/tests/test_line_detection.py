@@ -64,15 +64,20 @@ class LineDetectionTests(TestCase):
         self.assertEqual(CompletedLine.objects.filter(
             game=self.game, player=self.player_a).count(), 1)
 
-    def test_unconfirmed_square_does_not_complete_line(self):
+    def test_rejected_square_does_not_complete_line(self):
         for slot in range(1, 5):  # 4 of row-0 confirmed
             self._mark(self.player_a, slot)
-        self._mark(self.player_a, 5, status='under_review')  # 5th pending
+        self._mark(self.player_a, 5, status='rejected')
         self.assertEqual(check_and_record_bingos(self.game, self.player_a), 0)
         self.user_a.refresh_from_db()
         self.assertEqual(self.user_a.total_bingos_completed, 0)
-        # Confirming the last square completes the line.
-        self._mark(self.player_a, 5, status='confirmed')
+
+    def test_square_in_review_still_completes_line(self):
+        # Marks are approved by default; a counter putting one in review
+        # doesn't stop it counting.
+        for slot in range(1, 5):
+            self._mark(self.player_a, slot)
+        self._mark(self.player_a, 5, status='under_review')
         self.assertEqual(check_and_record_bingos(self.game, self.player_a), 1)
 
     def test_two_players_each_complete_a_line(self):

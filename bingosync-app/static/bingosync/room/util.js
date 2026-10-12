@@ -16,6 +16,12 @@ function preciseSqrt(num) {
     return result;
 }
 
+// The seed as shown to this viewer. In a room run by a Gamemaster the server
+// sends null to players and spectators.
+function seedText(seed) {
+    return (seed === null || seed === undefined) ? "Hidden" : seed;
+}
+
 // global variables that are overwritten in bingosync.html main
 var ROOM_SETTINGS = null;
 var refreshBoard = function () {};

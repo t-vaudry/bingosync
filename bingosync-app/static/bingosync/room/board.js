@@ -102,11 +102,14 @@ var Board = (function(){
         this.$square.children(".text-container").text(json["name"]);
         this.tier = json["tier"];
         setSquareColors(this.$square, json["colors"]);
-        
-        // Set claim status badge if present
-        if (json["claim_status"]) {
-            this.setClaimStatus(json["claim_status"]);
-        }
+        this.setClaim(json["claim_status"], json["claimed_by"]);
+    };
+
+    // Remember who marked the goal and whether a counter has it in review.
+    Square.prototype.setClaim = function(claimStatus, claimedBy) {
+        this.claimStatus = claimStatus || 'none';
+        this.claimedBy = claimedBy || null;
+        this.setClaimStatus(this.claimStatus);
     };
 
     Square.prototype.setClaimStatus = function(claimStatus) {
@@ -129,6 +132,9 @@ var Board = (function(){
         this.fogOfWar = fogOfWar;
         this.squares = [];
         this.$squares = null;
+        // Set by the counter UI: a counter's right-click toggles review
+        // instead of starring the goal.
+        this.onSquareRightClick = null;
     };
 
     Board.prototype.setup = function(size) {
@@ -206,10 +212,14 @@ var Board = (function(){
             that.$squares.each(function () { updateColorOffsets($(this)); });
         });
 
-        // add starring ability via right click
+        // Right click stars a goal, or for a counter puts it in or out of review
         this.$squares.on("contextmenu", function(e) {
             e.preventDefault();
-            $(this).children(".starred").toggleClass("hidden");
+            if (that.onSquareRightClick) {
+                that.onSquareRightClick(parseInt(this.id.substring(4)));
+            } else {
+                $(this).children(".starred").toggleClass("hidden");
+            }
             return false;
         });
     };

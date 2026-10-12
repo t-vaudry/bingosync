@@ -4,9 +4,36 @@ var PlayersPanel = (function(){
     var PlayersPanel = function($playersPanel, currentPlayer){
         this.$playersPanel = $playersPanel;
         this.currentPlayer = currentPlayer;
-        
+        // Called whenever players join, leave, or change color or role
+        // (the counter's "Counting for" buttons listen to this).
+        this.onChange = null;
+
         // Initialize buttons for existing players in the DOM
         this._initializeExistingPlayers();
+    };
+
+    // Everyone with the Player role who's in the panel, with their color.
+    PlayersPanel.prototype.getPlayers = function() {
+        var players = [];
+        this.$playersPanel.find('.player-panel-entry').each(function() {
+            var $entry = $(this);
+            if ($entry.hasClass('spectator-entry') || ($entry.attr('data-role') || 'player') !== 'player') {
+                return;
+            }
+            var colorClass = ($entry.find('.goalcounter').attr('class') || '').split(' ')[1] || '';
+            players.push({
+                uuid: $entry.attr('id'),
+                name: $entry.find('.playername').text().trim(),
+                color: colorClass.replace(/square$/, '')
+            });
+        });
+        return players;
+    };
+
+    PlayersPanel.prototype._notifyChange = function() {
+        if (this.onChange) {
+            this.onChange();
+        }
     };
 
     PlayersPanel.prototype._initializeExistingPlayers = function() {
@@ -70,11 +97,9 @@ var PlayersPanel = (function(){
                     var assignButton = self._createAssignCounterButton(playerJson);
                     $playerEntry.append(assignButton);
                 }
-            } else if (self.currentPlayer.role === 'counter' && isCurrentPlayer) {
-                // Counters can assign themselves
-                var assignButton = self._createAssignCounterButton(playerJson);
-                $playerEntry.append(assignButton);
             }
+            // Counters pick who they count for with the "Counting for"
+            // buttons above the board (counter.js), not a button here.
         });
     };
 
@@ -138,27 +163,8 @@ var PlayersPanel = (function(){
                     $playerEntry.append(assignButton);
                 }
             });
-        } else if (this.currentPlayer.role === 'counter') {
-            console.log("Current player is counter, adding self-assignment button");
-            // Counters can only assign themselves
-            var $currentPlayerEntry = this.$playersPanel.find('#' + this.currentPlayer.uuid);
-            if ($currentPlayerEntry.length > 0) {
-                var playerName = $currentPlayerEntry.find('.playername').text().trim();
-                var monitoringPlayerUuid = $currentPlayerEntry.attr('data-monitoring-player-uuid') || null;
-                
-                var playerJson = {
-                    uuid: this.currentPlayer.uuid,
-                    name: playerName,
-                    role: 'counter',
-                    is_logged_in: true,
-                    monitoring_player_uuid: monitoringPlayerUuid
-                };
-                
-                var assignButton = self._createAssignCounterButton(playerJson);
-                $currentPlayerEntry.append(assignButton);
-            }
         } else {
-            console.log("Current player is NOT gamemaster or counter, buttons removed");
+            console.log("Current player is not gamemaster, buttons removed");
         }
     };
 
@@ -211,6 +217,7 @@ var PlayersPanel = (function(){
                 $roleBadge.replaceWith(this._createRoleBadge(playerJson));
             }
         }
+        this._notifyChange();
     };
 
     PlayersPanel.prototype._addPlayer = function(playerJson) {
@@ -701,6 +708,7 @@ var PlayersPanel = (function(){
                 $spectatorsSection.remove();
             }
         }
+        this._notifyChange();
     };
 
     PlayersPanel.prototype.updateGoalCounters = function(board) {
