@@ -921,3 +921,115 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
     color: inherit; font-size: 0.85em; text-decoration: underline; cursor: pointer;
 }
 .password-toggle-btn:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+
+/* ============================================================
+   Room page layout
+   The board column always gets the board's full natural width
+   (five 105x95 squares plus labels, ~556px), so the squares never
+   change size. The chat column takes whatever width is left. When
+   the window is too narrow for every column side by side, chat and
+   the side panels move below the board instead of squeezing it; on
+   screens narrower than the board itself, the board scrolls.
+   ============================================================ */
+.room-page {
+    display: flex;
+    flex-direction: column;
+    height: 97vh;
+    width: 96%;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+.room-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    column-gap: 20px;
+}
+.room-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.room-identity {
+    margin-bottom: 12px;
+}
+.room-layout {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    column-gap: 30px;
+    row-gap: 20px;
+    padding-bottom: 3vh;
+}
+.room-col {
+    height: 100%;
+    min-width: 0;
+}
+.room-board-col {
+    flex: 0 0 auto;
+    height: auto;
+    text-align: center;
+}
+/* A table squeezed below its natural width narrows its columns (squares
+   would turn into tall rectangles); always take the full width instead. */
+.room-board-col #bingo {
+    width: max-content;
+}
+.room-chat-col {
+    flex: 1 1 280px;
+    min-width: 280px;
+}
+.room-sidebar-col {
+    flex: 0 0 250px;
+}
+.room-claims-col {
+    flex: 0 0 220px;
+}
+
+/* Not enough width for every column beside the board (board + chat +
+   sidebar, plus the claims column for counters): let the columns wrap
+   below the board, each with a fixed height. */
+@media (max-width: 1199px) {
+    .room-page-standard {
+        height: auto;
+    }
+    .room-page-standard .room-layout {
+        flex-wrap: wrap;
+    }
+    .room-page-standard .room-col {
+        flex-grow: 1;
+        height: 540px;
+    }
+    .room-page-standard .room-board-col {
+        flex-grow: 0;
+        height: auto;
+    }
+}
+@media (max-width: 1459px) {
+    .room-page-counter {
+        height: auto;
+    }
+    .room-page-counter .room-layout {
+        flex-wrap: wrap;
+    }
+    .room-page-counter .room-col {
+        flex-grow: 1;
+        height: 540px;
+    }
+    .room-page-counter .room-board-col {
+        flex-grow: 0;
+        height: auto;
+    }
+}
+
+/* Narrower than the board itself: scroll the board sideways rather than
+   squashing its squares. */
+@media (max-width: 640px) {
+    .room-board-col {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .room-chat-col {
+        min-width: 0;
+    }
+}
