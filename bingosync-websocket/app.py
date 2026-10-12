@@ -315,7 +315,9 @@ class SocketRouter:
                     self.unregister(ws)
 
     def send_to_room(self, room_uuid, message):
-        room_sockets = self.sockets_by_room[room_uuid]
+        # .get, not [] -- indexing the defaultdict would leave an empty entry
+        # behind for every room that gets a broadcast with nobody connected.
+        room_sockets = self.sockets_by_room.get(room_uuid, {})
         for player_sockets in room_sockets.values():
             for ws in player_sockets:
                 ws.send(message)
@@ -330,23 +332,23 @@ class SocketRouter:
 
     def unregister(self, socket):
         self.log_sockets("unregistering socket...")
-        for room_uuid in self.sockets_by_room:
-            room_sockets = self.sockets_by_room[room_uuid]
-            for player_uuid in room_sockets:
-                player_sockets = room_sockets[player_uuid]
-                if player_sockets:
-                    player_sockets.discard(socket)
-                    if not player_sockets:
-                        print("posting disconnect", player_uuid)
-                        post_player_disconnection(player_uuid)
-                        if CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
-                            del room_sockets[player_uuid]
-                            break
-            if not room_sockets:
-                if CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
-                    print("room closed:", room_uuid)
-                    del self.sockets_by_room[room_uuid]
-                    break
+        # Walk every room (over snapshots, since entries are deleted along the
+        # way). Stopping early at the first empty room used to leave a closed
+        # socket registered, delaying the player's disconnect by up to a
+        # minute.
+        for room_uuid, room_sockets in list(self.sockets_by_room.items()):
+            for player_uuid, player_sockets in list(room_sockets.items()):
+                if socket not in player_sockets:
+                    continue
+                player_sockets.discard(socket)
+                if not player_sockets:
+                    print("posting disconnect", player_uuid)
+                    post_player_disconnection(player_uuid)
+                    if CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
+                        del room_sockets[player_uuid]
+            if not room_sockets and CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
+                print("room closed:", room_uuid)
+                del self.sockets_by_room[room_uuid]
         self.log_sockets("unregistered")
 
 
