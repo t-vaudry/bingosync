@@ -150,6 +150,20 @@
     color: #aaa;
 }
 
+/* Counter Settings panel (right sidebar) */
+.counter-settings-help {
+    color: #aaa;
+    margin-bottom: 4px;
+}
+.counter-settings-option {
+    margin: 4px 0;
+}
+.counter-settings-status {
+    font-size: 85%;
+    color: #888;
+    min-height: 1.2em;
+}
+
 /* Counter panel — fill its container properly */
 #counter-panel {
     height: 100%;
