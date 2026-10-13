@@ -9,6 +9,15 @@
             <p class="lead">Collaborative bingo for Harry Potter speedruns</p>
         </div>
 
+        {% if request.GET.account_deleted == '1' %}
+        <div class="alert alert-info alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            Your account and its data have been deleted.
+        </div>
+        {% endif %}
+
         {% if request.GET.error == 'invalid_code' %}
         <div class="alert alert-danger alert-dismissible" role="alert">
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">

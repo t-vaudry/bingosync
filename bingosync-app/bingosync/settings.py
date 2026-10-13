@@ -252,14 +252,22 @@ SECURE_BROWSER_XSS_FILTER = True
 # Prevent site from being embedded in frames (clickjacking protection)
 X_FRAME_OPTIONS = 'DENY'
 
+# Privacy notice (/privacy): who runs the site and how to reach them about
+# personal data. Set these in .env; the notice asks for them until they are.
+PRIVACY_CONTROLLER_NAME = os.getenv('PRIVACY_CONTROLLER_NAME', '').strip()
+PRIVACY_CONTACT_EMAIL = os.getenv('PRIVACY_CONTACT_EMAIL', '').strip()
+# Optional, e.g. "Canada" or "Germany": where the server and its data are
+PRIVACY_SERVER_LOCATION = os.getenv('PRIVACY_SERVER_LOCATION', '').strip()
+
 # Content Security Policy (CSP) Headers
 # These will be added via middleware
 CSP_DEFAULT_SRC = ("'self'",)
 # Minimize inline scripts where possible
 CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
 CSP_IMG_SRC = ("'self'", "data:")
-CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
+# Fonts are self-hosted (static/bingosync/fonts) so no third party sees visitors
+CSP_FONT_SRC = ("'self'",)
 # CSP_CONNECT_SRC is set dynamically after SOCKETS_URL is configured
 CSP_FRAME_ANCESTORS = ("'none'",)  # Equivalent to X-Frame-Options: DENY
 

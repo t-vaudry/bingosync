@@ -55,6 +55,8 @@
     .preference-option input { margin-right: 8px; }
     .preference-default { color: var(--cos-ink-soft); font-size: 12px; }
     .preferences-saved { color: var(--cos-gold-bright); margin-left: 10px; }
+    .delete-account-form { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--cos-border); }
+    .delete-account-password { display: inline-block; width: 220px; max-width: 100%; margin-right: 6px; vertical-align: middle; }
 </style>
 {% endblock %}
 
@@ -118,6 +120,32 @@
                         {% endfor %}
                         <button type="submit" class="btn btn-primary btn-sm">Save</button>
                         {% if preferences_saved %}<span class="preferences-saved">Saved.</span>{% endif %}
+                    </form>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Your Data
+                </div>
+                <div class="panel-body">
+                    <p class="preference-help">
+                        What we store and why is in the <a href="{% url 'privacy' %}">privacy notice</a>.
+                    </p>
+                    <p>
+                        <a href="{% url 'export_account' %}" class="btn btn-default btn-sm">Download my data</a>
+                    </p>
+                    <form method="post" action="{% url 'delete_account' %}" class="delete-account-form"
+                          onsubmit="return confirm('Delete your account for good? This cannot be undone.');">
+                        {% csrf_token %}
+                        <p class="preference-help">
+                            Deleting your account removes your email, stats and chat messages, and your name from past rooms.
+                            It can't be undone. Enter your password to confirm.
+                        </p>
+                        {% if delete_error %}<p class="text-danger">That password wasn't right; nothing was deleted.</p>{% endif %}
+                        <input type="password" name="password" class="form-control input-sm delete-account-password"
+                               placeholder="Password" autocomplete="current-password" required>
+                        <button type="submit" class="btn btn-danger btn-sm">Delete my account</button>
                     </form>
                 </div>
             </div>

@@ -2,6 +2,14 @@
 # Nginx Proxy Manager, which forwards https://DOMAIN to this host's HTTP_PORT.
 # See DEPLOYMENT.md. Configure everything in .env (template: .env.example).
 
+# Logs (which include visitors' IP addresses) are rotated so they are only
+# kept briefly, as the privacy notice says: at most 3 x 10 MB per service.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # Bundled PostgreSQL. Enabled by COMPOSE_PROFILES=bundled-db in .env; remove
   # that line and set DB_HOST to use an existing Postgres server instead.
@@ -25,6 +33,7 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    logging: *default-logging
 
   # Redis Cache
   redis:
@@ -41,6 +50,7 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    logging: *default-logging
 
   # Django Application
   django:
@@ -80,6 +90,11 @@ services:
       DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
       SENTRY_DSN: ${SENTRY_DSN:-}
 
+      # Privacy notice (/privacy): who runs the site and how to reach them
+      PRIVACY_CONTROLLER_NAME: ${PRIVACY_CONTROLLER_NAME:-}
+      PRIVACY_CONTACT_EMAIL: ${PRIVACY_CONTACT_EMAIL:-}
+      PRIVACY_SERVER_LOCATION: ${PRIVACY_SERVER_LOCATION:-}
+
       # Optional SMTP for password-reset emails. Without EMAIL_HOST, reset
       # links are written to this container's log instead.
       EMAIL_HOST: ${EMAIL_HOST:-}
@@ -102,6 +117,7 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
 
   # Tornado WebSocket Server
   tornado:
@@ -123,6 +139,7 @@ services:
     depends_on:
       - django
     restart: unless-stopped
+    logging: *default-logging
 
   # Nginx: serves static files and routes /websocket/ to Tornado and
   # everything else to Django. Point your reverse proxy at HTTP_PORT.
@@ -144,6 +161,7 @@ services:
       - django
       - tornado
     restart: unless-stopped
+    logging: *default-logging
 
 # Persistent volumes for data storage
 volumes:

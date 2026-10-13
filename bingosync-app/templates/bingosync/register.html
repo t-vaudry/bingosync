@@ -20,6 +20,11 @@
                     {% crispy form %}
                     <div class="form-group">
                         <div class="col-md-9 col-md-offset-3">
+                            <p class="help-block">
+                                We store your username, email and game stats to run your account, and your stats
+                                appear on your public profile. You can download or delete your data at any time.
+                                See the <a href="{% url 'privacy' %}" target="_blank" rel="noopener">privacy notice</a>.
+                            </p>
                             <button type="submit" class="btn btn-primary">Register</button>
                             <a href="{% url 'rooms' %}" class="btn btn-default">Cancel</a>
                         </div>

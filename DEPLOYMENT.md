@@ -63,6 +63,11 @@ files go in `/mnt/user/appdata/bingosync/postgres-data`, so they survive the
 Docker image being recreated. To use a Postgres container you already run, see
 [Using your own Postgres](#using-your-own-postgres) before starting.
 
+Set `PRIVACY_CONTROLLER_NAME` (your name) and `PRIVACY_CONTACT_EMAIL` (where
+people can reach you about their data). They fill in the privacy notice at
+`/privacy`, which the GDPR requires once people from the EU can register.
+`PRIVACY_SERVER_LOCATION` (e.g. `Canada`) is optional.
+
 Optional: `SENTRY_DSN` for error reporting, and the `EMAIL_*` settings for
 password-reset emails (see [Password resets](#password-resets-without-email)).
 
