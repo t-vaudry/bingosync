@@ -1,0 +1,19 @@
+{% comment %}
+Counter: saved goal counts, above the board under "Counting For". Load goes
+back to the saved counts when the runner loses in-game progress (fainting,
+reloading a save book). Wired up by counter.js.
+{% endcomment %}
+<div id="goal-count-actions" class="panel panel-default">
+    <div class="panel-heading">
+        <span>Counts</span>
+        <span id="goal-count-saved-at" class="goal-count-saved-at pull-right"></span>
+    </div>
+    <div class="panel-body">
+        <div class="goal-count-actions">
+            <button type="button" class="btn btn-success goal-count-action" data-action="save" title="Remember the current counts" disabled>Save</button>
+            <button type="button" class="btn btn-primary goal-count-action" data-action="load" title="Go back to the saved counts (after the runner loses progress)" disabled>Load</button>
+            <button type="button" class="btn btn-default goal-count-action" data-action="clear" title="Forget the saved counts" disabled>Clear</button>
+            <button type="button" class="btn btn-danger goal-count-action" data-action="reset" title="Every count back to zero, saved counts cleared" disabled>Reset</button>
+        </div>
+    </div>
+</div>

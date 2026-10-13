@@ -112,15 +112,20 @@
     display: none;
 }
 
+/* Save / Load / Clear / Reset, above the board: sized like the Counting
+   For buttons */
 .goal-count-actions {
     display: flex;
-    align-items: center;
-    gap: 8px;
     flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+.goal-count-action {
+    min-width: 80px;
 }
 .goal-count-saved-at {
-    font-size: 85%;
-    color: #888;
+    font-weight: normal;
+    color: #aaa;
 }
 
 /* Counter panel — fill its container properly */

@@ -43,6 +43,7 @@
         <div class="room-col room-board-col">
             {% if player.role == 'counter' %}
                 {% include 'bingosync/counter_target_chooser.html' %}
+                {% include 'bingosync/counter_count_actions.html' %}
             {% else %}
                 {% include 'bingosync/color_chooser.html' %}
             {% endif %}
