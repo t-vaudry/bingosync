@@ -78,6 +78,20 @@ def ratelimit_authenticated_action(view_func):
     return wrapped
 
 
+def ratelimit_counting(view_func):
+    """
+    Rate limit a counter's goal counting to 1200 per hour per user.
+
+    Counting is one click per item collected ("Collect 37 cards"), so a race
+    goes well past the 100/h allowed for other authenticated actions.
+    """
+    @wraps(view_func)
+    @ratelimit(key='user_or_ip', rate='1200/h', method='POST', block=True)
+    def wrapped(request, *args, **kwargs):
+        return view_func(request, *args, **kwargs)
+    return wrapped
+
+
 def handle_ratelimit(view_func):
     """
     Decorator to handle rate limit exceptions and return 429 Too Many Requests.

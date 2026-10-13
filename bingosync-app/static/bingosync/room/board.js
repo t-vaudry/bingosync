@@ -135,6 +135,9 @@ var Board = (function(){
         this.fogOfWar = fogOfWar;
         this.squares = [];
         this.$squares = null;
+        // Goes up each time a whole board is loaded (e.g. a new card), so
+        // the counter UI can tell a new card from an update to this one.
+        this.generation = 0;
         // Set by the counter UI: a counter's right-click toggles review
         // instead of starring the goal.
         this.onSquareRightClick = null;
@@ -315,6 +318,7 @@ var Board = (function(){
     };
 
     Board.prototype.setJson = function(json) {
+        this.generation++;
         this.setup(preciseSqrt(json.length));
 
         for (let i = 0; i < json.length; i++) {
@@ -426,9 +430,11 @@ var Board = (function(){
 
         $allText.each(function () {
             var $thisText = $(this);
+            // A counter's count strip takes the bottom of the square
+            var room = maxHeight - ($thisText.siblings('.goal-count').outerHeight() || 0);
             $thisText.css('font-size', '100%');
             var currentPercent = 100;
-            while($thisText.height() > maxHeight) {
+            while($thisText.height() > room) {
                 currentPercent -= 2;
                 $thisText.css('font-size', currentPercent + "%" );
             }

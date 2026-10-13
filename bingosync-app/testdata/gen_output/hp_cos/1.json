@@ -1,102 +1,215 @@
 [
     {
+        "amount": 15,
+        "goal_key": "stars-17",
         "name": "15 different Challenge Stars",
-        "tier": 20
+        "tier": 20,
+        "triggers": [
+            "stars-31"
+        ],
+        "unique_amount": 15
     },
     {
+        "amount": 3,
+        "goal_key": "peeves-chests",
         "name": "Open 3 Peeves chests",
-        "tier": 22
+        "tier": 22,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 1,
+        "goal_key": "diffindo-jump",
         "name": "Complete Diffindo without jumping",
-        "tier": 4
+        "tier": 4,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 6,
+        "goal_key": "chasm-beans",
         "name": "All 6 beans in the chasm",
-        "tier": 11
+        "tier": 11,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 9,
+        "goal_key": "goyle-lumos",
         "name": "Cast at 9 different Gargoyles in Goyle",
-        "tier": 8
+        "tier": 8,
+        "triggers": [],
+        "unique_amount": 9
     },
     {
+        "amount": 12,
+        "goal_key": "entry-secrets",
         "name": "All Entry Hall secrets",
-        "tier": 14
+        "tier": 14,
+        "triggers": [],
+        "unique_amount": 12
     },
     {
+        "amount": 1,
+        "goal_key": "skurge-jump",
         "name": "Complete Skurge without jumping",
-        "tier": 6
+        "tier": 6,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "chamber-jump",
         "name": "Complete Chamber without jumping",
-        "tier": 18
+        "tier": 18,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 24,
+        "goal_key": "cards-23",
         "name": "24 Wizard Cards",
-        "tier": 25
+        "tier": 0,
+        "triggers": [
+            "cards-37"
+        ],
+        "unique_amount": 24
     },
     {
+        "amount": 1,
+        "goal_key": "boom-jump",
         "name": "Complete Boomslang without jumping",
-        "tier": 2
+        "tier": 2,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "basilisk",
         "name": "Defeat the Basilisk",
-        "tier": 23
+        "tier": 23,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 3,
+        "goal_key": "boom-secrets",
         "name": "All Boomslang secrets",
-        "tier": 5
+        "tier": 5,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 8,
+        "goal_key": "armor-10",
         "name": "Empty 8 armor stands",
-        "tier": 12
+        "tier": 12,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 28,
+        "goal_key": "willow-beans",
         "name": "All 28 beans in Willow",
-        "tier": 9
+        "tier": 9,
+        "triggers": [],
+        "unique_amount": 28
     },
     {
+        "amount": 1,
+        "goal_key": "buy-broom",
         "name": "Buy the Nimbus 2001",
-        "tier": 16
+        "tier": 16,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 5,
+        "goal_key": "sponge-lumos",
         "name": "Cast at all 5 Gargoyles in Spongify",
-        "tier": 7
+        "tier": 7,
+        "triggers": [],
+        "unique_amount": 5
     },
     {
+        "amount": 4,
+        "goal_key": "forest-secrets",
         "name": "All Forest secrets",
-        "tier": 19
+        "tier": 19,
+        "triggers": [],
+        "unique_amount": 4
     },
     {
+        "amount": 8,
+        "goal_key": "bicorn-ingredients",
         "name": "All 8 potion ingredients in Bicorn",
-        "tier": 21
+        "tier": 21,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 1,
+        "goal_key": "balcony",
         "name": "All 16 beans on Lockhart's balcony",
-        "tier": 3
+        "tier": 3,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 6,
+        "goal_key": "matches-6",
         "name": "Have a score on all 6 Quidditch Matches",
-        "tier": 15
+        "tier": 15,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 1,
+        "goal_key": "bridge-slyth",
         "name": "Fix the Bridge in Slytherin",
-        "tier": 1
+        "tier": 1,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 4,
+        "goal_key": "silver-3",
         "name": "Buy 4 Silver Wizard Cards",
-        "tier": 13
+        "tier": 13,
+        "triggers": [
+            "buy-8"
+        ],
+        "unique_amount": 4
     },
     {
+        "amount": 1,
+        "goal_key": "forest-jump",
         "name": "Complete Forest without jumping",
-        "tier": 10
+        "tier": 10,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 4,
+        "goal_key": "chests-chamber",
         "name": "Open 4 Chests in Chamber",
-        "tier": 17
+        "tier": 17,
+        "triggers": [],
+        "unique_amount": 4
     },
     {
+        "amount": 1,
+        "goal_key": "hpwc",
         "name": "Harry Potter Wizard Card",
-        "tier": 24
+        "tier": 24,
+        "triggers": [
+            "cards-23",
+            "cards-37"
+        ],
+        "unique_amount": 1
     }
-]
+]

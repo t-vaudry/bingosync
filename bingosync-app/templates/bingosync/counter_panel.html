@@ -1,15 +1,30 @@
 {% comment %}
-Counter Panel Template - goals in review. Goals are approved by default; the
-counter right-clicks one on the board to put it in review (counter.js).
+Counter Panel Template - saved goal counts and goals in review. Goals are
+approved by default; the counter right-clicks one on the board to put it in
+review (counter.js).
 {% endcomment %}
 
 <div class="panel panel-default fill-parent">
     <div class="panel-heading">
-        In Review
+        Counting
     </div>
     <div class="panel-body panel-body-overflow-container">
         <div id="counter-panel">
             <div class="counter-body panel-inner">
+                {# Goal counts: Load goes back to the saved counts when the runner #}
+                {# loses in-game progress (fainting, reloading a save book).       #}
+                <div class="counter-history-header">Counts</div>
+                <div id="goal-count-actions" class="goal-count-actions">
+                    <div class="btn-group btn-group-xs">
+                        <button type="button" class="btn btn-default" data-action="save" title="Remember the current counts" disabled>Save</button>
+                        <button type="button" class="btn btn-default" data-action="load" title="Go back to the saved counts (after the runner loses progress)" disabled>Load</button>
+                        <button type="button" class="btn btn-default" data-action="clear" title="Forget the saved counts" disabled>Clear</button>
+                        <button type="button" class="btn btn-danger" data-action="reset" title="Every count back to zero, saved counts cleared" disabled>Reset</button>
+                    </div>
+                    <span id="goal-count-saved-at" class="goal-count-saved-at"></span>
+                </div>
+                <div class="counter-history-divider"></div>
+                <div class="counter-history-header">In Review</div>
                 <div id="pending-claims-list"></div>
                 <div class="counter-history-divider"></div>
                 <div class="counter-history-header">History</div>

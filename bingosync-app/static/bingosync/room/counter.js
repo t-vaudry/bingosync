@@ -20,6 +20,17 @@
  *
  * The review list is derived from the board's squares, so it stays in step
  * with live updates and survives a page reload.
+ *
+ * Goal counts ("3/6 Gnomes") are private to this counter, kept on the server
+ * per game and color (/api/counter-counts):
+ * - Goals that take more than one step, or that also count toward other
+ *   goals, get a [-] 3/6 [+] strip. Counting a goal moves the goals it
+ *   triggers along with it (the server works that out).
+ * - A ⚠ shows on a goal of your color that was marked before you counted it
+ *   complete. Click it to dismiss it; it also goes once the count is
+ *   complete or the goal is in review. Load brings dismissed alerts back.
+ * - Save / Load / Clear / Reset in the panel: Load goes back to the saved
+ *   counts when the runner loses in-game progress.
  */
 var Counter = (function() {
     "use strict";
@@ -44,15 +55,28 @@ var Counter = (function() {
         this.$targets = $('#counter-target-chooser .counter-targets');
         this.$reviewList = $('#pending-claims-list');
         this.$historyList = $('#claim-history-list');
+        this.$countActions = $('#goal-count-actions');
+        this.$savedAt = $('#goal-count-saved-at');
+
+        // The server's copy of the counts; requests go one at a time so
+        // quick clicks apply in order.
+        this.tally = null;
+        this.tallyGeneration = null;
+        this.countQueue = $.when();
 
         var that = this;
         board.onSquareRightClick = function(slot) { that.onRightClick(slot); };
         board.onSquareClick = function(slot) { return that.onLeftClick(slot); };
         playersPanel.onChange = function() { that.renderTargets(); };
 
+        this.$countActions.on('click', 'button[data-action]', function() {
+            that.onCountAction($(this).data('action'));
+        });
+
         this.renderTargets();
         this.renderReviewList();
         this.renderHistory();
+        this.renderCountActions();
     };
 
     // --- Counting For ---------------------------------------------------
@@ -106,6 +130,8 @@ var Counter = (function() {
         this.monitoringColor = json.monitored_color || null;
         this.renderTargets();
         this.renderReviewList();
+        // Each color has its own counts
+        this.loadCounts();
     };
 
     // --- Review ---------------------------------------------------------
@@ -196,6 +222,13 @@ var Counter = (function() {
     // Called after any change to the board (marks, reviews, a new card).
     Counter.prototype.onBoardChanged = function() {
         this.renderReviewList();
+        if (this.tallyGeneration !== this.board.generation) {
+            // A newly loaded board (first load or a new card): its counts
+            this.loadCounts();
+        } else {
+            // The strips are still on the squares; alerts follow the marks
+            this.renderCounts();
+        }
     };
 
     Counter.prototype.renderReviewList = function() {
@@ -230,6 +263,143 @@ var Counter = (function() {
         $('<button class="btn btn-xs btn-danger" title="Reject (removes the mark)">✗</button>')
             .on('click', function() { that.review(slot, 'reject'); }).appendTo($actions);
         return $item;
+    };
+
+    // --- Goal counts ----------------------------------------------------
+
+    Counter.prototype.loadCounts = function() {
+        var that = this;
+        var generation = this.board.generation;
+        this.tallyGeneration = generation;
+        if (!this.monitoringColor) {
+            this.tally = null;
+            this.renderCounts();
+            return;
+        }
+        this.countQueue = this.countQueue.then(function() {
+            return $.ajax({
+                url: "/api/counter-counts",
+                type: "GET",
+                data: {room: that.roomUuid}
+            }).then(function(tally) {
+                that.setTally(tally, generation);
+            }, function(xhr) {
+                console.error("Couldn't load counts:", xhr.responseText);
+                return $.when();
+            });
+        });
+    };
+
+    Counter.prototype.sendCount = function(body) {
+        var that = this;
+        var generation = this.board.generation;
+        body.room = this.roomUuid;
+        this.countQueue = this.countQueue.then(function() {
+            return $.ajax({
+                url: "/api/counter-counts",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(body)
+            }).then(function(tally) {
+                that.setTally(tally, generation);
+            }, function(xhr) {
+                // Usually a click that raced past a limit; show the truth
+                console.error("Count failed:", xhr.responseText);
+                that.loadCounts();
+                return $.when();
+            });
+        });
+    };
+
+    Counter.prototype.setTally = function(tally, generation) {
+        // Ignore an answer about a card that has since been replaced, or a
+        // color you've since switched away from
+        if (generation !== this.board.generation || tally.color !== this.monitoringColor) {
+            return;
+        }
+        this.tally = tally;
+        this.renderCounts();
+    };
+
+    Counter.prototype.countOf = function(slot) {
+        return this.tally.counts[slot] || 0;
+    };
+
+    // Marked with your color and approved, but not counted complete (and
+    // not dismissed). A goal in review shows ⏳ in this spot instead.
+    Counter.prototype.needsAlert = function(square, slot, goal) {
+        return this.hasMyColor(square) && square.claimStatus === 'confirmed'
+            && this.countOf(slot) < goal.amount
+            && this.tally.dismissed.indexOf(slot) === -1;
+    };
+
+    Counter.prototype.renderCounts = function() {
+        var that = this;
+        var hadStrips = this.board.$board.find('.goal-count').length;
+        this.board.squares.forEach(function(square, i) {
+            var slot = i + 1;
+            square.$square.children('.goal-count, .count-alert').remove();
+            square.$square.removeClass('has-goal-count');
+            var goal = that.tally && that.tally.goals[slot];
+            if (!goal) {
+                return;
+            }
+            square.$square.addClass('has-goal-count');
+            that.countStrip(slot, goal).appendTo(square.$square);
+            if (that.needsAlert(square, slot, goal)) {
+                $('<div class="count-alert">⚠</div>')
+                    .attr('title', "Marked at " + that.countOf(slot) + "/" + goal.amount + ". Click to dismiss")
+                    .on('click', function(ev) {
+                        ev.stopPropagation();
+                        that.sendCount({action: 'dismiss', slot: slot});
+                    })
+                    .appendTo(square.$square);
+            }
+        });
+        // Goal text shrinks to fit above the strips (the strips only come and
+        // go together, when counts are loaded for a card or a color)
+        if (hadStrips !== this.board.$board.find('.goal-count').length) {
+            this.board.refitGoalText();
+        }
+        this.renderCountActions();
+    };
+
+    Counter.prototype.countStrip = function(slot, goal) {
+        var that = this;
+        var count = this.countOf(slot);
+        var $strip = $('<div class="goal-count"></div>');
+        var button = function(text, title, delta, enabled) {
+            return $('<button type="button" class="goal-count-btn"></button>')
+                .text(text).attr('title', title).prop('disabled', !enabled)
+                .on('click', function(ev) {
+                    // Not a click on the goal itself
+                    ev.stopPropagation();
+                    that.sendCount({action: 'change', slot: slot, delta: delta});
+                });
+        };
+        button('−', 'Count one fewer', -1, count > 0).appendTo($strip);
+        $('<span class="goal-count-value"></span>').text(count + '/' + goal.amount).appendTo($strip);
+        button('+', 'Count one more', 1, count < goal.amount).appendTo($strip);
+        // Clicks between the buttons aren't clicks on the goal either
+        $strip.on('click', function(ev) { ev.stopPropagation(); });
+        return $strip;
+    };
+
+    Counter.prototype.renderCountActions = function() {
+        var ready = !!this.tally;
+        var saved = ready && !!this.tally.saved_at;
+        this.$countActions.find('button').prop('disabled', !ready);
+        this.$countActions.find('[data-action=load], [data-action=clear]').prop('disabled', !saved);
+        this.$savedAt.text(!ready ? '' : saved
+            ? 'Saved ' + new Date(this.tally.saved_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+            : 'Nothing saved');
+    };
+
+    Counter.prototype.onCountAction = function(action) {
+        if (action === 'reset' && !confirm("Reset every count to zero and clear the saved state? This can't be undone.")) {
+            return;
+        }
+        this.sendCount({action: action});
     };
 
     // --- History (this session's own actions) ---------------------------

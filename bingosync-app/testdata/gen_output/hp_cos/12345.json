@@ -1,102 +1,226 @@
 [
     {
+        "amount": 18,
+        "goal_key": "stars-17",
         "name": "18 different Challenge Stars",
-        "tier": 19
+        "tier": 19,
+        "triggers": [
+            "stars-31"
+        ],
+        "unique_amount": 18
     },
     {
+        "amount": 12,
+        "goal_key": "diffindo-stars-9",
         "name": "12 different Diffindo Challenge Stars",
-        "tier": 12
+        "tier": 12,
+        "triggers": [
+            "stars-17",
+            "stars-31",
+            "stars-5"
+        ],
+        "unique_amount": 12
     },
     {
+        "amount": 1,
+        "goal_key": "balcony",
         "name": "All 16 beans on Lockhart's balcony",
-        "tier": 1
+        "tier": 1,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 10,
+        "goal_key": "skurge-stars",
         "name": "10 different Skurge Challenge Stars",
-        "tier": 10
+        "tier": 10,
+        "triggers": [
+            "stars-17",
+            "stars-31",
+            "stars-5"
+        ],
+        "unique_amount": 10
     },
     {
+        "amount": 1,
+        "goal_key": "basilisk",
         "name": "Defeat the Basilisk",
-        "tier": 23
+        "tier": 23,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 3,
+        "goal_key": "boom-secrets",
         "name": "All Boomslang secrets",
-        "tier": 6
+        "tier": 6,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 24,
+        "goal_key": "stars-5",
         "name": "6 different Challenge Stars from each spell challenge",
-        "tier": 25
+        "tier": 25,
+        "triggers": [
+            "stars-17",
+            "stars-31"
+        ],
+        "unique_amount": 6
     },
     {
+        "amount": 7,
+        "goal_key": "bicorn-secrets",
         "name": "All Bicorn secrets",
-        "tier": 18
+        "tier": 18,
+        "triggers": [],
+        "unique_amount": 7
     },
     {
+        "amount": 2,
+        "goal_key": "quidditch-wins",
         "name": "Win 2 Quidditch matches",
-        "tier": 14
+        "tier": 14,
+        "triggers": [
+            "matches-6"
+        ],
+        "unique_amount": 2
     },
     {
+        "amount": 1,
+        "goal_key": "bridge-slyth",
         "name": "Fix the Bridge in Slytherin",
-        "tier": 2
+        "tier": 2,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "rictu-jump",
         "name": "Complete Rictusempra without jumping",
-        "tier": 13
+        "tier": 13,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "forest-beans",
         "name": "Collect 16 beans around the tall tree in Forest",
-        "tier": 4
+        "tier": 4,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "malfoy",
         "name": "Throw a Gnome at Malfoy",
-        "tier": 7
+        "tier": 7,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 8,
+        "goal_key": "diffindo-secrets",
         "name": "Collect 8 Secrets in Diffindo",
-        "tier": 21
+        "tier": 21,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 4,
+        "goal_key": "gnome-mushrooms",
         "name": "Knock over 4 Gnomes with a mushroom",
-        "tier": 20
+        "tier": 20,
+        "triggers": [],
+        "unique_amount": 4
     },
     {
+        "amount": 17,
+        "goal_key": "pixies",
         "name": "Kill 17 Pixies",
-        "tier": 22
+        "tier": 22,
+        "triggers": [],
+        "unique_amount": 17
     },
     {
+        "amount": 6,
+        "goal_key": "bicorn-cards",
         "name": "Collect All 6 Cards in Bicorn",
-        "tier": 16
+        "tier": 16,
+        "triggers": [
+            "cards-23",
+            "cards-37"
+        ],
+        "unique_amount": 6
     },
     {
+        "amount": 1,
+        "goal_key": "buy-broom",
         "name": "Buy the Nimbus 2001",
-        "tier": 15
+        "tier": 15,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 12,
+        "goal_key": "boom-heads",
         "name": "Cut all Venomous Tentacula heads in Boomslang",
-        "tier": 3
+        "tier": 3,
+        "triggers": [
+            "tentaculas"
+        ],
+        "unique_amount": 12
     },
     {
+        "amount": 9,
+        "goal_key": "pots-8",
         "name": "Empty 9 flower pots",
-        "tier": 9
+        "tier": 0,
+        "triggers": [],
+        "unique_amount": 9
     },
     {
+        "amount": 3,
+        "goal_key": "willow-lumos",
         "name": "Cast at all 3 Gargoyles in Willow",
-        "tier": 5
+        "tier": 5,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 6,
+        "goal_key": "chasm-beans",
         "name": "All 6 beans in the chasm",
-        "tier": 8
+        "tier": 8,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 12,
+        "goal_key": "bark",
         "name": "Collect 12 unique Wiggentree Bark",
-        "tier": 24
+        "tier": 24,
+        "triggers": [],
+        "unique_amount": 12
     },
     {
+        "amount": 15,
+        "goal_key": "tentaculas",
         "name": "Cut off 15 tentacula heads",
-        "tier": 17
+        "tier": 17,
+        "triggers": [],
+        "unique_amount": 15
     },
     {
+        "amount": 3,
+        "goal_key": "silver-3",
         "name": "Buy 3 Silver Wizard Cards",
-        "tier": 11
+        "tier": 11,
+        "triggers": [
+            "buy-8"
+        ],
+        "unique_amount": 3
     }
-]
+]

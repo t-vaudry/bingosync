@@ -310,7 +310,12 @@ class Game(models.Model):
                     game=game,
                     slot=slot,
                     goal=square_json["name"],
-                    tier=tier)
+                    tier=tier,
+                    goal_key=square_json.get("goal_key", ""),
+                    amount=square_json.get("amount", 1),
+                    unique_amount=square_json.get(
+                        "unique_amount", square_json.get("amount", 1)),
+                    triggers=square_json.get("triggers", []))
 
                 square.full_clean()
                 square.save()
@@ -424,6 +429,26 @@ class Square(models.Model):
         related_name='reviewed_squares',
         help_text="Counter who reviewed this claim"
     )
+
+    # What a counter needs to count the goal (from the generator). Only sent
+    # to counters (see CounterTally); the board JSON leaves them out.
+    goal_key = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="The goal's id in the goal list; other goals' triggers "
+                  "name it")
+    amount = models.PositiveSmallIntegerField(
+        default=1, help_text="How many it takes to complete the goal")
+    unique_amount = models.PositiveSmallIntegerField(
+        default=1, help_text="The most that linked goals can add to its count")
+    triggers = models.JSONField(
+        default=list, blank=True,
+        help_text="Goal keys whose count goes up and down with this goal's")
+
+    @property
+    def is_counted(self):
+        """Whether a counter counts this goal: it takes more than one step,
+        or counting it also counts other goals."""
+        return self.amount > 1 or bool(self.triggers)
 
     @property
     def color(self):
@@ -585,3 +610,119 @@ class CompletedLine(models.Model):
 
     class Meta:
         unique_together = (("game", "player", "line"),)
+
+
+class CounterTally(models.Model):
+    """A counter's goal counts for one color in a game ("3/6 Gnomes").
+
+    Private to that counter: two counters on one color keep separate tallies
+    (they count independently to verify each other), and nothing here goes to
+    the room. `counts` and `saved_counts` map a slot ("7") to its count;
+    `saved_counts` is the snapshot Load goes back to when the runner loses
+    in-game progress (fainting, reloading a save book). `dismissed` lists
+    slots whose "marked before counted" alert the counter has dismissed for
+    the current mark.
+    """
+    game = models.ForeignKey(
+        Game, on_delete=models.CASCADE, related_name='counter_tallies')
+    counter = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='counter_tallies')
+    color_value = models.IntegerField(choices=Color.goal_choices())
+    counts = models.JSONField(default=dict, blank=True)
+    saved_counts = models.JSONField(null=True, blank=True)
+    saved_at = models.DateTimeField(null=True, blank=True)
+    dismissed = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        unique_together = (("game", "counter", "color_value"),)
+
+    class Invalid(Exception):
+        pass
+
+    @staticmethod
+    def for_update(game, counter, color):
+        """The tally, locked for the rest of the transaction."""
+        CounterTally.objects.get_or_create(
+            game=game, counter=counter, color_value=color.value)
+        return CounterTally.objects.select_for_update().get(
+            game=game, counter=counter, color_value=color.value)
+
+    def count(self, slot):
+        return self.counts.get(str(slot), 0)
+
+    def change(self, squares, slot, delta):
+        """Count one more (delta 1) or one fewer (delta -1) of a goal. Goals
+        it triggers move with it, each staying between 0 and its unique
+        amount; a linked goal already at its limit is left alone."""
+        if delta not in (1, -1):
+            raise CounterTally.Invalid("Count up or down by one.")
+        square = self._counted_square(squares, slot)
+        new_count = self.count(slot) + delta
+        if not 0 <= new_count <= square.amount:
+            raise CounterTally.Invalid(
+                "That goal is already at {}.".format(self.count(slot)))
+        self.counts[str(slot)] = new_count
+        for linked in squares:
+            if linked.slot == slot or not linked.goal_key:
+                continue
+            if linked.goal_key in square.triggers:
+                linked_count = self.count(linked.slot) + delta
+                if 0 <= linked_count <= linked.unique_amount:
+                    self.counts[str(linked.slot)] = linked_count
+
+    def save_state(self):
+        self.saved_counts = dict(self.counts)
+        self.saved_at = timezone.now()
+
+    def load_state(self):
+        """Go back to the saved counts. Dismissed alerts come back for goals
+        that are still short."""
+        if self.saved_counts is None:
+            raise CounterTally.Invalid("Nothing is saved.")
+        self.counts = dict(self.saved_counts)
+        self.dismissed = []
+
+    def clear_saved(self):
+        self.saved_counts = None
+        self.saved_at = None
+
+    def reset(self):
+        self.counts = {}
+        self.dismissed = []
+        self.clear_saved()
+
+    def dismiss(self, squares, slot):
+        self._counted_square(squares, slot)
+        if slot not in self.dismissed:
+            self.dismissed.append(slot)
+
+    def _counted_square(self, squares, slot):
+        for square in squares:
+            if square.slot == slot:
+                if not square.is_counted:
+                    raise CounterTally.Invalid("That goal isn't counted.")
+                return square
+        raise CounterTally.Invalid("Invalid slot: {}".format(slot))
+
+    @staticmethod
+    def forget_dismissal(game, color, slot):
+        """A color came off a square: a later mark there alerts again."""
+        for tally in CounterTally.objects.filter(
+                game=game, color_value=color.value):
+            if slot in tally.dismissed:
+                tally.dismissed.remove(slot)
+                tally.save(update_fields=["dismissed"])
+
+    def to_json(self, squares):
+        return {
+            "color": Color.for_value(self.color_value).name,
+            "goals": {
+                str(square.slot): {
+                    "amount": square.amount,
+                    "unique_amount": square.unique_amount,
+                } for square in squares if square.is_counted
+            },
+            "counts": self.counts,
+            "saved_at": self.saved_at.isoformat() if self.saved_at else None,
+            "dismissed": self.dismissed,
+        }

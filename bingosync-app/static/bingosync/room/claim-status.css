@@ -53,6 +53,76 @@
 .square .review-actions-hover { display: none; }
 .square:hover .review-actions-hover { display: flex; }
 
+/* Counter's goal counts: a [-] 3/6 [+] strip along the bottom of a goal.
+   Stays under the board cover (z-index 3) and out of fogged squares. */
+/* Centred in the space above the strip */
+.square.has-goal-count .text-container {
+    margin-top: -9px;
+}
+.square .goal-count {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2;
+    text-indent: 0;
+    font-size: 12px;
+    cursor: default;
+}
+.square .goal-count-value {
+    font-weight: bold;
+}
+.square .goal-count-btn {
+    width: 26px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-weight: bold;
+    line-height: 18px;
+    text-shadow: none;
+}
+.square .goal-count-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+.square .goal-count-btn:disabled {
+    color: rgba(255, 255, 255, 0.25);
+    cursor: default;
+}
+/* Marked before it was counted complete: same corner as the review ⏳,
+   which it never shows alongside */
+.square .count-alert {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 12px;
+    z-index: 2;
+    text-indent: 0;
+    cursor: pointer;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+}
+.square.hiddentext .goal-count,
+.square.hiddentext .count-alert {
+    display: none;
+}
+
+.goal-count-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.goal-count-saved-at {
+    font-size: 85%;
+    color: #888;
+}
+
 /* Counter panel — fill its container properly */
 #counter-panel {
     height: 100%;

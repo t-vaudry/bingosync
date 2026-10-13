@@ -32,7 +32,10 @@ def get_golden_data(game_type, seed):
 
 
 def freeze_dict(d):
-    return tuple(tuple(sorted(element.items())) for element in d)
+    def freeze(value):
+        return tuple(value) if isinstance(value, list) else value
+    return tuple(tuple(sorted((key, freeze(value)) for key, value in element.items()))
+                 for element in d)
 
 
 class GoldenDataTestCase(test.TestCase):

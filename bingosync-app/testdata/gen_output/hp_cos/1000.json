@@ -1,102 +1,215 @@
 [
     {
+        "amount": 5,
+        "goal_key": "peeves-chests",
         "name": "Open 5 Peeves chests",
-        "tier": 24
+        "tier": 0,
+        "triggers": [],
+        "unique_amount": 5
     },
     {
+        "amount": 6,
+        "goal_key": "chests-chamber",
         "name": "Open 6 Chests in Chamber",
-        "tier": 18
+        "tier": 18,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 7,
+        "goal_key": "rictu-secrets",
         "name": "All Rictusempra secrets",
-        "tier": 15
+        "tier": 15,
+        "triggers": [],
+        "unique_amount": 7
     },
     {
+        "amount": 9,
+        "goal_key": "gryff-secrets",
         "name": "All Gryffindor Challenge secrets",
-        "tier": 7
+        "tier": 7,
+        "triggers": [],
+        "unique_amount": 9
     },
     {
+        "amount": 1,
+        "goal_key": "diffindo-jump",
         "name": "Complete Diffindo without jumping",
-        "tier": 1
+        "tier": 1,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "bicorn-finish",
         "name": "Complete Bicorn",
-        "tier": 10
+        "tier": 10,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 7,
+        "goal_key": "bath-gnomes",
         "name": "Spawn 7 Gnomes in the girl's bathroom",
-        "tier": 2
+        "tier": 2,
+        "triggers": [],
+        "unique_amount": 7
     },
     {
+        "amount": 13,
+        "goal_key": "aragog-spiders",
         "name": "Kill 13 spiders in the Aragog fight",
-        "tier": 21
+        "tier": 21,
+        "triggers": [],
+        "unique_amount": 13
     },
     {
+        "amount": 8,
+        "goal_key": "slyth-secrets",
         "name": "All Slytherin secrets",
-        "tier": 19
+        "tier": 19,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 6,
+        "goal_key": "matches-6",
         "name": "Have a score on all 6 Quidditch Matches",
-        "tier": 13
+        "tier": 13,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 16,
+        "goal_key": "rictu-crabs",
         "name": "Put 16 crabs into pits during Rictusempra",
-        "tier": 16
+        "tier": 16,
+        "triggers": [],
+        "unique_amount": 16
     },
     {
+        "amount": 6,
+        "goal_key": "chests-skurge",
         "name": "Open 6 Chests in Skurge",
-        "tier": 14
+        "tier": 14,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 1,
+        "goal_key": "goyle-finish",
         "name": "Complete Goyle",
-        "tier": 8
+        "tier": 8,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 3,
+        "goal_key": "boom-secrets",
         "name": "All Boomslang secrets",
-        "tier": 5
+        "tier": 5,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 27,
+        "goal_key": "cauldrons-25",
         "name": "Empty 27 cauldrons",
-        "tier": 22
+        "tier": 22,
+        "triggers": [],
+        "unique_amount": 27
     },
     {
+        "amount": 1,
+        "goal_key": "hospital-cauldron",
         "name": "Use the potion cauldron in hospital wing",
-        "tier": 3
+        "tier": 3,
+        "triggers": [
+            "diffindo-stars-13"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 2,
+        "goal_key": "gwc-lumos",
         "name": "Cast at all 2 Gargoyles in the GWC Challenge",
-        "tier": 25
+        "tier": 25,
+        "triggers": [],
+        "unique_amount": 2
     },
     {
+        "amount": 6,
+        "goal_key": "bicorn-cards",
         "name": "Collect All 6 Cards in Bicorn",
-        "tier": 17
+        "tier": 17,
+        "triggers": [
+            "cards-23",
+            "cards-37"
+        ],
+        "unique_amount": 6
     },
     {
+        "amount": 10,
+        "goal_key": "rictu-stars",
         "name": "10 different Rictusempra Challenge Stars",
-        "tier": 11
+        "tier": 11,
+        "triggers": [
+            "stars-17",
+            "stars-31",
+            "stars-5"
+        ],
+        "unique_amount": 10
     },
     {
+        "amount": 10,
+        "goal_key": "win-duels",
         "name": "Win all 10 duels",
-        "tier": 9
+        "tier": 9,
+        "triggers": [],
+        "unique_amount": 10
     },
     {
+        "amount": 4,
+        "goal_key": "silver-3",
         "name": "Buy 4 Silver Wizard Cards",
-        "tier": 12
+        "tier": 12,
+        "triggers": [
+            "buy-8"
+        ],
+        "unique_amount": 4
     },
     {
+        "amount": 2,
+        "goal_key": "slyth-ing",
         "name": "2 potion ingredients in Slytherin",
-        "tier": 6
+        "tier": 6,
+        "triggers": [],
+        "unique_amount": 2
     },
     {
+        "amount": 5,
+        "goal_key": "diffindo-stack",
         "name": "Stack 5 mushrooms in Diffindo",
-        "tier": 4
+        "tier": 4,
+        "triggers": [],
+        "unique_amount": 5
     },
     {
+        "amount": 1,
+        "goal_key": "basilisk",
         "name": "Defeat the Basilisk",
-        "tier": 23
+        "tier": 23,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 1,
+        "goal_key": "bronze-10",
         "name": "10 Bronze Wizard Cards without getting a health increase",
-        "tier": 20
+        "tier": 20,
+        "triggers": [],
+        "unique_amount": 1
     }
-]
+]
