@@ -150,5 +150,45 @@ class SocketRouterTestCase(unittest.TestCase):
         post_disconnect.assert_not_called()
 
 
+class PingWithRetryTestCase(unittest.TestCase):
+    """Reports to Django are retried a few times, then given up on."""
+
+    def _run(self, outcomes):
+        from concurrent.futures import Future
+        fetched = []
+
+        def fetch(url, **kwargs):
+            fetched.append(url)
+            future = Future()
+            outcome = outcomes[min(len(fetched), len(outcomes)) - 1]
+            if outcome == "fail":
+                future.set_exception(Exception("connection refused"))
+            else:
+                future.set_result("ok")
+            return future
+
+        class FakeLoop:
+            def call_later(self, delay, callback, *args):
+                callback(*args)
+
+        with patch.object(tornado_app, "AsyncHTTPClient") as client, \
+                patch.object(tornado_app.tornado.ioloop.IOLoop, "current",
+                             return_value=FakeLoop()), \
+                patch("builtins.print"):
+            client.return_value.fetch.side_effect = fetch
+            tornado_app.ping_with_retry("http://django/api/disconnected/p")
+        return fetched
+
+    def test_success_is_not_retried(self):
+        self.assertEqual(len(self._run(["ok"])), 1)
+
+    def test_failure_is_retried_until_it_succeeds(self):
+        self.assertEqual(len(self._run(["fail", "fail", "ok"])), 3)
+
+    def test_gives_up_after_the_retries(self):
+        self.assertEqual(len(self._run(["fail"])),
+                         tornado_app.DEFAULT_RETRY_COUNT)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -74,7 +74,10 @@ RECONCILE_PERIOD_SECONDS = 60
 
 PING_PERIOD_SECONDS = 5
 PING_PERIOD_MILLIS = PING_PERIOD_SECONDS * 1000
-TIMEOUT_THRESHOLD = datetime.timedelta(seconds=60)
+# A socket that hasn't answered pings for this long is closed (and its player
+# disconnected after the grace period). Covers connections that vanish
+# without closing, e.g. a laptop going to sleep or a phone losing signal.
+TIMEOUT_THRESHOLD = datetime.timedelta(seconds=20)
 
 # How long a player's last socket can be gone before they're reported as
 # disconnected. Reloading the page closes the old socket just before the new
@@ -145,28 +148,27 @@ def post_player_disconnection(player_uuid):
 
 
 def ping_with_retry(url, retry_count=DEFAULT_RETRY_COUNT):
-    def retry_callback(response):
-        if response.error:
-            print("Response error:", response.error, "for url:", url)
-            print("Retries left:", retry_count - 1)
-            ping_with_retry(url, retry_count - 1)
-
-    if retry_count <= 0:
-        print("Ran out of retries, for url '" + url + "', giving up.")
+    def on_response(future):
+        error = future.exception()
+        if error is None:
+            return
+        print("Response error:", error, "for url:", url)
+        if retry_count <= 1:
+            print("Ran out of retries, for url '" + url + "', giving up.")
+            return
+        print("Retries left:", retry_count - 1)
+        tornado.ioloop.IOLoop.current().call_later(
+            1, ping_with_retry, url, retry_count - 1)
 
     # Include internal API secret for authentication
     auth_headers = {
         'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost',
         'X-Internal-Secret': INTERNAL_API_SECRET
     }
-    
-    client = AsyncHTTPClient()
-    client.fetch(
-        url.replace(
-            'http+unix://',
-            'http://'),
-        retry_callback,
-        headers=auth_headers)
+
+    future = AsyncHTTPClient().fetch(
+        url.replace('http+unix://', 'http://'), headers=auth_headers)
+    future.add_done_callback(on_response)
 
 
 def format_defaultdict(ddict):
@@ -551,7 +553,9 @@ if __name__ == "__main__":
     print("Starting application!")
     if SOCK is None:
         print("Listening on port: " + str(PORT))
-        application.listen(PORT)
+        # Only nginx reaches this port; trust its X-Real-IP so rate limits
+        # apply per client rather than to everyone at once.
+        application.listen(PORT, xheaders=True)
     else:
         if bind_unix_socket is None:
             raise RuntimeError(

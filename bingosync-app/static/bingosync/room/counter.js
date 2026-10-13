@@ -7,10 +7,16 @@
  *   the color's name. Clicking one switches the color you count (and you
  *   take on that color).
  * - Marks are approved by default. Right-clicking a goal of your color puts
- *   it in review; right-clicking it again takes it back out. (For a counter
- *   this replaces starring goals.)
+ *   it in review. (For a counter this replaces starring goals.)
+ * - How a goal in review is approved or rejected on the board follows the
+ *   counter's review style (a profile preference):
+ *     list    - right-click again approves (the default)
+ *     click   - left-click rejects, right-click approves
+ *     hover   - a reject button shows on hover, right-click approves
+ *     buttons - approve and reject buttons stay on the goal; right-click
+ *               does nothing more
  * - The review list shows your color's goals in review, each with Approve
- *   (take it out of review) and Reject (remove the mark).
+ *   (take it out of review) and Reject (remove the mark), whatever the style.
  *
  * The review list is derived from the board's squares, so it stays in step
  * with live updates and survives a page reload.
@@ -26,8 +32,9 @@ var Counter = (function() {
         reject: {icon: '✗', text: 'text-danger', item: 'history-rejected', label: 'Rejected'}
     };
 
-    var Counter = function(roomUuid, counterJson, board, playersPanel) {
+    var Counter = function(roomUuid, counterJson, board, playersPanel, reviewStyle) {
         this.roomUuid = roomUuid;
+        this.reviewStyle = reviewStyle || 'list';
         this.counterUuid = counterJson.uuid;
         this.monitoringColor = counterJson.monitoring_color || null;
         this.board = board;
@@ -39,7 +46,8 @@ var Counter = (function() {
         this.$historyList = $('#claim-history-list');
 
         var that = this;
-        board.onSquareRightClick = function(slot) { that.toggleReview(slot); };
+        board.onSquareRightClick = function(slot) { that.onRightClick(slot); };
+        board.onSquareClick = function(slot) { return that.onLeftClick(slot); };
         playersPanel.onChange = function() { that.renderTargets(); };
 
         this.renderTargets();
@@ -106,17 +114,66 @@ var Counter = (function() {
         return !!this.monitoringColor && square.colors.indexOf(this.monitoringColor) !== -1;
     };
 
-    Counter.prototype.toggleReview = function(slot) {
+    // A goal of the color you're counting (whoever marked it) that's in review
+    Counter.prototype.isMyGoalInReview = function(square) {
+        return !!square && this.hasMyColor(square) && IN_REVIEW.indexOf(square.claimStatus) !== -1;
+    };
+
+    Counter.prototype.onRightClick = function(slot) {
         var square = this.board.squares[slot - 1];
-        // Only goals of the color you're counting, whoever marked them
         if (!square || !this.hasMyColor(square)) {
             return;
         }
         if (IN_REVIEW.indexOf(square.claimStatus) !== -1) {
-            this.review(slot, 'confirm');
+            // With buttons on the goal, a second right-click doesn't approve
+            if (this.reviewStyle !== 'buttons') {
+                this.review(slot, 'confirm');
+            }
         } else if (square.claimStatus === 'confirmed') {
             this.review(slot, 'under_review');
         }
+    };
+
+    // Returns true when the click was a review action (so the board doesn't
+    // treat it as marking the goal).
+    Counter.prototype.onLeftClick = function(slot) {
+        if (this.reviewStyle === 'click' && this.isMyGoalInReview(this.board.squares[slot - 1])) {
+            this.review(slot, 'reject');
+            return true;
+        }
+        return false;
+    };
+
+    // The "hover" and "buttons" styles put review buttons on the goals
+    Counter.prototype.renderSquareButtons = function() {
+        var that = this;
+        this.board.squares.forEach(function(square, i) {
+            square.$square.children('.review-actions').remove();
+            if (that.reviewStyle !== 'hover' && that.reviewStyle !== 'buttons') {
+                return;
+            }
+            if (!that.isMyGoalInReview(square)) {
+                return;
+            }
+            var slot = i + 1;
+            var $actions = $('<div class="review-actions"></div>')
+                .toggleClass('review-actions-hover', that.reviewStyle === 'hover')
+                .appendTo(square.$square);
+            if (that.reviewStyle === 'buttons') {
+                that.squareButton('btn-success', '✓', 'Approve (take it out of review)', slot, 'confirm').appendTo($actions);
+            }
+            that.squareButton('btn-danger', '✗', 'Reject (removes the mark)', slot, 'reject').appendTo($actions);
+        });
+    };
+
+    Counter.prototype.squareButton = function(btnClass, text, title, slot, action) {
+        var that = this;
+        return $('<button class="btn btn-xs"></button>').addClass(btnClass).text(text).attr('title', title)
+            .on('click', function(ev) {
+                // Not a click on the goal itself
+                ev.stopPropagation();
+                that.review(slot, action);
+            });
     };
 
     Counter.prototype.review = function(slot, action) {
@@ -143,6 +200,7 @@ var Counter = (function() {
 
     Counter.prototype.renderReviewList = function() {
         var that = this;
+        this.renderSquareButtons();
         this.$reviewList.empty();
         if (!this.monitoringColor) {
             this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Choose what you're counting above the board."}));

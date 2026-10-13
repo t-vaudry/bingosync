@@ -677,8 +677,12 @@ var PlayersPanel = (function(){
         // Check if the current player's role changed
         if (targetPlayer["uuid"] === this.currentPlayer.uuid) {
             console.log("Current player is target, updating role from", this.currentPlayer.role, "to", targetPlayer["role"]);
-            // Update current player's role
-            this.currentPlayer.role = targetPlayer["role"];
+            // The room page is laid out per role (counter panels, color
+            // chooser, spectators can't mark), so load it again as the new role
+            if (this.currentPlayer.role !== targetPlayer["role"]) {
+                window.location.reload();
+                return;
+            }
         }
         
         // Also check if the actor's role changed (for GM transfers)

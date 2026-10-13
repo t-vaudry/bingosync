@@ -38,7 +38,7 @@ from bingosync.models.rooms import (
     ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
     COUNTED_CLAIM_STATUSES
 )
-from bingosync.models.user import User
+from bingosync.models.user import User, ReviewStyle
 from bingosync.publish import (
     publish_goal_event, publish_chat_event, publish_color_event,
     publish_revealed_event
@@ -412,6 +412,12 @@ def room_view(request, encoded_room_uuid):
                 "player": player,
                 "room_settings": room.settings_for(player),
                 "seed_visible": room.seed_visible_to(player),
+                "can_change_own_role": _can_change_own_role(player),
+                "role_choices": [(Role.PLAYER, "Player"), (Role.COUNTER, "Counter"),
+                                 (Role.SPECTATOR, "Spectator")],
+                "review_style": (request.user.review_style
+                                 if request.user.is_authenticated
+                                 else ReviewStyle.LIST),
                 "sockets_url": SOCKETS_URL,
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
@@ -674,6 +680,20 @@ def user_profile(request, username):
     from bingosync.achievements import evaluate_achievements
 
     profile_user = get_object_or_404(User, username__iexact=username)
+    is_own_profile = request.user == profile_user
+
+    # Your own profile also holds your preferences
+    if request.method == "POST":
+        if not is_own_profile:
+            return HttpResponseForbidden("You can only change your own preferences.")
+        review_style = request.POST.get("review_style")
+        if review_style not in ReviewStyle.values:
+            return HttpResponseBadRequest("Unknown review style.")
+        profile_user.review_style = review_style
+        profile_user.save(update_fields=["review_style"])
+        return redirect_params("user_profile", username=profile_user.username,
+                               params={"saved": "1"})
+
     stats = [
         ("Wins", profile_user.wins),
         ("Losses", profile_user.losses),
@@ -689,6 +709,9 @@ def user_profile(request, username):
         "stats": stats,
         "achievements": achievements,
         "earned_count": earned_count,
+        "is_own_profile": is_own_profile,
+        "review_styles": ReviewStyle.choices,
+        "preferences_saved": request.GET.get("saved") == "1",
     })
 
 
@@ -717,6 +740,15 @@ def room_feed(request, encoded_room_uuid):
 
 def room_disconnect(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
+
+    # Leave the room now rather than when the websocket server notices the
+    # page closed (which it can only report after its grace period)
+    try:
+        player = _get_session_player(request.session, room)
+    except NotAuthenticatedError:
+        player = None
+    if player is not None and player is not ANON_PLAYER:
+        _disconnect_player(player)
 
     # Clear current_room for authenticated users
     if request.user.is_authenticated and request.user.current_room == room:
@@ -1057,8 +1089,11 @@ def assign_role(request):
     room = Room.get_for_encoded_uuid_or_404(data["room"])
     player = _get_session_player(request.session, room)
 
-    # Check permission to assign roles
-    if not check_permission(player, 'assign_roles'):
+    # Check permission to assign roles (anyone may change their own when
+    # there's no Gamemaster to do it)
+    changing_own_role = data["target_player_uuid"] == player.encoded_uuid
+    if not (check_permission(player, 'assign_roles')
+            or (changing_own_role and _can_change_own_role(player))):
         return HttpResponseForbidden(
             "You do not have permission to assign roles.")
 
@@ -1141,13 +1176,23 @@ def assign_role(request):
             Role.COUNTER: "Counter",
             Role.SPECTATOR: "Spectator"
         }
-        message = f"{target_player.name} has been assigned the {role_display_names.get(new_role, new_role)} role"
+        role_name = role_display_names.get(new_role, new_role)
+        if changing_own_role:
+            message = f"{target_player.name} switched to the {role_name} role"
+        else:
+            message = f"{target_player.name} has been assigned the {role_name} role"
         create_system_chat_message(player, room, message)
 
     # Broadcast the role change
     publish_role_change_event(role_change_event)
 
     return HttpResponse("Role changed successfully")
+
+
+def _can_change_own_role(player):
+    """In a room without a Gamemaster nobody can assign roles, so everyone
+    picks their own (Player and Counter still need an account)."""
+    return player.role != Role.GAMEMASTER and not player.room.has_gamemaster
 
 
 

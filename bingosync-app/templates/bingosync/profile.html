@@ -50,6 +50,11 @@
     .achievement-name { font-weight: 600; font-size: 13px; margin-top: 8px; color: var(--cos-ink); }
     .achievement.earned .achievement-name { color: var(--cos-gold-bright); }
     .achievement-desc { font-size: 11px; color: var(--cos-ink-soft); margin-top: 3px; }
+    .preference-help { color: var(--cos-ink-soft); margin: 0 0 8px; }
+    .preference-option { display: block; font-weight: normal; margin: 6px 0; cursor: pointer; }
+    .preference-option input { margin-right: 8px; }
+    .preference-default { color: var(--cos-ink-soft); font-size: 12px; }
+    .preferences-saved { color: var(--cos-gold-bright); margin-left: 10px; }
 </style>
 {% endblock %}
 
@@ -91,6 +96,32 @@
                     </div>
                 </div>
             </div>
+
+            {% if is_own_profile %}
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Preferences
+                </div>
+                <div class="panel-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <p class="preference-help">
+                            <strong>Reviewing goals as a counter.</strong>
+                            Right-click a goal to put it in review, then:
+                        </p>
+                        {% for value, label in review_styles %}
+                            <label class="preference-option">
+                                <input type="radio" name="review_style" value="{{ value }}"{% if profile_user.review_style == value %} checked{% endif %}>
+                                {{ label }}
+                                {% if forloop.first %}<span class="preference-default">(default)</span>{% endif %}
+                            </label>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                        {% if preferences_saved %}<span class="preferences-saved">Saved.</span>{% endif %}
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

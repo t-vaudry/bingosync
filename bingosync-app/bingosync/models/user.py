@@ -2,6 +2,16 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class ReviewStyle(models.TextChoices):
+    """How a counter approves or rejects goals they've put in review.
+    Every style puts a goal in review with a right-click, and the review
+    list's Approve/Reject buttons always work."""
+    LIST = 'list', 'Right-click again to approve; reject from the review list'
+    CLICK = 'click', 'Left-click to reject, right-click to approve'
+    HOVER = 'hover', 'Hover for a reject button, right-click to approve'
+    BUTTONS = 'buttons', 'Approve and reject buttons on the goal (right-click does nothing)'
+
+
 class User(AbstractUser):
     """
     Persistent user account extending Django's AbstractUser.
@@ -50,6 +60,14 @@ class User(AbstractUser):
     losses = models.IntegerField(
         default=0,
         help_text='Number of losses in lockout mode'
+    )
+
+    # Preferences
+    review_style = models.CharField(
+        max_length=16,
+        choices=ReviewStyle.choices,
+        default=ReviewStyle.LIST,
+        help_text='How this user approves or rejects goals in review as a counter'
     )
 
     class Meta:

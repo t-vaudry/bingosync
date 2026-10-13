@@ -384,13 +384,28 @@ class JoinRoomForm(forms.Form):
             nickname = user.username
 
         with transaction.atomic():
-            player = Player(
-                room=room,
-                name=nickname,
-                role=role,
-                user=user if user and user.is_authenticated else None
-            )
-            player.save()
+            # Someone rejoining gets their player back (color, marks and
+            # role history included) rather than a duplicate of themselves
+            player = None
+            if user and user.is_authenticated:
+                player = (Player.objects.select_for_update()
+                          .filter(room=room, user=user)
+                          .order_by("-created_date").first())
+            if player is not None:
+                # The Gamemaster role is permanent
+                if player.role != Role.GAMEMASTER and player.role != role:
+                    player.role = role
+                    if role != Role.COUNTER:
+                        player.monitoring_color_value = None
+                    player.save()
+            else:
+                player = Player(
+                    room=room,
+                    name=nickname,
+                    role=role,
+                    user=user if user and user.is_authenticated else None
+                )
+                player.save()
 
             # Set current_room for authenticated users
             if user and user.is_authenticated:
