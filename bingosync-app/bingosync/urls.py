@@ -87,6 +87,7 @@ urlpatterns = [
     url(r'^api/assign-role$', views.assign_role, name='assign_role'),
     url(r'^api/assign-counter$', views.assign_counter, name='assign_counter'),
     url(r'^api/review-claim$', views.review_claim, name='review_claim'),
+    url(r'^api/counter-counts$', views.counter_counts, name='counter_counts'),
     url(r'^api/remove-player$', views.remove_player, name='remove_player'),
     url(r'^api/new-card$', views.new_card, name='new_card'),
     url(r'^api/join-room$', views.join_room_api, name='join_room_api'),

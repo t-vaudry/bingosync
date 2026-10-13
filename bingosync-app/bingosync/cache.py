@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 # Cache key prefixes
 ROOM_SETTINGS_PREFIX = 'room_settings'
 PLAYER_LIST_PREFIX = 'player_list'
-BOARD_SEED_PREFIX = 'board'
+# v2: boards carry each goal's counting fields (amount, triggers, ...)
+BOARD_SEED_PREFIX = 'board_v2'
 
 # Cache timeouts (in seconds)
 ROOM_SETTINGS_TIMEOUT = 300  # 5 minutes

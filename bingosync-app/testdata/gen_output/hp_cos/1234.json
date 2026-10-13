@@ -1,102 +1,225 @@
 [
     {
+        "amount": 1,
+        "goal_key": "matches-250",
         "name": "Lose a Quidditch Match by at least 250 points",
-        "tier": 2
+        "tier": 2,
+        "triggers": [
+            "matches-6"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 19,
+        "goal_key": "ecto-bicorn",
         "name": "Destroy 19 Ectoplasm in Bicorn",
-        "tier": 21
+        "tier": 21,
+        "triggers": [],
+        "unique_amount": 19
     },
     {
+        "amount": 1,
+        "goal_key": "chamber-damage",
         "name": "Avoid fire damage from the snake statues in Chamber",
-        "tier": 14
+        "tier": 14,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 2,
+        "goal_key": "2-goal",
         "name": "Beat the goal time in 2 spell challenges",
-        "tier": 18
+        "tier": 18,
+        "triggers": [],
+        "unique_amount": 2
     },
     {
+        "amount": 7,
+        "goal_key": "rictu-stars",
         "name": "7 different Rictusempra Challenge Stars",
-        "tier": 10
+        "tier": 10,
+        "triggers": [
+            "stars-17",
+            "stars-31",
+            "stars-5"
+        ],
+        "unique_amount": 7
     },
     {
+        "amount": 1,
+        "goal_key": "chamber-jump",
         "name": "Complete Chamber without jumping",
-        "tier": 19
+        "tier": 19,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 6,
+        "goal_key": "boxes-7",
         "name": "Empty 6 bean boxes",
-        "tier": 8
+        "tier": 8,
+        "triggers": [],
+        "unique_amount": 6
     },
     {
+        "amount": 1,
+        "goal_key": "gryff-finish",
         "name": "Complete the Gryffindor Challenge",
-        "tier": 5
+        "tier": 5,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 10,
+        "goal_key": "diffindo-secrets",
         "name": "Collect 10 Secrets in Diffindo",
-        "tier": 22
+        "tier": 22,
+        "triggers": [],
+        "unique_amount": 10
     },
     {
+        "amount": 3,
+        "goal_key": "gnomes-bicorn",
         "name": "Throw 3 gnomes into the same hole in Bicorn",
-        "tier": 11
+        "tier": 11,
+        "triggers": [],
+        "unique_amount": 3
     },
     {
+        "amount": 23,
+        "goal_key": "bronze-20",
         "name": "23 Bronze Wizard Cards",
-        "tier": 25
+        "tier": 0,
+        "triggers": [
+            "cards-23",
+            "cards-37",
+            "bronze-30"
+        ],
+        "unique_amount": 23
     },
     {
+        "amount": 1,
+        "goal_key": "forest-jump",
         "name": "Complete Forest without jumping",
-        "tier": 12
+        "tier": 12,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 6,
+        "goal_key": "bicorn-cards",
         "name": "Collect All 6 Cards in Bicorn",
-        "tier": 16
+        "tier": 16,
+        "triggers": [
+            "cards-23",
+            "cards-37"
+        ],
+        "unique_amount": 6
     },
     {
+        "amount": 9,
+        "goal_key": "gryff-secrets",
         "name": "All Gryffindor Challenge secrets",
-        "tier": 9
+        "tier": 9,
+        "triggers": [],
+        "unique_amount": 9
     },
     {
+        "amount": 1,
+        "goal_key": "gnome-star",
         "name": "Finish a Spell Challenge with a Gnome in your hand",
-        "tier": 3
+        "tier": 3,
+        "triggers": [
+            "completion-stars"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 8,
+        "goal_key": "goyle-lumos",
         "name": "Cast at 8 different Gargoyles in Goyle",
-        "tier": 6
+        "tier": 6,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 1,
+        "goal_key": "boom-jump",
         "name": "Complete Boomslang without jumping",
-        "tier": 4
+        "tier": 4,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 13,
+        "goal_key": "pixies",
         "name": "Kill 13 Pixies",
-        "tier": 23
+        "tier": 23,
+        "triggers": [],
+        "unique_amount": 13
     },
     {
+        "amount": 1,
+        "goal_key": "buy-broom",
         "name": "Buy the Nimbus 2001",
-        "tier": 15
+        "tier": 15,
+        "triggers": [],
+        "unique_amount": 1
     },
     {
+        "amount": 8,
+        "goal_key": "slyth-secrets",
         "name": "All Slytherin secrets",
-        "tier": 17
+        "tier": 17,
+        "triggers": [],
+        "unique_amount": 8
     },
     {
+        "amount": 2,
+        "goal_key": "silver-3",
         "name": "Buy 2 Silver Wizard Cards",
-        "tier": 13
+        "tier": 13,
+        "triggers": [
+            "buy-8"
+        ],
+        "unique_amount": 2
     },
     {
+        "amount": 16,
+        "goal_key": "sponge-secrets",
         "name": "All Spongify secrets",
-        "tier": 20
+        "tier": 20,
+        "triggers": [],
+        "unique_amount": 16
     },
     {
+        "amount": 3,
+        "goal_key": "boom-frogs",
         "name": "3 chocolate frogs in Boomslang",
-        "tier": 7
+        "tier": 7,
+        "triggers": [
+            "frogs"
+        ],
+        "unique_amount": 3
     },
     {
+        "amount": 1,
+        "goal_key": "hospital-cauldron",
         "name": "Use the potion cauldron in hospital wing",
-        "tier": 1
+        "tier": 1,
+        "triggers": [
+            "diffindo-stars-13"
+        ],
+        "unique_amount": 1
     },
     {
+        "amount": 2,
+        "goal_key": "gwc-lumos",
         "name": "Cast at all 2 Gargoyles in the GWC Challenge",
-        "tier": 24
+        "tier": 24,
+        "triggers": [],
+        "unique_amount": 2
     }
-]
+]

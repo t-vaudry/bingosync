@@ -123,6 +123,33 @@ def process_card(card, seed, size):
     if len(card) != size * size:
         raise Exception("bad card length: "
                         + str(len(card)) + ", card: " + str(card))
-    x = [{"name": goal.get("name", ""), "tier": goal.get(
-        "difficulty", "") or 0} for goal in card]
+    x = [dict({"name": goal.get("name", ""), "tier": goal.get(
+        "difficulty", "") or 0}, **goal_counting_fields(goal)) for goal in card]
     return seed, x
+
+
+def goal_counting_fields(goal):
+    """What a counter needs to count a goal, from the generator's output: its
+    id, how many it takes, and the goals counting it also advances.
+
+    `uniqueAmount` caps what linked goals can add; the generator only sets it
+    for goals with a randomised number ("{4-7} Gnomes"), otherwise it's the
+    amount. Generators without these fields give a one-step goal.
+    """
+    amount = goal.get("amount")
+    if not isinstance(amount, int) or isinstance(amount, bool) or amount < 1:
+        amount = 1
+    unique_amount = goal.get("uniqueAmount")
+    if (not isinstance(unique_amount, int) or isinstance(unique_amount, bool)
+            or not 1 <= unique_amount <= amount):
+        unique_amount = amount
+    triggers = goal.get("triggers")
+    if not isinstance(triggers, list):
+        triggers = []
+    goal_key = goal.get("id")
+    return {
+        "goal_key": goal_key if isinstance(goal_key, str) else "",
+        "amount": amount,
+        "unique_amount": unique_amount,
+        "triggers": [t for t in triggers if isinstance(t, str)],
+    }

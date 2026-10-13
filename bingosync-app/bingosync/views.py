@@ -37,7 +37,7 @@ from bingosync.models.events import (
 from bingosync.models.enums import Role
 from bingosync.models.rooms import (
     ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
-    COUNTED_CLAIM_STATUSES
+    COUNTED_CLAIM_STATUSES, CounterTally
 )
 from bingosync.models.user import User, ReviewStyle
 from bingosync.publish import (
@@ -53,6 +53,7 @@ from bingosync.decorators import (
     ratelimit_login,
     ratelimit_registration,
     ratelimit_authenticated_action,
+    ratelimit_counting,
     handle_ratelimit,
     require_internal_api_secret
 )
@@ -880,6 +881,10 @@ def goal_selected(request):
 
     publish_goal_event(goal_event)
 
+    if remove_color:
+        # Marking it again later should alert its counters again
+        CounterTally.forget_dismissal(game, color, slot)
+
     # A new mark may complete a lockout win and/or one or more bingos.
     if not remove_color:
         _record_square_marked(player)
@@ -1513,6 +1518,12 @@ def review_claim(request):
             square.reviewed_by = counter
             square.save()
             message = f"{counter.name} approved {label}'s claim on {square.goal}"
+            # Approving settles it: no "marked before counted" alert for
+            # this counter once it's out of review
+            if square.is_counted:
+                tally = CounterTally.for_update(game, counter, color)
+                tally.dismiss([square], slot)
+                tally.save()
 
         elif action == 'reject':
             # Remove the counted color from the square. In non-lockout other
@@ -1526,6 +1537,7 @@ def review_claim(request):
             if reviewed_player is None or reviewed_player.color == color:
                 square.claimed_by = None
             square.save()
+            CounterTally.forget_dismissal(game, color, slot)
             message = f"{counter.name} rejected {label}'s claim on {square.goal}"
 
         # Create claim review event
@@ -1556,6 +1568,80 @@ def review_claim(request):
     return HttpResponse("Claim reviewed successfully")
 
 
+COUNTER_TALLY_ACTIONS = ("change", "save", "load", "clear", "reset", "dismiss")
+
+
+@handle_ratelimit
+@ratelimit_counting
+def counter_counts(request):
+    """A counter's goal counts for the color they're counting (GET), or a
+    change to them (POST). Private to that counter; nothing is broadcast.
+
+    POST actions:
+    - change (slot, delta 1 or -1): count a goal up or down; goals it
+      triggers move with it
+    - save / load / clear: the saved state Load goes back to after the
+      runner loses in-game progress
+    - reset: every count back to zero, saved state cleared
+    - dismiss (slot): hide the alert on a goal marked before it was counted
+    """
+    if request.method == "GET":
+        data = request.GET
+        if "room" not in data:
+            return HttpResponseBadRequest("Missing room")
+    elif request.method == "POST":
+        data = parse_body_json_or_400(request, required_keys=["room", "action"])
+    else:
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    counter = _get_session_player(request.session, room)
+    if counter.role != Role.COUNTER:
+        return HttpResponseForbidden("Only counters count goals.")
+    color = counter.monitoring_color
+    if color is None:
+        return HttpResponseBadRequest("Choose the color you're counting first.")
+
+    game = room.current_game
+    squares = list(game.squares)
+    if request.method == "GET":
+        tally = CounterTally.objects.filter(
+            game=game, counter=counter, color_value=color.value).first()
+        if tally is None:
+            tally = CounterTally(game=game, counter=counter,
+                                 color_value=color.value)
+        return JsonResponse(tally.to_json(squares))
+
+    action = data["action"]
+    if action not in COUNTER_TALLY_ACTIONS:
+        return HttpResponseBadRequest(
+            f"Invalid action: {action}. Must be one of: "
+            f"{', '.join(COUNTER_TALLY_ACTIONS)}")
+    try:
+        slot = int(data["slot"]) if action in ("change", "dismiss") else None
+        delta = int(data["delta"]) if action == "change" else None
+    except (KeyError, TypeError, ValueError):
+        return HttpResponseBadRequest("Missing or invalid slot or delta")
+
+    try:
+        with transaction.atomic():
+            tally = CounterTally.for_update(game, counter, color)
+            if action == "change":
+                tally.change(squares, slot, delta)
+            elif action == "save":
+                tally.save_state()
+            elif action == "load":
+                tally.load_state()
+            elif action == "clear":
+                tally.clear_saved()
+            elif action == "reset":
+                tally.reset()
+            elif action == "dismiss":
+                tally.dismiss(squares, slot)
+            tally.save()
+    except CounterTally.Invalid as e:
+        return HttpResponseBadRequest(str(e))
+    return JsonResponse(tally.to_json(squares))
 
 
 @handle_ratelimit

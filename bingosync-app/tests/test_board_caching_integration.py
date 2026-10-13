@@ -171,9 +171,9 @@ class BoardCachingIntegrationTest(TestCase):
         self.assertIsNone(cached_board, "Empty seed should not be cached")
     
     def test_cache_key_format(self):
-        """Test that cache key format is exactly 'board:{seed}'."""
+        """Test that cache key format is exactly 'board_v2:{seed}'."""
         seed = 99999
-        expected_key = f'board:{seed}'
+        expected_key = f'board_v2:{seed}'
         
         # Get the actual cache key
         actual_key = get_board_cache_key(seed)

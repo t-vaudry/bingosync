@@ -1,6 +1,8 @@
 # Import all models so Django can discover them
 from bingosync.models.user import User
-from bingosync.models.rooms import Room, Game, Square, Player, LockoutMode
+from bingosync.models.rooms import (
+    Room, Game, Square, Player, LockoutMode, CounterTally
+)
 from bingosync.models.events import (
     Event, ChatEvent, NewCardEvent, GoalEvent, ColorEvent,
     RevealedEvent, RoleChangeEvent, ConnectionEvent
@@ -15,6 +17,7 @@ __all__ = [
     'Square',
     'Player',
     'LockoutMode',
+    'CounterTally',
     'Event',
     'ChatEvent',
     'NewCardEvent',
