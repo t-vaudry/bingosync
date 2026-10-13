@@ -1,7 +1,8 @@
 """
-Tests for SocketRouter bookkeeping: a closing socket must be removed (and the
-player's disconnect posted) immediately, wherever its room sits in the
-router, and looking up a room must not create entries.
+Tests for SocketRouter bookkeeping: a closing socket must be removed wherever
+its room sits in the router, looking up a room must not create entries, and
+a player is reported disconnected only if they haven't reconnected within the
+grace period (so reloading the page isn't a disconnect).
 """
 
 import os
@@ -34,6 +35,24 @@ class SocketRouterTestCase(unittest.TestCase):
         log_patch.start()
         self.addCleanup(log_patch.stop)
 
+        # Fake scheduler: collect delayed callbacks so a test can run them
+        # ("let the grace period pass") when it chooses.
+        self.scheduled = {}
+
+        def call_later(delay, callback):
+            handle = object()
+            self.scheduled[handle] = (delay, callback)
+            return handle
+
+        self.router._call_later = call_later
+        self.router._cancel = lambda handle: self.scheduled.pop(handle, None)
+
+    def _let_grace_period_pass(self):
+        for handle, (delay, callback) in list(self.scheduled.items()):
+            self.assertEqual(delay, tornado_app.DISCONNECT_GRACE_SECONDS)
+            del self.scheduled[handle]
+            callback()
+
     def test_leaving_player_is_disconnected_despite_empty_rooms(
             self, post_connect, post_disconnect):
         # Rooms with nobody connected (e.g. ones that received a broadcast)
@@ -44,9 +63,33 @@ class SocketRouterTestCase(unittest.TestCase):
         self.router.register("room", "player", ws)
 
         self.router.unregister(ws)
-
-        post_disconnect.assert_called_once_with("player")
         self.assertNotIn(ws, list(self.router.all_sockets))
+
+        self._let_grace_period_pass()
+        post_disconnect.assert_called_once_with("player")
+
+    def test_disconnect_waits_for_the_grace_period(
+            self, post_connect, post_disconnect):
+        ws = FakeSocket()
+        self.router.register("room", "player", ws)
+        self.router.unregister(ws)
+
+        post_disconnect.assert_not_called()
+        self._let_grace_period_pass()
+        post_disconnect.assert_called_once_with("player")
+
+    def test_reloading_the_page_is_not_a_disconnect(
+            self, post_connect, post_disconnect):
+        old_page, new_page = FakeSocket(), FakeSocket()
+        self.router.register("room", "player", old_page)
+
+        self.router.unregister(old_page)          # old page unloads
+        self.router.register("room", "player", new_page)  # new page connects
+        self._let_grace_period_pass()
+
+        post_disconnect.assert_not_called()
+        post_connect.assert_called_once_with("player")  # no second "connected"
+        self.assertEqual(list(self.router.all_sockets), [new_page])
 
     def test_broadcast_to_room_without_sockets_creates_no_entry(
             self, post_connect, post_disconnect):
@@ -61,9 +104,11 @@ class SocketRouterTestCase(unittest.TestCase):
         post_connect.assert_called_once_with("player")
 
         self.router.unregister(first)
+        self._let_grace_period_pass()
         post_disconnect.assert_not_called()
 
         self.router.unregister(second)
+        self._let_grace_period_pass()
         post_disconnect.assert_called_once_with("player")
         self.assertEqual(list(self.router.all_sockets), [])
 
@@ -74,6 +119,7 @@ class SocketRouterTestCase(unittest.TestCase):
         self.router.register("room", "stayer", staying)
 
         self.router.unregister(leaving)
+        self._let_grace_period_pass()
 
         post_disconnect.assert_called_once_with("leaver")
         self.assertEqual(list(self.router.all_sockets), [staying])
@@ -84,6 +130,7 @@ class SocketRouterTestCase(unittest.TestCase):
             self, post_connect, post_disconnect):
         self.router.register("room", "player", FakeSocket())
         self.router.unregister(FakeSocket())
+        self._let_grace_period_pass()
         post_disconnect.assert_not_called()
 
 

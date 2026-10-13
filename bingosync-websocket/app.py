@@ -70,6 +70,12 @@ PING_PERIOD_SECONDS = 5
 PING_PERIOD_MILLIS = PING_PERIOD_SECONDS * 1000
 TIMEOUT_THRESHOLD = datetime.timedelta(seconds=60)
 
+# How long a player's last socket can be gone before they're reported as
+# disconnected. Reloading the page closes the old socket just before the new
+# one opens; reporting that at once would announce a disconnect the new page
+# receives for itself (and treats as being removed from the room).
+DISCONNECT_GRACE_SECONDS = 5
+
 DEFAULT_RETRY_COUNT = 5
 
 # whether we should clean up the broadcast sockets dictionary as people
@@ -267,6 +273,16 @@ class SocketRouter:
 
     def __init__(self):
         self.sockets_by_room = defaultdict(lambda: defaultdict(set))
+        # player_uuid -> timeout handle for a disconnect waiting out the grace
+        # period (see DISCONNECT_GRACE_SECONDS)
+        self.pending_disconnects = {}
+
+    # Scheduling hooks (replaced in tests)
+    def _call_later(self, delay, callback):
+        return tornado.ioloop.IOLoop.current().call_later(delay, callback)
+
+    def _cancel(self, handle):
+        tornado.ioloop.IOLoop.current().remove_timeout(handle)
 
     @property
     def all_sockets(self):
@@ -324,11 +340,29 @@ class SocketRouter:
 
     def register(self, room_uuid, player_uuid, socket):
         self.log_sockets("registering socket...")
-        if not self.sockets_by_room[room_uuid][player_uuid]:
+        pending = self.pending_disconnects.pop(player_uuid, None)
+        if pending is not None:
+            # Back within the grace period (e.g. a page reload): as far as
+            # everyone else is concerned they never left.
+            self._cancel(pending)
+        elif not self.sockets_by_room[room_uuid][player_uuid]:
             print("posting connect")
             post_player_connection(player_uuid)
         self.sockets_by_room[room_uuid][player_uuid].add(socket)
         self.log_sockets("registered")
+
+    def _disconnect_after_grace(self, room_uuid, player_uuid):
+        def disconnect():
+            self.pending_disconnects.pop(player_uuid, None)
+            if not self.sockets_by_room.get(room_uuid, {}).get(player_uuid):
+                print("posting disconnect", player_uuid)
+                post_player_disconnection(player_uuid)
+
+        previous = self.pending_disconnects.pop(player_uuid, None)
+        if previous is not None:
+            self._cancel(previous)
+        self.pending_disconnects[player_uuid] = self._call_later(
+            DISCONNECT_GRACE_SECONDS, disconnect)
 
     def unregister(self, socket):
         self.log_sockets("unregistering socket...")
@@ -342,8 +376,8 @@ class SocketRouter:
                     continue
                 player_sockets.discard(socket)
                 if not player_sockets:
-                    print("posting disconnect", player_uuid)
-                    post_player_disconnection(player_uuid)
+                    print("player's last socket closed, disconnecting after grace period:", player_uuid)
+                    self._disconnect_after_grace(room_uuid, player_uuid)
                     if CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
                         del room_sockets[player_uuid]
             if not room_sockets and CLEANUP_SOCKETS_DICT_ON_DISCONNECT:
