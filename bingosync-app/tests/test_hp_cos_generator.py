@@ -103,9 +103,10 @@ class HPCoSGeneratorIntegrationTestCase(TestCase):
             f"Should have at least 15 different difficulty tiers across "
             f"{num_boards} boards, got {len(all_tiers)}")
 
-        # All tiers should be in valid range (1-25)
+        # All tiers should be in valid range (0-25; 0 is the goal fog of war
+        # reveals from the start)
         for tier in all_tiers:
-            self.assertGreaterEqual(tier, 1, f"Tier {tier} should be >= 1")
+            self.assertGreaterEqual(tier, 0, f"Tier {tier} should be >= 0")
             self.assertLessEqual(tier, 25, f"Tier {tier} should be <= 25")
 
     def test_variable_amounts_randomize_correctly(self):
@@ -261,8 +262,13 @@ class HPCoSGeneratorIntegrationTestCase(TestCase):
                                f"Goal {i} name should not be just whitespace")
 
     def test_difficulty_tiers_are_valid(self):
-        """All difficulty tiers should be valid integers in range 1-25."""
+        """All difficulty tiers should be valid integers in range 1-25,
+        except exactly one goal at tier 0: the one fog of war reveals from the
+        start."""
         seed, card = self.generator.get_card(seed=80000)
+        self.assertEqual(
+            [goal['tier'] for goal in card].count(0), 1,
+            "Exactly one goal should be at tier 0")
 
         for i, goal in enumerate(card):
             tier = goal['tier']
@@ -272,7 +278,7 @@ class HPCoSGeneratorIntegrationTestCase(TestCase):
                 tier, int, f"Goal {i} tier should be integer")
 
             # Should be in valid range
-            self.assertGreaterEqual(tier, 1, f"Goal {i} tier should be >= 1")
+            self.assertGreaterEqual(tier, 0, f"Goal {i} tier should be >= 0")
             self.assertLessEqual(tier, 25, f"Goal {i} tier should be <= 25")
 
     def test_multiple_rapid_generations(self):
