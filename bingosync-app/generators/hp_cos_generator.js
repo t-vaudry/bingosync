@@ -278,6 +278,12 @@ bingoGenerator = function(bingoListR, opts) {
                 bingoBoard[b].name = goal;
             }
         }
+        // Fog of war starts with one goal revealed: the one at tier 0 (see
+        // hideSquares in board.js). Every goal above has difficulty 1-25, so
+        // choose one now. Drawn last, so the goals themselves for a seed are
+        // the same as before; the same seed always reveals the same goal.
+        bingoBoard[parseInt(Math.random() * 25) + 1].difficulty = 0;
+
         return {
             seed: SEED,
             objectives: bingoBoard
