@@ -225,6 +225,7 @@ if IS_PROD and not IS_TEST:
     # plain HTTP, and the container healthcheck hits /health.
     SECURE_REDIRECT_EXEMPT = [
         r'^api/(socket|connected|disconnected)/',
+        r'^api/reconcile$',
         r'^health$',
     ]
     # Every request reaches gunicorn from the nginx container, so

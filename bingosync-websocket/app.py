@@ -65,6 +65,12 @@ BASE_API_URL = BASE_DJANGO_URL + "api/"
 SOCKET_VERIFICATION_URL = BASE_API_URL + "socket/"
 CONNECTION_URL = BASE_API_URL + "connected/"
 DISCONNECTION_URL = BASE_API_URL + "disconnected/"
+RECONCILE_URL = BASE_API_URL + "reconcile"
+
+# Ask Django to drop players with no live socket: shortly after startup (a
+# restart forgets every connection) and then periodically.
+RECONCILE_STARTUP_DELAY_SECONDS = 15
+RECONCILE_PERIOD_SECONDS = 60
 
 PING_PERIOD_SECONDS = 5
 PING_PERIOD_MILLIS = PING_PERIOD_SECONDS * 1000
@@ -273,8 +279,8 @@ class SocketRouter:
 
     def __init__(self):
         self.sockets_by_room = defaultdict(lambda: defaultdict(set))
-        # player_uuid -> timeout handle for a disconnect waiting out the grace
-        # period (see DISCONNECT_GRACE_SECONDS)
+        # player_uuid -> (room_uuid, timeout handle) for a disconnect waiting
+        # out the grace period (see DISCONNECT_GRACE_SECONDS)
         self.pending_disconnects = {}
 
     # Scheduling hooks (replaced in tests)
@@ -344,7 +350,7 @@ class SocketRouter:
         if pending is not None:
             # Back within the grace period (e.g. a page reload): as far as
             # everyone else is concerned they never left.
-            self._cancel(pending)
+            self._cancel(pending[1])
         elif not self.sockets_by_room[room_uuid][player_uuid]:
             print("posting connect")
             post_player_connection(player_uuid)
@@ -360,9 +366,22 @@ class SocketRouter:
 
         previous = self.pending_disconnects.pop(player_uuid, None)
         if previous is not None:
-            self._cancel(previous)
-        self.pending_disconnects[player_uuid] = self._call_later(
-            DISCONNECT_GRACE_SECONDS, disconnect)
+            self._cancel(previous[1])
+        self.pending_disconnects[player_uuid] = (
+            room_uuid, self._call_later(DISCONNECT_GRACE_SECONDS, disconnect))
+
+    def connected_players_by_room(self):
+        """room_uuid -> player uuids that are connected, including anyone
+        inside the disconnect grace period (they may be reloading the page).
+        Django's reconcile disconnects players missing from this."""
+        connected = defaultdict(set)
+        for room_uuid, room_sockets in self.sockets_by_room.items():
+            for player_uuid, player_sockets in room_sockets.items():
+                if player_sockets:
+                    connected[room_uuid].add(player_uuid)
+        for player_uuid, (room_uuid, _) in self.pending_disconnects.items():
+            connected[room_uuid].add(player_uuid)
+        return {room: sorted(players) for room, players in connected.items()}
 
     def unregister(self, socket):
         self.log_sockets("unregistering socket...")
@@ -403,9 +422,7 @@ class MainHandler(InternalAPIHandler):
 class ConnectedHandler(InternalAPIHandler):
 
     def get(self):
-        data = {room: list(players.keys())
-                for room, players in ROUTER.sockets_by_room.items()}
-        self.write(json.dumps(data))
+        self.write(json.dumps(ROUTER.connected_players_by_room()))
 
 
 class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
@@ -509,6 +526,27 @@ def periodic_ping():
     WS_RATE_LIMITER.cleanup_old_entries()
 
 
+def request_reconcile():
+    """Ask Django to disconnect players we have no live socket for.
+
+    Connections live only in this process's memory: after a restart (every
+    deploy) nobody's disconnect was reported, so without this they'd stay
+    "in the room" forever. See reconcile_connections in Django.
+    """
+    def report(future):
+        try:
+            future.result()
+        except Exception as e:
+            print("Reconcile request failed:", e)
+
+    AsyncHTTPClient().fetch(
+        RECONCILE_URL.replace('http+unix://', 'http://'),
+        headers={
+            'Host': os.environ['DOMAIN'] if IS_PROD else 'localhost',
+            'X-Internal-Secret': INTERNAL_API_SECRET,
+        }).add_done_callback(report)
+
+
 if __name__ == "__main__":
     print("Starting application!")
     if SOCK is None:
@@ -525,4 +563,8 @@ if __name__ == "__main__":
     io_loop = tornado.ioloop.IOLoop.current()
     pinger = tornado.ioloop.PeriodicCallback(periodic_ping, PING_PERIOD_MILLIS)
     pinger.start()
+    io_loop.call_later(RECONCILE_STARTUP_DELAY_SECONDS, request_reconcile)
+    reconciler = tornado.ioloop.PeriodicCallback(
+        request_reconcile, RECONCILE_PERIOD_SECONDS * 1000)
+    reconciler.start()
     io_loop.start()

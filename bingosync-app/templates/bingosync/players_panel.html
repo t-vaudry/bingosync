@@ -8,7 +8,7 @@
         <div id="players-panel">
             {% for player in room.connected_players %}
                 {% if not player.is_spectator %}
-                <div id="{{ player.encoded_uuid }}" class="player-panel-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}" data-role="{{ player.role }}" data-monitoring-player-uuid="{% if player.monitoring_player %}{{ player.monitoring_player.encoded_uuid }}{% endif %}">
+                <div id="{{ player.encoded_uuid }}" class="player-panel-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}" data-role="{{ player.role }}" data-monitoring-color="{% if player.monitoring_color %}{{ player.monitoring_color.name }}{% endif %}">
                     <span class="goalcounter {{ player.color.goal_class }}">
                         <span class="squarecounter" title="Squares with color.">0</span>
                         <span class="rowcounter" title="Rows with color.">(0)</span>
@@ -23,9 +23,9 @@
                             [C]
                         {% endif %}
                     </span>
-                    {% if player.role == 'counter' and player.monitoring_player %}
-                    <span class="counter-assignment-badge" title="Monitoring {{ player.monitoring_player.name }}">
-                        → {{ player.monitoring_player.name }}
+                    {% if player.role == 'counter' and player.monitoring_color %}
+                    <span class="counter-assignment-badge" title="Counting {{ room|color_label:player.monitoring_color }}">
+                        → {{ room|color_label:player.monitoring_color }}
                     </span>
                     {% endif %}
                 </div>

@@ -87,7 +87,7 @@ class FogOfWarRoleTestCase(TestCase):
             name='Counter1',
             role=Role.COUNTER,
             color_value=Color.blue.value,
-            monitoring_player=self.player
+            monitoring_color_value=self.player.color_value
         )
 
         self.gamemaster = Player.objects.create(

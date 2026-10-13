@@ -74,6 +74,7 @@ var Board = (function(){
 
     var Square = function($square) {
         this.$square = $square;
+        this.colors = [];
         this.hidden = $square.hidden;
         this.$square.on("click", this.onClick);
     };
@@ -81,6 +82,7 @@ var Board = (function(){
     Square.prototype.setColors = function(colors) {
         this.$square.children('.bg-color').remove();
         colors = colors.split(' ');
+        this.colors = colors;
         var shadow = this.$square.children('.shadow');
         colors = sortColors(colors);
         this.$square.attr("title", colors.join("\n"));
@@ -102,6 +104,7 @@ var Board = (function(){
         this.$square.children(".text-container").text(json["name"]);
         this.tier = json["tier"];
         setSquareColors(this.$square, json["colors"]);
+        this.colors = json["colors"].split(' ');
         this.setClaim(json["claim_status"], json["claimed_by"]);
     };
 

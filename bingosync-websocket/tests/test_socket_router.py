@@ -91,6 +91,22 @@ class SocketRouterTestCase(unittest.TestCase):
         post_connect.assert_called_once_with("player")  # no second "connected"
         self.assertEqual(list(self.router.all_sockets), [new_page])
 
+    def test_connected_list_includes_players_reloading_the_page(
+            self, post_connect, post_disconnect):
+        # Django's reconcile disconnects anyone missing from this list, so a
+        # player inside the grace period must still be on it.
+        staying, reloading = FakeSocket(), FakeSocket()
+        self.router.register("room", "stayer", staying)
+        self.router.register("room", "reloader", reloading)
+        self.router.unregister(reloading)
+
+        self.assertEqual(self.router.connected_players_by_room(),
+                         {"room": ["reloader", "stayer"]})
+
+        self._let_grace_period_pass()
+        self.assertEqual(self.router.connected_players_by_room(),
+                         {"room": ["stayer"]})
+
     def test_broadcast_to_room_without_sockets_creates_no_entry(
             self, post_connect, post_disconnect):
         self.router.send_to_room("nobody-here", "msg")

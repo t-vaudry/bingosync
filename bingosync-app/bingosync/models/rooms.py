@@ -199,6 +199,17 @@ class Room(models.Model):
             "seed": game.seed,
         }
 
+    def players_with_color(self, color):
+        """Connected players (Player role) currently using `color`."""
+        return [player for player in self.connected_players
+                if player.role == Role.PLAYER and player.color == color]
+
+    def color_label(self, color):
+        """How to name a color: its player's name when exactly one connected
+        player uses it, otherwise the color's name."""
+        players = self.players_with_color(color)
+        return players[0].name if len(players) == 1 else color.name
+
     @property
     def has_gamemaster(self):
         return Player.objects.filter(room=self, role=Role.GAMEMASTER).exists()
@@ -472,13 +483,13 @@ class Player(models.Model):
         choices=Role.choices,
         default=Role.PLAYER
     )
-    monitoring_player = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
+    # Colors claim squares; players are associated with a color. A counter
+    # reviews a color's goals, whoever marked them.
+    monitoring_color_value = models.IntegerField(
         null=True,
         blank=True,
-        related_name='counters',
-        help_text="For Counter role: the player being monitored"
+        choices=Color.goal_choices(),
+        help_text="For Counter role: the color being counted"
     )
 
     class Meta:
@@ -535,18 +546,22 @@ class Player(models.Model):
             self.save()
         return color_event
 
+    @property
+    def monitoring_color(self):
+        """The color a counter is counting, or None."""
+        if not self.monitoring_color_value:
+            return None
+        return Color.for_value(self.monitoring_color_value)
+
     def to_json(self):
-        monitoring_uuid = (
-            self.monitoring_player.encoded_uuid
-            if self.monitoring_player else None
-        )
+        monitoring_color = self.monitoring_color
         return {
             "uuid": self.encoded_uuid,
             "name": self.name,
             "color": self.color.name,
             "is_spectator": self.is_spectator,
             "role": self.role,
-            "monitoring_player_uuid": monitoring_uuid,
+            "monitoring_color": monitoring_color.name if monitoring_color else None,
             "is_logged_in": self.user is not None
         }
 

@@ -30,6 +30,33 @@ var PlayersPanel = (function(){
         return players;
     };
 
+    // Colors claim squares; players are associated with a color. The colors
+    // in use, each labelled with its player's name when exactly one player
+    // uses it, otherwise with the color's name.
+    PlayersPanel.prototype.getColorGroups = function() {
+        var groups = {};
+        var order = [];
+        this.getPlayers().forEach(function(player) {
+            if (!player.color) {
+                return;
+            }
+            if (!groups[player.color]) {
+                groups[player.color] = [];
+                order.push(player.color);
+            }
+            groups[player.color].push(player.name);
+        });
+        return order.map(function(color) {
+            var names = groups[color];
+            return {color: color, label: names.length === 1 ? names[0] : color, players: names};
+        });
+    };
+
+    PlayersPanel.prototype.colorLabel = function(color) {
+        var group = this.getColorGroups().filter(function(g) { return g.color === color; })[0];
+        return group ? group.label : color;
+    };
+
     PlayersPanel.prototype._notifyChange = function() {
         if (this.onChange) {
             this.onChange();
@@ -59,7 +86,7 @@ var PlayersPanel = (function(){
             var roleBadgeText = $roleBadge.text().trim();
             var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
             var role = $playerEntry.attr('data-role') || 'player';
-            var monitoringPlayerUuid = $playerEntry.attr('data-monitoring-player-uuid') || null;
+            var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
             
             // Determine role from badge if not in data attribute
             if (!$playerEntry.attr('data-role')) {
@@ -78,7 +105,7 @@ var PlayersPanel = (function(){
                 name: playerName,
                 role: role,
                 is_logged_in: isLoggedIn,
-                monitoring_player_uuid: monitoringPlayerUuid
+                monitoring_color: monitoringColor
             };
             
             // Add management buttons if current player is gamemaster or counter
@@ -125,7 +152,7 @@ var PlayersPanel = (function(){
                 var roleBadgeText = $roleBadge.text().trim();
                 var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
                 var role = $playerEntry.attr('data-role') || 'player';
-                var monitoringPlayerUuid = $playerEntry.attr('data-monitoring-player-uuid') || null;
+                var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
                 
                 // Determine role from badge if not in data attribute
                 if (!$playerEntry.attr('data-role')) {
@@ -144,7 +171,7 @@ var PlayersPanel = (function(){
                     name: playerName,
                     role: role,
                     is_logged_in: isLoggedIn,
-                    monitoring_player_uuid: monitoringPlayerUuid
+                    monitoring_color: monitoringColor
                 };
                 
                 // Add management buttons
@@ -185,10 +212,10 @@ var PlayersPanel = (function(){
             // Update data attributes
             $playerEntry.attr('data-role', playerJson["role"]);
             $playerEntry.attr('data-is-logged-in', playerJson["is_logged_in"] ? 'true' : 'false');
-            if (playerJson["monitoring_player_uuid"]) {
-                $playerEntry.attr('data-monitoring-player-uuid', playerJson["monitoring_player_uuid"]);
+            if (playerJson["monitoring_color"]) {
+                $playerEntry.attr('data-monitoring-color', playerJson["monitoring_color"]);
             } else {
-                $playerEntry.removeAttr('data-monitoring-player-uuid');
+                $playerEntry.removeAttr('data-monitoring-color');
             }
             
             // Check if role changed (e.g., player became spectator or vice versa)
@@ -234,27 +261,17 @@ var PlayersPanel = (function(){
         // Set data attributes for role and monitoring
         playerDiv.attr('data-role', playerJson["role"]);
         playerDiv.attr('data-is-logged-in', playerJson["is_logged_in"] ? 'true' : 'false');
-        if (playerJson["monitoring_player_uuid"]) {
-            playerDiv.attr('data-monitoring-player-uuid', playerJson["monitoring_player_uuid"]);
+        if (playerJson["monitoring_color"]) {
+            playerDiv.attr('data-monitoring-color', playerJson["monitoring_color"]);
         }
         
         playerDiv.append(goalCounter);
         playerDiv.append(playerName);
         playerDiv.append(roleBadge);
         
-        // Add counter assignment badge if this is a counter with an assignment
-        if (playerJson["role"] === "counter" && playerJson["monitoring_player_uuid"]) {
-            // Find the monitored player's name
-            var $monitoredPlayer = this.$playersPanel.find("#" + playerJson["monitoring_player_uuid"]);
-            if ($monitoredPlayer.length > 0) {
-                var monitoredPlayerName = $monitoredPlayer.find('.playername').text().trim();
-                var assignmentBadge = $("<span>", {
-                    "class": "counter-assignment-badge",
-                    "title": "Monitoring " + monitoredPlayerName,
-                    "text": " → " + monitoredPlayerName
-                });
-                playerDiv.append(assignmentBadge);
-            }
+        // Add counter assignment badge if this is a counter counting a color
+        if (playerJson["role"] === "counter" && playerJson["monitoring_color"]) {
+            playerDiv.append(this._counterBadge(this.colorLabel(playerJson["monitoring_color"])));
         }
         
         // Add role management button if current player is gamemaster
@@ -546,48 +563,34 @@ var PlayersPanel = (function(){
 
     PlayersPanel.prototype._showCounterAssignmentDialog = function(counterPlayerJson) {
         var self = this;
-        
-        // Get list of players (not spectators, counters, or gamemaster)
-        var players = [];
-        this.$playersPanel.find('.player-panel-entry').each(function() {
-            var $entry = $(this);
-            var role = $entry.attr('data-role') || 'player';
-            
-            // Only include players with Player role
-            if (role === 'player') {
-                var playerUuid = $entry.attr('id');
-                var playerName = $entry.find('.playername').text().trim();
-                players.push({
-                    uuid: playerUuid,
-                    name: playerName
-                });
-            }
-        });
-        
-        if (players.length === 0) {
-            alert("No players available to monitor. Only players with Player role can be monitored.");
+
+        // Colors claim squares, so counters count a color
+        var groups = this.getColorGroups();
+        if (groups.length === 0) {
+            alert("No players to count yet. Counters count the colors players are using.");
             return;
         }
-        
+
         var dialogHtml = '<div class="counter-assignment-dialog">';
-        dialogHtml += '<p>Assign <strong class="counter-name-display"></strong> to monitor:</p>';
-        dialogHtml += '<select class="form-control player-select">';
-        dialogHtml += '<option value="null">-- Unassign --</option>';
-        
-        players.forEach(function(player) {
-            var selected = player.uuid === counterPlayerJson.monitoring_player_uuid ? ' selected' : '';
-            dialogHtml += '<option value="' + player.uuid + '"' + selected + '>' + player.name + '</option>';
-        });
-        
-        dialogHtml += '</select>';
+        dialogHtml += '<p><strong class="counter-name-display"></strong> counts:</p>';
+        dialogHtml += '<select class="form-control player-select"></select>';
         dialogHtml += '<div class="m-t-s">';
         dialogHtml += '<button class="btn btn-primary btn-sm confirm-assignment">Confirm</button> ';
         dialogHtml += '<button class="btn btn-default btn-sm cancel-assignment">Cancel</button>';
         dialogHtml += '</div>';
         dialogHtml += '</div>';
-        
+
         var $dialog = $(dialogHtml);
         $dialog.find('.counter-name-display').text(counterPlayerJson["name"]);
+        var $select = $dialog.find('.player-select');
+        $select.append($('<option>', {value: 'null', text: '-- Nobody --'}));
+        groups.forEach(function(group) {
+            $select.append($('<option>', {
+                value: group.color,
+                text: group.label === group.color ? group.color : group.label + ' (' + group.color + ')',
+                selected: group.color === counterPlayerJson.monitoring_color
+            }));
+        });
         var $overlay = $('<div class="counter-assignment-overlay"></div>');
         
         $('body').append($overlay);
@@ -595,8 +598,8 @@ var PlayersPanel = (function(){
         
         // Handle confirm
         $dialog.find('.confirm-assignment').on('click', function() {
-            var monitoredPlayerUuid = $dialog.find('.player-select').val();
-            self._assignCounter(counterPlayerJson["uuid"], monitoredPlayerUuid);
+            var color = $dialog.find('.player-select').val();
+            self._assignCounter(counterPlayerJson["uuid"], color === 'null' ? null : color);
             $dialog.remove();
             $overlay.remove();
         });
@@ -614,9 +617,9 @@ var PlayersPanel = (function(){
         });
     };
 
-    PlayersPanel.prototype._assignCounter = function(counterPlayerUuid, monitoredPlayerUuid) {
+    PlayersPanel.prototype._assignCounter = function(counterPlayerUuid, color) {
         var roomUuid = window.sessionStorage.getItem("room");
-        
+
         $.ajax({
             url: "/api/assign-counter",
             type: "POST",
@@ -624,7 +627,7 @@ var PlayersPanel = (function(){
             data: JSON.stringify({
                 room: roomUuid,
                 counter_player_uuid: counterPlayerUuid,
-                monitored_player_uuid: monitoredPlayerUuid
+                monitored_color: color
             }),
             success: function() {
                 console.log("Counter assigned successfully");
@@ -639,28 +642,29 @@ var PlayersPanel = (function(){
         console.log("handleCounterAssignment called", assignmentJson);
         
         var counterPlayer = assignmentJson["counter_player"];
-        var monitoredPlayer = assignmentJson["monitored_player"];
-        
+        var color = assignmentJson["monitored_color"];
+
         // Update the counter player's entry
         var $counterEntry = this.$playersPanel.find("#" + counterPlayer["uuid"]);
-        
-        // Remove existing assignment badge
-        $counterEntry.find('.counter-assignment-badge').remove();
-        
-        // Add new assignment badge if assigned
-        if (monitoredPlayer) {
-            var badge = $("<span>", {
-                "class": "counter-assignment-badge",
-                "title": "Monitoring " + monitoredPlayer["name"],
-                "text": " → " + monitoredPlayer["name"]
-            });
-            $counterEntry.find('.player-role-badge').after(badge);
+        if (color) {
+            $counterEntry.attr('data-monitoring-color', color);
+        } else {
+            $counterEntry.removeAttr('data-monitoring-color');
         }
-        
-        // Show notification
-        var message = counterPlayer["name"] + " is now monitoring " + 
-                     (monitoredPlayer ? monitoredPlayer["name"] : "no one");
-        console.log(message);
+
+        // Replace the assignment badge
+        $counterEntry.find('.counter-assignment-badge').remove();
+        if (color) {
+            $counterEntry.find('.player-role-badge').after(this._counterBadge(assignmentJson["monitored_label"] || color));
+        }
+    };
+
+    PlayersPanel.prototype._counterBadge = function(label) {
+        return $("<span>", {
+            "class": "counter-assignment-badge",
+            "title": "Counting " + label,
+            "text": " → " + label
+        });
     };
 
     PlayersPanel.prototype.handleRoleChange = function(roleChangeJson) {

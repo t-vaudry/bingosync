@@ -239,28 +239,33 @@ class RoleChangeEvent(Event):
 
 
 class CounterAssignmentEvent(Event):
-    """Event for tracking counter assignments to players."""
+    """Event for tracking which color a counter is counting."""
     counter_player = models.ForeignKey(
         "bingosync.Player",
         on_delete=models.CASCADE,
         related_name='counter_assignments_made')
-    monitored_player = models.ForeignKey(
-        "bingosync.Player",
-        on_delete=models.CASCADE,
-        related_name='counter_assignments_received',
-        null=True,
-        blank=True)  # Null means unassignment
+    monitored_color_value = models.IntegerField(
+        null=True, blank=True)  # Null means unassignment
+
+    @property
+    def monitored_color(self):
+        if not self.monitored_color_value:
+            return None
+        return Color.for_value(self.monitored_color_value)
 
     class Meta(Event.Meta):
         indexes = [models.Index(fields=['timestamp'])]
 
     def to_json(self):
+        color = self.monitored_color
         return {
             "type": "counter_assignment",
             "player": self.player.to_json(),  # The gamemaster or counter who made the assignment
             "player_color": self.player_color.name,
             "counter_player": self.counter_player.to_json(),
-            "monitored_player": self.monitored_player.to_json() if self.monitored_player else None,
+            "monitored_color": color.name if color else None,
+            # Player's name if exactly one player uses the color, else its name
+            "monitored_label": self.player.room.color_label(color) if color else None,
             "timestamp": self.json_timestamp
         }
 
@@ -281,7 +286,9 @@ class ClaimReviewEvent(Event):
         "bingosync.Player",
         on_delete=models.CASCADE,
         related_name='claim_reviews_received',
-        help_text="Player whose claim was reviewed"
+        null=True,
+        blank=True,
+        help_text="Player who last marked the reviewed square, if known"
     )
 
     class Meta(Event.Meta):
@@ -294,7 +301,7 @@ class ClaimReviewEvent(Event):
             "player_color": self.player_color.name,
             "square": self.square.to_json(),
             "action": self.action,
-            "reviewed_player": self.reviewed_player.to_json(),
+            "reviewed_player": self.reviewed_player.to_json() if self.reviewed_player else None,
             "timestamp": self.json_timestamp
         }
 
