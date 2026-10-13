@@ -1,12 +1,15 @@
 /**
- * Counter UI.
+ * Counter UI. Colors claim squares; players are associated with a color, so
+ * a counter counts a color.
  *
- * - "Counting For" (above the board): one button per player, in their color
- *   and labelled with their name. Clicking one switches who you count for.
- * - Marks are approved by default. Right-clicking one of your player's goals
- *   puts it in review; right-clicking it again takes it back out. (For a
- *   counter this replaces starring goals.)
- * - The review list shows that player's goals in review, each with Approve
+ * - "Counting For" (above the board): one button per color in use, labelled
+ *   with its player's name when exactly one player has it, otherwise with
+ *   the color's name. Clicking one switches the color you count (and you
+ *   take on that color).
+ * - Marks are approved by default. Right-clicking a goal of your color puts
+ *   it in review; right-clicking it again takes it back out. (For a counter
+ *   this replaces starring goals.)
+ * - The review list shows your color's goals in review, each with Approve
  *   (take it out of review) and Reject (remove the mark).
  *
  * The review list is derived from the board's squares, so it stays in step
@@ -26,7 +29,7 @@ var Counter = (function() {
     var Counter = function(roomUuid, counterJson, board, playersPanel) {
         this.roomUuid = roomUuid;
         this.counterUuid = counterJson.uuid;
-        this.monitoringUuid = counterJson.monitoring_player_uuid || null;
+        this.monitoringColor = counterJson.monitoring_color || null;
         this.board = board;
         this.playersPanel = playersPanel;
         this.history = [];
@@ -48,24 +51,29 @@ var Counter = (function() {
 
     Counter.prototype.renderTargets = function() {
         var that = this;
-        var players = this.playersPanel.getPlayers();
+        var groups = this.playersPanel.getColorGroups();
+        // Keep the color you're counting listed even once nobody's using it
+        if (this.monitoringColor && !groups.some(function(g) { return g.color === that.monitoringColor; })) {
+            groups.push({color: this.monitoringColor, label: this.monitoringColor, players: []});
+        }
         this.$targets.empty();
-        if (players.length === 0) {
+        if (groups.length === 0) {
             this.$targets.append($('<span>', {"class": "history-placeholder", text: "No players in the room yet"}));
             return;
         }
-        players.forEach(function(player) {
-            var chosen = player.uuid === that.monitoringUuid;
+        groups.forEach(function(group) {
+            var chosen = group.color === that.monitoringColor;
+            var who = group.players.length > 1 ? " (" + group.players.join(", ") + ")" : "";
             $('<div>', {
-                "class": "btn color-chooser counter-target " + getSquareColorClass(player.color) + (chosen ? " chosen-color" : ""),
-                "title": chosen ? "Counting for " + player.name : "Count for " + player.name,
-                "text": player.name
-            }).on("click", function() { that.countFor(player.uuid); }).appendTo(that.$targets);
+                "class": "btn color-chooser counter-target " + getSquareColorClass(group.color) + (chosen ? " chosen-color" : ""),
+                "title": (chosen ? "Counting " : "Count ") + group.label + who,
+                "text": group.label
+            }).on("click", function() { that.countColor(group.color); }).appendTo(that.$targets);
         });
     };
 
-    Counter.prototype.countFor = function(playerUuid) {
-        if (playerUuid === this.monitoringUuid) {
+    Counter.prototype.countColor = function(color) {
+        if (color === this.monitoringColor) {
             return;
         }
         $.ajax({
@@ -75,9 +83,9 @@ var Counter = (function() {
             data: JSON.stringify({
                 room: this.roomUuid,
                 counter_player_uuid: this.counterUuid,
-                monitored_player_uuid: playerUuid
+                monitored_color: color
             }),
-            error: function(xhr) { alert("Couldn't switch players: " + xhr.responseText); }
+            error: function(xhr) { alert("Couldn't switch colors: " + xhr.responseText); }
         });
     };
 
@@ -87,17 +95,21 @@ var Counter = (function() {
         if (json.counter_player.uuid !== this.counterUuid) {
             return;
         }
-        this.monitoringUuid = json.monitored_player ? json.monitored_player.uuid : null;
+        this.monitoringColor = json.monitored_color || null;
         this.renderTargets();
         this.renderReviewList();
     };
 
     // --- Review ---------------------------------------------------------
 
+    Counter.prototype.hasMyColor = function(square) {
+        return !!this.monitoringColor && square.colors.indexOf(this.monitoringColor) !== -1;
+    };
+
     Counter.prototype.toggleReview = function(slot) {
         var square = this.board.squares[slot - 1];
-        // Only goals marked by the player you're counting for
-        if (!square || !this.monitoringUuid || square.claimedBy !== this.monitoringUuid) {
+        // Only goals of the color you're counting, whoever marked them
+        if (!square || !this.hasMyColor(square)) {
             return;
         }
         if (IN_REVIEW.indexOf(square.claimStatus) !== -1) {
@@ -132,18 +144,18 @@ var Counter = (function() {
     Counter.prototype.renderReviewList = function() {
         var that = this;
         this.$reviewList.empty();
-        if (!this.monitoringUuid) {
-            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Choose who you're counting for above the board."}));
+        if (!this.monitoringColor) {
+            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Choose what you're counting above the board."}));
             return;
         }
         var slots = [];
         this.board.squares.forEach(function(square, i) {
-            if (square.claimedBy === that.monitoringUuid && IN_REVIEW.indexOf(square.claimStatus) !== -1) {
+            if (that.hasMyColor(square) && IN_REVIEW.indexOf(square.claimStatus) !== -1) {
                 slots.push(i + 1);
             }
         });
         if (slots.length === 0) {
-            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Nothing in review. Right-click one of their goals to review it."}));
+            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Nothing in review. Right-click one of your color's goals to review it."}));
             return;
         }
         slots.forEach(function(slot) { that.$reviewList.append(that.reviewItem(slot)); });

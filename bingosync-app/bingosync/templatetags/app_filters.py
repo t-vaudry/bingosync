@@ -35,3 +35,10 @@ def format_js_val(value):
 @register.filter
 def jsonify(d):
     return json.dumps(d)
+
+
+@register.filter
+def color_label(room, color):
+    """A color's name in the room: its player's name when exactly one player
+    uses it, otherwise the color's name (see Room.color_label)."""
+    return room.color_label(color)

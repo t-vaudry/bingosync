@@ -1,10 +1,11 @@
 """
 Tests for counter claim review.
 
-Marks are approved by default and count immediately. A counter can put a
-goal marked by the player they count for in review (right-click on the
-board), take it back out (approve), or reject it, which removes the mark and
-takes back what it counted for.
+Colors claim squares; players are associated with a color, and a counter
+counts a color. Marks are approved by default and count immediately. A
+counter can put a goal of their color in review (right-click on the board),
+whoever marked it, take it back out (approve), or reject it, which removes
+the color from the square and takes back what it counted for.
 """
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
@@ -54,8 +55,8 @@ class ClaimReviewTestBase(TestCase):
             role=Role.PLAYER, color_value=Color.red.value)
         self.counter = Player.objects.create(
             room=self.room, user=self.counter_user, name='Counter1',
-            role=Role.COUNTER, color_value=Color.blue.value,
-            monitoring_player=self.player)
+            role=Role.COUNTER, color_value=Color.red.value,
+            monitoring_color_value=Color.red.value)
 
         self.player_client = self._client_for(self.player)
         self.counter_client = self._client_for(self.counter)
@@ -68,13 +69,23 @@ class ClaimReviewTestBase(TestCase):
         session.save()
         return client
 
-    def _mark(self, slot):
-        response = self.player_client.put(
+    def _mark(self, slot, player=None):
+        player = player or self.player
+        client = (self.player_client if player == self.player
+                  else self._client_for(player))
+        response = client.put(
             '/api/select',
             data=json.dumps({'room': self.room.encoded_uuid, 'slot': slot,
-                             'color': 'red', 'remove_color': False}),
+                             'color': player.color.name, 'remove_color': False}),
             content_type='application/json')
         self.assertEqual(response.status_code, 200, response.content)
+
+    def _join(self, username, color, role=Role.PLAYER):
+        user = User.objects.create_user(
+            username=username, email=f'{username}@test.com', password='testpass123')
+        return Player.objects.create(
+            room=self.room, user=user, name=username, role=role,
+            color_value=color.value)
 
     def _review(self, slot, action, client=None):
         return (client or self.counter_client).post(
@@ -173,21 +184,30 @@ class ClaimReviewEndpointTest(ClaimReviewTestBase):
         response = self._review(4, 'under_review', client=self.player_client)
         self.assertEqual(response.status_code, 403)
 
-    def test_counter_cannot_review_unassigned_player_claim(self):
-        other_user = User.objects.create_user(
-            username='player2', email='player2@test.com', password='testpass123')
-        other_player = Player.objects.create(
-            room=self.room, user=other_user, name='Player2',
-            role=Role.PLAYER, color_value=Color.green.value)
-        square = self._square(5)
-        square.claimed_by = other_player
-        square.claim_status = 'confirmed'
-        square_color = square.color
-        square_color.add(other_player.color)
-        square.color = square_color
-        square.save()
-
+    def test_counter_cannot_review_another_colors_goal(self):
+        green = self._join('player2', Color.green)
+        self._mark(5, player=green)
         self.assertEqual(self._review(5, 'under_review').status_code, 403)
+
+    def test_counter_reviews_their_color_whoever_marked_it(self):
+        # Colors claim squares: a second red player (or the same person
+        # rejoining as a new player) marks a red goal; the red counter
+        # reviews it like any other red goal.
+        teammate = self._join('player2', Color.red)
+        self._mark(8, player=teammate)
+        self.assertEqual(self._review(8, 'under_review').status_code, 200)
+        self.assertEqual(self._review(8, 'reject').status_code, 200)
+        self.assertNotIn(Color.red, self._square(8).color.colors)
+
+    def test_rejecting_leaves_other_colors_on_the_square(self):
+        green = self._join('player2', Color.green)
+        self._mark(9)                 # red
+        self._mark(9, player=green)   # and green (non-lockout)
+        self._review(9, 'under_review')
+        self._review(9, 'reject')
+        square = self._square(9)
+        self.assertEqual(square.color.colors, [Color.green])
+        self.assertEqual(square.claim_status, 'confirmed')  # green still counts
 
     def test_invalid_action_rejected(self):
         self._mark(6)
@@ -252,9 +272,68 @@ class LockoutReviewTest(ClaimReviewTestBase):
 
     def test_win_detection_counts_goals_in_review(self):
         for slot in range(1, 14):
-            square = self._square(slot)
-            square.claimed_by = self.player
-            square.claim_status = 'under_review' if slot == 13 else 'confirmed'
-            square.save()
+            self.game.update_goal(
+                self.player, slot, self.player.color, False,
+                claim_status='under_review' if slot == 13 else 'confirmed')
         self.assertEqual(
             check_and_record_lockout_win(self.game, self.player), self.player)
+
+    def test_players_sharing_a_color_win_together(self):
+        # Colors claim squares: two red players reach 13 between them
+        teammate = self._join('player2', Color.red)
+        other = self._join('player3', Color.green)
+        for slot in range(1, 8):
+            self._mark(slot)
+        for slot in range(8, 14):
+            self._mark(slot, player=teammate)
+
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.winner)
+        for player, field, expected in ((self.player, 'wins', 1),
+                                        (teammate, 'wins', 1),
+                                        (other, 'losses', 1)):
+            player.user.refresh_from_db()
+            self.assertEqual(getattr(player.user, field), expected, player.name)
+        # Named by color: two players share it
+        self.assertTrue(ChatEvent.objects.filter(
+            body__contains="red reached 13 goals").exists())
+
+
+class CountingAColorTest(ClaimReviewTestBase):
+
+    def _assign(self, color, client=None):
+        return (client or self.counter_client).post(
+            '/api/assign-counter',
+            data=json.dumps({'room': self.room.encoded_uuid,
+                             'counter_player_uuid': self.counter.encoded_uuid,
+                             'monitored_color': color}),
+            content_type='application/json')
+
+    def test_counter_takes_on_the_color_they_count(self):
+        green = self._join('player2', Color.green)
+        self.assertEqual(self._assign('green').status_code, 200)
+        self.counter.refresh_from_db()
+        self.assertEqual(self.counter.monitoring_color, Color.green)
+        self.assertEqual(self.counter.color, Color.green)
+        # Named after the color's only player
+        self.assertTrue(ChatEvent.objects.filter(
+            body__contains=f"is now counting {green.name}").exists())
+
+    def test_color_shared_by_players_is_named_by_color(self):
+        self._join('player2', Color.red)
+        self._assign('red')
+        self.assertTrue(ChatEvent.objects.filter(
+            body__contains="is now counting red").exists())
+
+    def test_blank_and_unknown_colors_are_refused(self):
+        self.assertEqual(self._assign('blank').status_code, 400)
+        self.assertEqual(self._assign('chartreuse').status_code, 400)
+
+    def test_line_is_credited_once_per_color(self):
+        teammate = self._join('player2', Color.red)
+        for slot in range(1, 5):
+            self._mark(slot)
+        self._mark(5, player=teammate)  # completes row 1 for red
+        self._mark(6, player=teammate)  # a later red mark finds it done
+        self.assertEqual(CompletedLine.objects.filter(
+            game=self.game, line='row-0').count(), 1)

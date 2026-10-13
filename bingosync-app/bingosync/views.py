@@ -13,7 +13,9 @@ from django.db.models.functions import Greatest
 from django.template import loader
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.utils import timezone
 
+import datetime
 import json
 import requests
 import logging
@@ -58,6 +60,10 @@ from bingosync.permissions import check_permission, can_generate_board
 from crispy_forms.layout import Layout, Field
 
 logger = logging.getLogger(__name__)
+
+# reconcile_connections leaves alone players who joined or (re)connected
+# within this long, since their socket may not be registered yet.
+RECONCILE_GRACE = datetime.timedelta(seconds=30)
 
 
 def redirect_params(url, params=None, **kwargs):
@@ -843,39 +849,43 @@ def create_system_chat_message(player, room, message_text, is_counter_message=Fa
 
 
 def check_and_record_lockout_win(game, player):
-    """Record a lockout win if `player` has just reached the winning threshold.
+    """Record a lockout win if `player`'s color has just reached the threshold.
 
-    In lockout a square belongs to exactly one player, so the win condition is
-    simply being first to a majority of counted squares (13 on a 5x5); squares
-    a counter has put in review still count (COUNTED_CLAIM_STATUSES).
-    Safe to call after any square is marked: it no-ops outside lockout,
-    once a game already has a winner, or before the threshold is met. On a win
-    it records the winner once, updates win/loss stats, and announces it in chat.
+    Colors claim squares; players are associated with a color, and players
+    sharing one play as one. In lockout a square holds a single color, so the
+    win condition is a color being first to a majority of counted squares (13
+    on a 5x5); squares a counter has put in review still count
+    (COUNTED_CLAIM_STATUSES). Safe to call after any square is marked: it
+    no-ops outside lockout, once a game already has a winner, or before the
+    threshold is met. On a win it records the winner (the player whose mark
+    won it) once, updates win/loss stats for every player, and announces it.
 
     Returns the winning Player, or None.
     """
     if game.lockout_mode != LockoutMode.lockout or game.winner_id is not None:
         return None
 
+    color = player.color
     threshold = _lockout_threshold(game)
-    if _counted_square_count(game, player) < threshold:
+    if _counted_square_count(game, color) < threshold:
         return None
 
     with transaction.atomic():
         game.winner = player
         game.save(update_fields=['winner'])
-        _record_win_loss(game, player)
+        _record_win_loss(game, color)
 
+    label = game.room.color_label(color)
     create_system_chat_message(
         player, game.room,
-        f"{player.name} reached {threshold} goals and won the game!")
+        f"{label} reached {threshold} goals and won the game!")
 
     # Transient celebration signal for the winner pop-up (the chat message
     # above is the persistent record; this drives the confetti overlay).
     from bingosync.publish import _publish_json
     _publish_json({
         "type": "game_won",
-        "winner": player.name,
+        "winner": label,
         "goals": threshold,
     }, game.room)
     return player
@@ -886,15 +896,17 @@ def _lockout_threshold(game):
     return game.size * game.size // 2 + 1
 
 
-def _counted_square_count(game, player):
-    """How many squares `player` holds that count toward a lockout win."""
-    return Square.objects.filter(
-        game=game, claimed_by=player,
-        claim_status__in=COUNTED_CLAIM_STATUSES).count()
+def _counted_square_count(game, color):
+    """How many squares `color` holds that count toward a lockout win."""
+    return sum(
+        1 for square in Square.objects.filter(
+            game=game, claim_status__in=COUNTED_CLAIM_STATUSES)
+        if color in square.color.colors)
 
 
-def _record_win_loss(game, winner, delta=1):
-    """Give the winner a win and every other logged-in Player a loss.
+def _record_win_loss(game, winning_color, delta=1):
+    """Give every logged-in Player of the winning color a win and every other
+    logged-in Player a loss.
 
     Only Player-role participants with a linked account are scored; spectators,
     counters, and the gamemaster are not. `delta=-1` takes them back again
@@ -903,7 +915,7 @@ def _record_win_loss(game, winner, delta=1):
     scored_players = Player.objects.filter(
         room=game.room, role=Role.PLAYER).exclude(user__isnull=True)
     for scored in scored_players:
-        field = 'wins' if scored.id == winner.id else 'losses'
+        field = 'wins' if scored.color == winning_color else 'losses'
         User.objects.filter(pk=scored.user_id).update(**{field: F(field) + delta})
 
 
@@ -928,10 +940,11 @@ def check_and_record_bingos(game, player):
 
     A line counts only when all of its squares are counted marks in the
     player's color (confirmed or in review; rejected/unmarked squares don't
-    count), and each line is credited exactly once via the CompletedLine
-    unique constraint. Increments
-    the player's total_bingos_completed. Applies in both lockout and
-    non-lockout. Returns the number of newly completed lines.
+    count). A line belongs to the color, so it's credited once per color, to
+    the player whose mark completed it; teammates sharing the color (or the
+    same person rejoining as a new player) aren't credited it again.
+    Increments the player's total_bingos_completed. Applies in both lockout
+    and non-lockout. Returns the number of newly completed lines.
     """
     if not player or player.is_spectator:
         return 0
@@ -945,7 +958,9 @@ def check_and_record_bingos(game, player):
     }
 
     already = set(
-        CompletedLine.objects.filter(game=game, player=player)
+        CompletedLine.objects.filter(
+            game=game, player__room=game.room,
+            player__color_value=player_color.value)
         .values_list('line', flat=True))
 
     new_lines = [
@@ -970,39 +985,47 @@ def _record_square_marked(player):
             total_squares_marked=F('total_squares_marked') + 1)
 
 
-def _revoke_rejected_goal(game, player, slot):
+def _revoke_rejected_goal(game, color, marker, slot):
     """Take back what a counted mark earned, once a counter rejects it.
 
-    The square has already been cleared. Removes it from the player's
-    lifetime square total, drops any bingo line through it (and that bingo
-    from their total), and withdraws a lockout win that no longer holds.
+    `color` has already been removed from the square. Takes the square off
+    its marker's lifetime total, drops the color's bingo lines through it
+    (and those bingos from the totals of whoever was credited), and
+    withdraws a lockout win that no longer holds.
     """
-    if player.user_id:
+    if marker and marker.user_id and marker.color == color:
         User.objects.filter(
-            pk=player.user_id, total_squares_marked__gt=0).update(
+            pk=marker.user_id, total_squares_marked__gt=0).update(
             total_squares_marked=F('total_squares_marked') - 1)
 
     lines_through_slot = [
         key for key, slots in _board_lines(game.size) if slot in slots]
-    removed, _ = CompletedLine.objects.filter(
-        game=game, player=player, line__in=lines_through_slot).delete()
-    if removed and player.user_id:
-        User.objects.filter(pk=player.user_id).update(
+    broken_lines = CompletedLine.objects.filter(
+        game=game, player__room=game.room, player__color_value=color.value,
+        line__in=lines_through_slot)
+    removed_per_user = {}
+    for user_id in broken_lines.values_list('player__user_id', flat=True):
+        if user_id:
+            removed_per_user[user_id] = removed_per_user.get(user_id, 0) + 1
+    broken_lines.delete()
+    for user_id, removed in removed_per_user.items():
+        User.objects.filter(pk=user_id).update(
             total_bingos_completed=Greatest(
                 F('total_bingos_completed') - removed, 0))
 
-    if game.winner_id == player.id:
-        remaining = _counted_square_count(game, player)
+    winner = game.winner
+    if winner is not None and winner.color == color:
+        remaining = _counted_square_count(game, color)
         if remaining < _lockout_threshold(game):
             with transaction.atomic():
                 game.winner = None
                 game.save(update_fields=['winner'])
                 # Reverses the win/loss given to the room's current Players.
-                _record_win_loss(game, player, delta=-1)
+                _record_win_loss(game, color, delta=-1)
             create_system_chat_message(
-                player, game.room,
-                f"{player.name}'s win was withdrawn after a rejected claim "
-                f"({remaining} goals).")
+                winner, game.room,
+                f"{game.room.color_label(color)}'s win was withdrawn after a "
+                f"rejected claim ({remaining} goals).")
 
 
 def _record_game_played(room):
@@ -1095,9 +1118,9 @@ def assign_role(request):
     with transaction.atomic():
         target_player.role = new_role
 
-        # If changing to/from Counter, clear monitoring_player
+        # Only counters count a color
         if new_role != Role.COUNTER:
-            target_player.monitoring_player = None
+            target_player.monitoring_color_value = None
 
         target_player.save()
 
@@ -1183,18 +1206,22 @@ def remove_player(request):
 @handle_ratelimit
 @ratelimit_authenticated_action
 def assign_counter(request):
-    """Assign a counter to monitor a specific player. 
-    
+    """Set which color a counter is counting.
+
+    Colors claim squares; a counter reviews a color's goals, whoever marked
+    them, and takes on that color itself. `monitored_color` is a color name,
+    or null to stop counting.
+
     Can be called by:
-    - Gamemaster: to assign any counter to any player
-    - Counter: to assign themselves to a player
+    - Gamemaster: to assign any counter
+    - Counter: to assign themselves
     """
     data = parse_body_json_or_400(
         request,
         required_keys=[
             "room",
             "counter_player_uuid",
-            "monitored_player_uuid"])
+            "monitored_color"])
 
     room = Room.get_for_encoded_uuid_or_404(data["room"])
     player = _get_session_player(request.session, room)
@@ -1213,27 +1240,20 @@ def assign_counter(request):
     if counter_player.role != Role.COUNTER:
         return HttpResponseBadRequest("Player must have Counter role to be assigned as a counter.")
 
-    # Get the monitored player (can be null for unassignment)
-    monitored_player = None
-    monitored_player_uuid = data.get("monitored_player_uuid")
-    
-    if monitored_player_uuid and monitored_player_uuid != "null":
+    # The color to count (null to stop counting)
+    monitored_color = None
+    color_name = data.get("monitored_color")
+    if color_name and color_name != "null":
         try:
-            monitored_player = Player.get_for_encoded_uuid(monitored_player_uuid)
-        except Player.DoesNotExist:
-            return HttpResponseBadRequest("Monitored player not found.")
-
-        # Verify monitored player is in the same room
-        if monitored_player.room != room:
-            return HttpResponseForbidden("Monitored player is not in this room.")
-
-        # Verify monitored player is a Player (not spectator, counter, or gamemaster)
-        if monitored_player.role != Role.PLAYER:
-            return HttpResponseBadRequest("Can only assign counters to players with Player role.")
+            monitored_color = Color.for_name(color_name)
+        except IndexError:
+            return HttpResponseBadRequest(f"Unknown color: {color_name}")
+        if monitored_color == Color.blank:
+            return HttpResponseBadRequest("Choose a color to count.")
 
     # Check permissions
-    # Gamemaster can assign any counter to any player
-    # Counter can assign themselves to any player
+    # Gamemaster can assign any counter
+    # Counter can assign themselves
     is_gamemaster = check_permission(player, 'assign_roles')
     is_self_assignment = (counter_player.uuid == player.uuid and player.role == Role.COUNTER)
     
@@ -1243,27 +1263,34 @@ def assign_counter(request):
             "Only Gamemaster can assign counters, or Counters can assign themselves.")
 
     # Perform the assignment
+    color_event = None
     with transaction.atomic():
-        counter_player.monitoring_player = monitored_player
-        counter_player.save()
+        counter_player.monitoring_color_value = (
+            monitored_color.value if monitored_color else None)
+        counter_player.save(update_fields=['monitoring_color_value'])
+        # The counter shows in the color they're counting
+        if monitored_color and counter_player.color != monitored_color:
+            color_event = counter_player.update_color(monitored_color)
 
         # Create counter assignment event
         counter_assignment_event = CounterAssignmentEvent(
             player=player,
             player_color_value=player.color.value,
             counter_player=counter_player,
-            monitored_player=monitored_player
+            monitored_color_value=monitored_color.value if monitored_color else None
         )
         counter_assignment_event.save()
-        
+
         # Create system chat message
-        if monitored_player:
-            message = f"{counter_player.name} is now monitoring {monitored_player.name}'s claims"
+        if monitored_color:
+            message = f"{counter_player.name} is now counting {room.color_label(monitored_color)}"
         else:
-            message = f"{counter_player.name} is no longer monitoring any player"
+            message = f"{counter_player.name} is no longer counting"
         create_system_chat_message(player, room, message, is_counter_message=True)
 
-    # Broadcast the counter assignment
+    # Broadcast the color change, then the assignment
+    if color_event:
+        publish_color_event(color_event)
     publish_counter_assignment_event(counter_assignment_event)
 
     return HttpResponse("Counter assigned successfully")
@@ -1306,17 +1333,17 @@ def review_claim(request):
     except IndexError:
         return HttpResponseBadRequest(f"Invalid slot: {slot}")
 
-    # Verify the square has a claim to review
-    if not square.claimed_by:
+    # Colors claim squares: a counter reviews the squares holding the color
+    # they're counting, whoever marked them.
+    color = counter.monitoring_color
+    if color is None:
+        return HttpResponseForbidden("Choose the color you're counting first.")
+    square_colors = square.color.colors
+    if not square_colors or square_colors == [Color.blank]:
         return HttpResponseBadRequest("This square has no claim to review.")
-
-    # Verify the counter is assigned to the player who made the claim
-    if square.claimed_by.counters.filter(id=counter.id).exists():
-        # Counter is assigned to this player
-        pass
-    else:
+    if color not in square_colors:
         return HttpResponseForbidden(
-            "You can only review claims from players you are monitoring.")
+            "You can only review goals of the color you're counting.")
 
     # Validate action
     action = data["action"]
@@ -1337,31 +1364,36 @@ def review_claim(request):
     was_counted = previous_status in COUNTED_CLAIM_STATUSES
 
     # Perform the review action
+    label = room.color_label(color)
     with transaction.atomic():
+        # Whoever last marked the square (kept for lifetime stats)
         reviewed_player = square.claimed_by
 
         if action == 'under_review':
             square.claim_status = 'under_review'
             square.reviewed_by = counter
             square.save()
-            message = f"{counter.name} put {reviewed_player.name}'s {square.goal} in review"
+            message = f"{counter.name} put {label}'s {square.goal} in review"
 
         elif action == 'confirm':
             square.claim_status = 'confirmed'
             square.reviewed_by = counter
             square.save()
-            message = f"{counter.name} approved {reviewed_player.name}'s claim on {square.goal}"
-            
+            message = f"{counter.name} approved {label}'s claim on {square.goal}"
+
         elif action == 'reject':
-            # Counter rejects the claim - remove the color
+            # Remove the counted color from the square. In non-lockout other
+            # colors may remain, and those still count.
             square_color = square.color
-            square_color.remove(reviewed_player.color)
+            square_color.remove(color)
             square.color = square_color
-            square.claim_status = 'rejected'
+            remaining = [c for c in square_color.colors if c != Color.blank]
+            square.claim_status = 'confirmed' if remaining else 'rejected'
             square.reviewed_by = counter
-            square.claimed_by = None  # Clear claimed_by on rejection
+            if reviewed_player is None or reviewed_player.color == color:
+                square.claimed_by = None
             square.save()
-            message = f"{counter.name} rejected {reviewed_player.name}'s claim on {square.goal}"
+            message = f"{counter.name} rejected {label}'s claim on {square.goal}"
 
         # Create claim review event
         claim_review_event = ClaimReviewEvent(
@@ -1380,13 +1412,13 @@ def review_claim(request):
     from bingosync.publish import publish_claim_review_event
     publish_claim_review_event(claim_review_event)
 
-    if action == 'confirm' and not was_counted:
+    if action == 'confirm' and not was_counted and reviewed_player:
         # An old-flow claim that hadn't counted yet: count it now.
         _record_square_marked(reviewed_player)
         check_and_record_lockout_win(game, reviewed_player)
         check_and_record_bingos(game, reviewed_player)
     elif action == 'reject' and was_counted:
-        _revoke_rejected_goal(game, reviewed_player, slot)
+        _revoke_rejected_goal(game, color, reviewed_player, slot)
 
     return HttpResponse("Claim reviewed successfully")
 
@@ -1458,17 +1490,28 @@ def user_connected(request, encoded_player_uuid):
 def user_disconnected(request, encoded_player_uuid):
     player = Player.get_for_encoded_uuid(encoded_player_uuid)
     if player is not ANON_PLAYER:
-        connection_event = ConnectionEvent.atomically_disconnect(player)
-        publish_connection_event(connection_event)
-
-        # Clear current_room for authenticated users to allow joining other rooms
-        if player.user and player.user.current_room == player.room:
-            player.user.current_room = None
-            player.user.save()
-
+        _disconnect_player(player)
         # Note: Room can continue without Gamemaster until all players/counters disconnect
 
     return HttpResponse()
+
+
+def _disconnect_player(player):
+    """Record that `player` left, tell the room, and free their account to
+    join other rooms. Does nothing if they're already disconnected: the
+    websocket server's report and a reconcile can arrive together."""
+    with transaction.atomic():
+        # Serialise concurrent disconnects of the same player
+        Player.objects.select_for_update().filter(pk=player.pk).first()
+        if not player.connected:
+            return
+        connection_event = ConnectionEvent.atomically_disconnect(player)
+    publish_connection_event(connection_event)
+
+    # Clear current_room for authenticated users to allow joining other rooms
+    if player.user and player.user.current_room == player.room:
+        player.user.current_room = None
+        player.user.save()
 
 
 @require_internal_api_secret
@@ -1491,21 +1534,43 @@ def check_socket_key(request, socket_key):
         raise Http404("Invalid socket key")
 
 
+@require_internal_api_secret
 def reconcile_connections(request):
+    """Disconnect players the websocket server has no live socket for.
+
+    The websocket server keeps connections in memory, so a restart (every
+    deploy) forgets them without reporting anyone's disconnect, and a player
+    who never opened a socket counts as connected. Left alone, those players
+    stay "in the room" forever. The websocket server calls this at startup
+    and every minute.
+    """
     from bingosync.util import get_internal_api_headers
-    connected_url = SOCKETS_PUBLISH_URL + "/connected"
-    response = requests.get(connected_url, headers=get_internal_api_headers())
+    checked_at = timezone.now()
+    response = requests.get(
+        SOCKETS_PUBLISH_URL + "/connected",
+        headers=get_internal_api_headers(), timeout=5)
+    response.raise_for_status()
     connected_rooms = response.json()
 
-    active_rooms = Room.get_listed_rooms()
-    for room in active_rooms:
-        connected_player_uuids = connected_rooms.get(room.encoded_uuid, [])
+    # Leave alone anyone who joined or (re)connected moments ago: their page
+    # may still be loading, or their socket only just opened.
+    cutoff = checked_at - RECONCILE_GRACE
+    disconnected = 0
+    for room in Room.objects.filter(active=True):
+        live_players = set(connected_rooms.get(room.encoded_uuid, []))
         for player in room.connected_players:
-            if player.encoded_uuid not in connected_player_uuids:
-                ConnectionEvent.atomically_disconnect(player)
+            if player.encoded_uuid in live_players:
+                continue
+            last_event = (ConnectionEvent.objects.filter(player=player)
+                          .order_by("timestamp").last())
+            since = last_event.timestamp if last_event else player.created_date
+            if since > cutoff:
+                continue
+            _disconnect_player(player)
+            disconnected += 1
         room.update_active()
 
-    return HttpResponse()
+    return JsonResponse({"disconnected": disconnected})
 
 
 def health(request):

@@ -137,13 +137,13 @@ class SystemChatMessagesTestCase(TestCase):
         }
         session.save()
 
-        # Assign counter to monitor player
+        # Assign counter to count the player's color
         response = self.client.post(
             '/api/assign-counter',
             data=json.dumps({
                 'room': self.room.encoded_uuid,
                 'counter_player_uuid': self.counter_player.encoded_uuid,
-                'monitored_player_uuid': self.regular_player.encoded_uuid
+                'monitored_color': self.regular_player.color.name
             }),
             content_type='application/json'
         )
@@ -159,13 +159,14 @@ class SystemChatMessagesTestCase(TestCase):
 
         message = system_messages.first()
         self.assertIn('Counter1', message.body)
+        # The only player using the color, so it's named after them
         self.assertIn('Player1', message.body)
-        self.assertIn('monitoring', message.body.lower())
+        self.assertIn('counting', message.body.lower())
 
     def test_counter_unassignment_creates_system_chat_message(self, mock_put):
         """Test that counter unassignment creates a system chat message."""
         # First assign counter
-        self.counter_player.monitoring_player = self.regular_player
+        self.counter_player.monitoring_color_value = self.regular_player.color_value
         self.counter_player.save()
 
         # Login as gamemaster
@@ -178,13 +179,13 @@ class SystemChatMessagesTestCase(TestCase):
         }
         session.save()
 
-        # Unassign counter (set monitored_player_uuid to null)
+        # Unassign counter (monitored_color null)
         response = self.client.post(
             '/api/assign-counter',
             data=json.dumps({
                 'room': self.room.encoded_uuid,
                 'counter_player_uuid': self.counter_player.encoded_uuid,
-                'monitored_player_uuid': 'null'
+                'monitored_color': None
             }),
             content_type='application/json'
         )
