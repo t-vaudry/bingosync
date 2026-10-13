@@ -138,6 +138,8 @@ var Board = (function(){
         // Set by the counter UI: a counter's right-click toggles review
         // instead of starring the goal.
         this.onSquareRightClick = null;
+        // Also set by the counter UI; returns true when it handled the click.
+        this.onSquareClick = null;
     };
 
     Board.prototype.setup = function(size) {
@@ -411,6 +413,10 @@ var Board = (function(){
     }
 
     Board.prototype.clickSquare = function(ev, $square) {
+        // The counter UI may claim the click (e.g. to reject a goal in review)
+        if (this.onSquareClick && this.onSquareClick(parseInt($square.attr("id").substring(4)))) {
+            return;
+        }
         this.colorSquare(ev, $square).then(response => this.hideSquares())
     };
 

@@ -36,6 +36,23 @@
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
 }
 
+/* Review buttons on a goal in review (counter's "hover"/"buttons" styles) */
+.square .review-actions {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    gap: 2px;
+    z-index: 7;
+    text-shadow: none;
+}
+.square .review-actions .btn {
+    padding: 0 5px;
+    line-height: 1.4;
+}
+.square .review-actions-hover { display: none; }
+.square:hover .review-actions-hover { display: flex; }
+
 /* Counter panel — fill its container properly */
 #counter-panel {
     height: 100%;

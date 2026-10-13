@@ -20,6 +20,13 @@
             {% else %}
                 Playing as: {{ player.name }}
             {% endif %}
+            {% if can_change_own_role %}
+                <select id="own-role-select" class="form-control input-sm own-role-select" title="Change your role">
+                    {% for value, label in role_choices %}
+                        <option value="{{ value }}"{% if player.role == value %} selected{% endif %}{% if value != 'spectator' and not player.user %} disabled title="Log in to play or count"{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
             <a class="btn btn-default" href="{% url 'room_disconnect' room.encoded_uuid %}">
                 Disconnect
             </a>
@@ -113,8 +120,28 @@
 
         // Initialize counter UI if player is a counter
         if (player.role === 'counter') {
-            window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, playersPanel);
+            window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, playersPanel, "{{ review_style }}");
         }
+
+        // Without a Gamemaster, players pick their own role. The page is
+        // laid out per role, so it reloads once the change is broadcast.
+        $("#own-role-select").on("change", function() {
+            var $select = $(this);
+            $.ajax({
+                url: "{% url 'assign_role' %}",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    room: "{{ room.encoded_uuid }}",
+                    target_player_uuid: player.uuid,
+                    new_role: $select.val()
+                }),
+                error: function(xhr) {
+                    alert("Couldn't change your role: " + xhr.responseText);
+                    $select.val(player.role);
+                }
+            });
+        });
 
         // hacky callback to trigger an update of the playersPanel counters (& highlighter) whenever we update the board.
         var boardRefreshCallback = function() {
