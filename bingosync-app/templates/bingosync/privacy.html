@@ -1,0 +1,129 @@
+{% extends "bingosync/base.html" %}
+
+{% block page_title %}Privacy · Bingosync{% endblock %}
+
+{% block page_head %}
+<style>
+    .privacy h3 { font-size: 18px; margin: 22px 0 8px; color: var(--cos-gold); }
+    .privacy h3:first-of-type { margin-top: 0; }
+    .privacy table { background: none; width: 100%; margin: 6px 0 4px; }
+    .privacy th, .privacy td { padding: 6px 10px 6px 0; vertical-align: top; border-top: 1px solid var(--cos-border); }
+    .privacy th { color: var(--cos-ink-soft); font-weight: normal; text-align: left; }
+    .privacy .unset { color: var(--cos-gold-bright); }
+    .privacy-updated { color: var(--cos-ink-soft); font-size: 13px; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+    <div class="row m-b-l">
+        <div class="col-md-8 col-md-offset-2">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Privacy Notice
+                </div>
+                <div class="panel-body privacy">
+                    <p class="privacy-updated">Last updated 13 October 2026</p>
+
+                    <h3>Who runs this site</h3>
+                    <p>
+                        This bingo site is run by
+                        {% if controller_name %}<strong>{{ controller_name }}</strong>{% else %}<span class="unset">[site operator: set PRIVACY_CONTROLLER_NAME]</span>{% endif %},
+                        who decides how your data is used (the "controller" under the GDPR).
+                        For anything about your data, email
+                        {% if contact_email %}<a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% else %}<span class="unset">[set PRIVACY_CONTACT_EMAIL]</span>{% endif %}.
+                    </p>
+
+                    <h3>What we collect and why</h3>
+                    <table>
+                        <tr><th>Data</th><th>Why</th><th>Legal basis</th></tr>
+                        <tr>
+                            <td>Username, email address, password (stored only as a secure hash)</td>
+                            <td>To give you an account. Your email is used only to reset your password.</td>
+                            <td>Providing the service you signed up for (Art. 6(1)(b))</td>
+                        </tr>
+                        <tr>
+                            <td>Your games: rooms joined, name and color, goals marked, chat messages, wins, losses and other stats, and your review-style preference</td>
+                            <td>To run the bingo rooms and show your stats and achievements</td>
+                            <td>Providing the service (Art. 6(1)(b))</td>
+                        </tr>
+                        <tr>
+                            <td>Display name of spectators who join without an account</td>
+                            <td>To show who is in a room</td>
+                            <td>Providing the service (Art. 6(1)(b))</td>
+                        </tr>
+                        <tr>
+                            <td>IP address and request details in server logs; IP address for rate limiting</td>
+                            <td>To keep the site secure and working, and to stop abuse such as password guessing</td>
+                            <td>Legitimate interest in security (Art. 6(1)(f))</td>
+                        </tr>
+                    </table>
+                    <p>
+                        We don't use advertising, analytics or tracking, and we don't sell or share your data.
+                        Fonts and all other files are served from this site, so your browser doesn't contact anyone else.
+                    </p>
+
+                    <h3>What others can see</h3>
+                    <p>
+                        Your username, the date you joined and your stats and achievements are shown on your public profile.
+                        In a room, everyone in it sees your name, color, the goals you mark and your chat messages,
+                        and finished rooms are listed in Room History.
+                    </p>
+
+                    <h3>Cookies</h3>
+                    <p>
+                        We only use cookies the site needs to work: a session cookie that keeps you logged in and
+                        remembers which rooms you've joined (expires after two weeks), and a security cookie that
+                        protects forms against cross-site request forgery. Because these are strictly necessary,
+                        we don't ask for consent to them.
+                    </p>
+
+                    <h3>How long we keep it</h3>
+                    <ul>
+                        <li>Your account and game data: until you delete your account.</li>
+                        <li>Server logs: capped at a fixed size; the oldest entries are deleted automatically as new ones are written.</li>
+                        <li>Rate-limiting records: an hour at most.</li>
+                    </ul>
+
+                    <h3>Who processes it</h3>
+                    <p>
+                        The data is stored on a server run by the site operator{% if server_location %} in {{ server_location }}{% endif %}.
+                        {% if uses_error_reporting %}
+                            When something breaks, an error report is sent to Sentry (Functional Software, Inc.)
+                            so it can be fixed; these reports are configured to leave out usernames, email
+                            addresses and IP addresses.
+                        {% endif %}
+                        If password-reset emails are sent through an email provider, that provider handles
+                        your email address to deliver them.
+                    </p>
+
+                    <h3>Your rights</h3>
+                    <p>
+                        You can ask to see, correct, delete or restrict the use of your data, object to its use,
+                        or get a copy of it to take elsewhere. Two of these you can do yourself, from your
+                        profile page while logged in:
+                    </p>
+                    <ul>
+                        <li><strong>Download your data</strong> as a file.</li>
+                        <li><strong>Delete your account.</strong> This removes your account, email, stats and chat
+                            messages, and removes your name from past rooms. Goals you marked stay on old boards
+                            but are no longer linked to you.</li>
+                    </ul>
+                    <p>
+                        For anything else, use the contact above. You also have the right to complain to a data
+                        protection authority, such as the one where you live.
+                    </p>
+
+                    <h3>Children</h3>
+                    <p>
+                        You need to be at least 16, or have a parent's or guardian's permission, to create an account.
+                    </p>
+
+                    <h3>Changes</h3>
+                    <p>
+                        If this notice changes, the date at the top will change with it.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,5 +1,6 @@
 from django.http import (
     HttpResponse, HttpResponseBadRequest, HttpResponseForbidden,
+    HttpResponseNotAllowed,
     JsonResponse, Http404
 )
 from django.shortcuts import render, redirect, get_object_or_404
@@ -675,6 +676,92 @@ def about(request):
     return render(request, "bingosync/about.html")
 
 
+def privacy(request):
+    """Privacy notice (GDPR Articles 13/14): what's collected, why, for how
+    long, and how to exercise your rights."""
+    from django.conf import settings
+    return render(request, "bingosync/privacy.html", {
+        "controller_name": settings.PRIVACY_CONTROLLER_NAME,
+        "contact_email": settings.PRIVACY_CONTACT_EMAIL,
+        "server_location": settings.PRIVACY_SERVER_LOCATION,
+        "uses_error_reporting": bool(settings.SENTRY_DSN),
+    })
+
+
+def export_account(request):
+    """Everything stored about the logged-in user, as a JSON download (GDPR
+    rights of access and portability)."""
+    if not request.user.is_authenticated:
+        return redirect("login")
+    user = request.user
+    players = Player.objects.filter(user=user).select_related("room")
+    data = {
+        "account": {
+            "username": user.username,
+            "email": user.email,
+            "date_joined": user.date_joined.isoformat(),
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "review_style": user.review_style,
+        },
+        "stats": {
+            "games_played": user.total_games_played,
+            "squares_marked": user.total_squares_marked,
+            "bingos_completed": user.total_bingos_completed,
+            "wins": user.wins,
+            "losses": user.losses,
+        },
+        "rooms": [{
+            "room": player.room.name,
+            "joined": player.created_date.isoformat(),
+            "name_shown": player.name,
+            "role": player.role,
+            "color": player.color.name,
+        } for player in players],
+        "chat_messages": [{
+            "room": event.player.room.name,
+            "time": event.timestamp.isoformat(),
+            "text": event.body,
+        } for event in ChatEvent.objects.filter(
+            player__user=user, is_system_message=False
+        ).select_related("player__room").order_by("timestamp")],
+    }
+    response = JsonResponse(data, json_dumps_params={"indent": 2})
+    response["Content-Disposition"] = (
+        f'attachment; filename="bingosync-{user.username}.json"')
+    return response
+
+
+DELETED_PLAYER_NAME = "deleted player"
+
+
+def delete_account(request):
+    """Delete the logged-in user's account (GDPR right to erasure). Their
+    chat messages go too, and their name is removed from past rooms; the
+    marks on old boards stay, attributed to nobody."""
+    if not request.user.is_authenticated:
+        return redirect("login")
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    user = request.user
+    if not user.check_password(request.POST.get("password", "")):
+        return redirect_params("user_profile", username=user.username,
+                               params={"delete_error": "1"})
+
+    with transaction.atomic():
+        players = Player.objects.filter(user=user)
+        for player in players.filter(room__active=True):
+            if player.connected:
+                _disconnect_player(player)
+        ChatEvent.objects.filter(
+            player__in=players, is_system_message=False).delete()
+        players.update(name=DELETED_PLAYER_NAME)
+        username = user.username
+        auth_logout(request)
+        user.delete()
+    logger.info("Account deleted at the user's request: %s", username)
+    return redirect_params("landing", params={"account_deleted": "1"})
+
+
 def user_profile(request, username):
     """Public player profile: lifetime stats and achievements for one user."""
     from bingosync.achievements import evaluate_achievements
@@ -712,6 +799,7 @@ def user_profile(request, username):
         "is_own_profile": is_own_profile,
         "review_styles": ReviewStyle.choices,
         "preferences_saved": request.GET.get("saved") == "1",
+        "delete_error": request.GET.get("delete_error") == "1",
     })
 
 
