@@ -352,7 +352,8 @@ var Board = (function(){
     };
 
     Board.prototype.getColorCount = function(colorClass) {
-        return this.$board.find("." + colorClass).size();
+        // Only the marks: a counter's count strips use color classes too
+        return this.$board.find(".bg-color." + colorClass).size();
     };
 
     Board.prototype.getRowCount = function(colorClass) {
