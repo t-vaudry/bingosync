@@ -118,3 +118,18 @@
 
 .counter-history-detail { color: #999; }
 .counter-history-time { color: #666; font-size: 0.85em; }
+
+/* "Counting For": one button per player, in their color (counter.js) */
+.counter-targets {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+.counter-target {
+    min-width: 80px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

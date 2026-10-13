@@ -34,7 +34,9 @@
         </div>
         {% endif %}
         <div class="room-col room-board-col">
-            {% if player.role != 'counter' %}
+            {% if player.role == 'counter' %}
+                {% include 'bingosync/counter_target_chooser.html' %}
+            {% else %}
                 {% include 'bingosync/color_chooser.html' %}
             {% endif %}
             <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
@@ -82,7 +84,7 @@
     var chatPanel;
     var board;
     $(document).ready(function() {
-        ROOM_SETTINGS = JSON.parse('{{ room.settings|jsonify|escapejs }}');
+        ROOM_SETTINGS = JSON.parse('{{ room_settings|jsonify|escapejs }}');
         var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
         window.sessionStorage.setItem("room", "{{ room.encoded_uuid }}");
 
@@ -111,17 +113,15 @@
 
         // Initialize counter UI if player is a counter
         if (player.role === 'counter') {
-            window.counterUI = new Counter(
-                window.location.origin,
-                "{{ room.encoded_uuid }}",
-                player.uuid,
-                player.role
-            );
+            window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, playersPanel);
         }
 
         // hacky callback to trigger an update of the playersPanel counters (& highlighter) whenever we update the board.
         var boardRefreshCallback = function() {
             playersPanel.updateGoalCounters(board);
+            if (window.counterUI) {
+                window.counterUI.onBoardChanged();
+            }
         }
 
         // initialize magic global hack hooks
@@ -134,9 +134,9 @@
         };
         revealBoard = function() {
             boardCover.setBoardHidden(false);
-            $("#the-seed").text(ROOM_SETTINGS.seed);
+            $("#the-seed").text(seedText(ROOM_SETTINGS.seed));
             var $seedHidden = $("#bingo-chat .new-card-message .seed-hidden");
-            $seedHidden.text(ROOM_SETTINGS.seed).removeClass('seed-hidden').addClass('seed');
+            $seedHidden.text(seedText(ROOM_SETTINGS.seed)).removeClass('seed-hidden').addClass('seed');
             board.refitGoalText();
         };
         window.addEventListener('resize', function() { board.refitGoalText(); }, false);

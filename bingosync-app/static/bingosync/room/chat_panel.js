@@ -61,7 +61,7 @@ var ChatPanel = (function(){
                 if (json["is_current"]) {
                     newCardMessage += $("<span>", {"class": "seed-wait", text: '...'}).toHtml();
                 } else {
-                    newCardMessage += $("<span>", {"class": "seed", text: json["seed"]}).toHtml();
+                    newCardMessage += $("<span>", {"class": "seed", text: seedText(json["seed"])}).toHtml();
                 }
             }
             return $("<div>", {"class": "new-card-message", html: timeHtml + " " + newCardMessage}).toHtml();

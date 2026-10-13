@@ -37,13 +37,13 @@ var ChatSocket = (function(){
         } else if (json["type"] === "goal") {
             var square = this.board.getSquare(json["square"]["slot"]);
             square.setColors(json["square"]["colors"]);
-            square.setClaimStatus(json["square"]["claim_status"] || null);
+            square.setClaim(json["square"]["claim_status"], json["square"]["claimed_by"]);
             this.playersPanel.updateGoalCounters(this.board);
             this.board.hideSquares();
-            
-            // If counter UI exists and claim needs review, notify it
-            if (window.counterUI && json["claim_status"] === "pending_decision") {
-                window.counterUI.handleGoalEvent(json);
+
+            // An unmarked goal drops out of the counter's review list
+            if (window.counterUI) {
+                window.counterUI.onBoardChanged();
             }
         }
         else if(json["type"] === "color") {
@@ -78,18 +78,20 @@ var ChatSocket = (function(){
         }
         else if(json["type"] === "counter_assignment") {
             this.playersPanel.handleCounterAssignment(json);
+            if (window.counterUI) {
+                window.counterUI.handleCounterAssignment(json);
+            }
         }
         else if(json["type"] === "claim_review") {
             // Handle claim review event — update colors and claim status for ALL clients
             var square = this.board.getSquare(json["square"]["slot"]);
             square.setColors(json["square"]["colors"]);
-            square.setClaimStatus(json["square"]["claim_status"] || null);
+            square.setClaim(json["square"]["claim_status"], json["square"]["claimed_by"]);
             this.playersPanel.updateGoalCounters(this.board);
             this.board.hideSquares();
-            
-            // If counter UI exists, notify it
+
             if (window.counterUI) {
-                window.counterUI.handleClaimReviewEvent(json);
+                window.counterUI.onBoardChanged();
             }
         }
         else if(json["type"] === "game_won") {
@@ -100,7 +102,7 @@ var ChatSocket = (function(){
         else if(json["type"] === "new-card") {
             // TODO: remove this external dependency
             // if the card was never revealed show what the seed was in the chat anyway
-            $("#bingo-chat .new-card-message .seed-hidden").text(ROOM_SETTINGS.seed).removeClass('seed-hidden').addClass('seed');
+            $("#bingo-chat .new-card-message .seed-hidden").text(seedText(ROOM_SETTINGS.seed)).removeClass('seed-hidden').addClass('seed');
             refreshBoard();
         } else if (json["type"] === "chat") {
             // no special effects for chat, it just gets written to the panel

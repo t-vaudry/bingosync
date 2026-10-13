@@ -36,7 +36,8 @@
                                 <td>{{ room.creator.name }}</td>
                                 <td title="{{ room.created_date }}">{{ room.created_date|timesince }} ago</td>
                                 <td>{{ room.current_game.game_type|hovertext_game_type }}</td>
-                                {% if room.is_seed_hidden %}
+                                {# Under a Gamemaster the seed stays hidden while the room is active #}
+                                {% if room.is_seed_hidden or room.active and room.has_gamemaster %}
                                     <td>Hidden</td>
                                 {% else %}
                                     <td>{{ room.current_game.seed }}</td>

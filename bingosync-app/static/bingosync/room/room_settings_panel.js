@@ -37,7 +37,7 @@ var RoomSettingsPanel = (function(){
                     $seedInChat.text("Hidden").addClass('seed-hidden');
                 } else {
                     revealBoard();
-                    $seedInChat.text(ROOM_SETTINGS.seed).addClass('seed');
+                    $seedInChat.text(seedText(ROOM_SETTINGS.seed)).addClass('seed');
                 }
 
                 // TODO: extract new card logic

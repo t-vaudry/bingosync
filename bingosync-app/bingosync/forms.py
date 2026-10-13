@@ -275,6 +275,12 @@ class JoinRoomForm(forms.Form):
         self.room = kwargs.pop('room', None)
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        # join_room.html supplies the <form> tag and the "Join Room" button.
+        # Without this, crispy renders a second <form> inside it, whose
+        # closing tag ends the page's form early and leaves the button
+        # outside it, so it submits nothing.
+        self.helper = FormHelper(self)
+        self.helper.form_tag = False
         if self.room:
             self.fields['encoded_room_uuid'].initial = self.room.encoded_uuid
 

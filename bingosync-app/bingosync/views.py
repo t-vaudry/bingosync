@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import F
+from django.db.models.functions import Greatest
 from django.template import loader
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -32,7 +33,8 @@ from bingosync.models.events import (
 )
 from bingosync.models.enums import Role
 from bingosync.models.rooms import (
-    ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine
+    ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
+    COUNTED_CLAIM_STATUSES
 )
 from bingosync.models.user import User
 from bingosync.publish import (
@@ -402,6 +404,8 @@ def room_view(request, encoded_room_uuid):
                 "room": room,
                 "game": room.current_game,
                 "player": player,
+                "room_settings": room.settings_for(player),
+                "seed_visible": room.seed_visible_to(player),
                 "sockets_url": SOCKETS_URL,
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
@@ -420,6 +424,8 @@ def room_stream(request, encoded_room_uuid):
     params = {
         "room": room,
         "game": room.current_game,
+        # The overlay is public, so it gets what an anonymous viewer may see.
+        "room_settings": room.settings_for(None),
         "sockets_url": SOCKETS_URL,
         "temporary_socket_key": _create_anon_socket_key(room)
     }
@@ -513,12 +519,19 @@ def room_settings(request, encoded_room_uuid):
     from bingosync.cache import get_room_settings
     
     room = Room.get_for_encoded_uuid(encoded_room_uuid)
+    # Whoever is asking decides whether the seed is included; a viewer who
+    # isn't in the room is treated as anonymous.
+    try:
+        viewer = _get_session_player(request.session, room)
+    except NotAuthenticatedError:
+        viewer = None
     panel = loader.get_template("bingosync/room_settings_panel.html").render(
-        {"game": room.current_game, "room": room}, request)
-    
+        {"game": room.current_game, "room": room,
+         "seed_visible": room.seed_visible_to(viewer)}, request)
+
     # Use cached room settings
-    settings = get_room_settings(room)
-    
+    settings = room.settings_for(viewer, get_room_settings(room))
+
     return JsonResponse({"panel": panel, "settings": settings})
 
 
@@ -676,7 +689,7 @@ def user_profile(request, username):
 def room_feed(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
     # lookup the player to force authentication
-    _get_session_player(request.session, room)
+    viewer = _get_session_player(request.session, room)
     events_to_return = []
     all_included = True
 
@@ -688,6 +701,10 @@ def room_feed(request, encoded_room_uuid):
         all_included = recent_events["all_included"]
 
     all_jsons = [event.to_json() for event in events_to_return]
+    if not room.seed_visible_to(viewer):
+        for event_json in all_jsons:
+            if event_json.get("type") == "new-card":
+                event_json["seed"] = None
     return JsonResponse(
         {'events': all_jsons, 'allIncluded': all_included}, safe=False)
 
@@ -729,28 +746,16 @@ def goal_selected(request):
     color = Color.for_name(data["color"])
     remove_color = data["remove_color"]
 
-    # Check if player has an assigned counter
-    counter = player.counters.first() if not remove_color else None
-    
-    # Determine claim status based on counter assignment
-    if counter and not remove_color:
-        # Counter exists - square needs counter decision
-        # Counter will be notified and must choose: under_review, confirm, or reject
-        claim_status = 'pending_decision'
-    else:
-        # No counter or removing color - bypass claim review
-        claim_status = 'confirmed'
-
-    goal_event = game.update_goal(player, slot, color, remove_color, claim_status=claim_status)
+    # Marks are approved by default and count immediately. A counter can put
+    # one in review afterwards (right-click on the board); see review_claim.
+    goal_event = game.update_goal(player, slot, color, remove_color, claim_status='confirmed')
     if not goal_event:
         return HttpResponseBadRequest("Blocked by Lockout")
-    
+
     publish_goal_event(goal_event)
 
-    # A confirmed mark may complete a lockout win and/or one or more bingos
-    # (marks awaiting counter review are not yet confirmed, so they count for
-    # neither until reviewed).
-    if not remove_color and claim_status == 'confirmed':
+    # A new mark may complete a lockout win and/or one or more bingos.
+    if not remove_color:
         _record_square_marked(player)
         check_and_record_lockout_win(game, player)
         check_and_record_bingos(game, player)
@@ -841,8 +846,9 @@ def check_and_record_lockout_win(game, player):
     """Record a lockout win if `player` has just reached the winning threshold.
 
     In lockout a square belongs to exactly one player, so the win condition is
-    simply being first to a majority of *confirmed* squares (13 on a 5x5).
-    Safe to call after any square becomes confirmed: it no-ops outside lockout,
+    simply being first to a majority of counted squares (13 on a 5x5); squares
+    a counter has put in review still count (COUNTED_CLAIM_STATUSES).
+    Safe to call after any square is marked: it no-ops outside lockout,
     once a game already has a winner, or before the threshold is met. On a win
     it records the winner once, updates win/loss stats, and announces it in chat.
 
@@ -851,12 +857,8 @@ def check_and_record_lockout_win(game, player):
     if game.lockout_mode != LockoutMode.lockout or game.winner_id is not None:
         return None
 
-    # Majority of the board; derived so it holds for any board size.
-    threshold = game.size * game.size // 2 + 1
-
-    confirmed_count = Square.objects.filter(
-        game=game, claimed_by=player, claim_status='confirmed').count()
-    if confirmed_count < threshold:
+    threshold = _lockout_threshold(game)
+    if _counted_square_count(game, player) < threshold:
         return None
 
     with transaction.atomic():
@@ -879,17 +881,30 @@ def check_and_record_lockout_win(game, player):
     return player
 
 
-def _record_win_loss(game, winner):
+def _lockout_threshold(game):
+    """Majority of the board (13 on a 5x5); derived so it holds for any size."""
+    return game.size * game.size // 2 + 1
+
+
+def _counted_square_count(game, player):
+    """How many squares `player` holds that count toward a lockout win."""
+    return Square.objects.filter(
+        game=game, claimed_by=player,
+        claim_status__in=COUNTED_CLAIM_STATUSES).count()
+
+
+def _record_win_loss(game, winner, delta=1):
     """Give the winner a win and every other logged-in Player a loss.
 
     Only Player-role participants with a linked account are scored; spectators,
-    counters, and the gamemaster are not.
+    counters, and the gamemaster are not. `delta=-1` takes them back again
+    (used when a rejected claim withdraws a win).
     """
     scored_players = Player.objects.filter(
         room=game.room, role=Role.PLAYER).exclude(user__isnull=True)
     for scored in scored_players:
         field = 'wins' if scored.id == winner.id else 'losses'
-        User.objects.filter(pk=scored.user_id).update(**{field: F(field) + 1})
+        User.objects.filter(pk=scored.user_id).update(**{field: F(field) + delta})
 
 
 def _board_lines(size):
@@ -911,9 +926,10 @@ def _board_lines(size):
 def check_and_record_bingos(game, player):
     """Credit any newly completed lines for `player` and count them as bingos.
 
-    A line counts only when all of its squares are confirmed in the player's
-    color (pending/under-review/rejected claims don't count), and each line is
-    credited exactly once via the CompletedLine unique constraint. Increments
+    A line counts only when all of its squares are counted marks in the
+    player's color (confirmed or in review; rejected/unmarked squares don't
+    count), and each line is credited exactly once via the CompletedLine
+    unique constraint. Increments
     the player's total_bingos_completed. Applies in both lockout and
     non-lockout. Returns the number of newly completed lines.
     """
@@ -923,7 +939,8 @@ def check_and_record_bingos(game, player):
     player_color = player.color
     confirmed_slots = {
         square.slot
-        for square in Square.objects.filter(game=game, claim_status='confirmed')
+        for square in Square.objects.filter(
+            game=game, claim_status__in=COUNTED_CLAIM_STATUSES)
         if player_color in square.color.colors
     }
 
@@ -951,6 +968,41 @@ def _record_square_marked(player):
     if player and player.user_id:
         User.objects.filter(pk=player.user_id).update(
             total_squares_marked=F('total_squares_marked') + 1)
+
+
+def _revoke_rejected_goal(game, player, slot):
+    """Take back what a counted mark earned, once a counter rejects it.
+
+    The square has already been cleared. Removes it from the player's
+    lifetime square total, drops any bingo line through it (and that bingo
+    from their total), and withdraws a lockout win that no longer holds.
+    """
+    if player.user_id:
+        User.objects.filter(
+            pk=player.user_id, total_squares_marked__gt=0).update(
+            total_squares_marked=F('total_squares_marked') - 1)
+
+    lines_through_slot = [
+        key for key, slots in _board_lines(game.size) if slot in slots]
+    removed, _ = CompletedLine.objects.filter(
+        game=game, player=player, line__in=lines_through_slot).delete()
+    if removed and player.user_id:
+        User.objects.filter(pk=player.user_id).update(
+            total_bingos_completed=Greatest(
+                F('total_bingos_completed') - removed, 0))
+
+    if game.winner_id == player.id:
+        remaining = _counted_square_count(game, player)
+        if remaining < _lockout_threshold(game):
+            with transaction.atomic():
+                game.winner = None
+                game.save(update_fields=['winner'])
+                # Reverses the win/loss given to the room's current Players.
+                _record_win_loss(game, player, delta=-1)
+            create_system_chat_message(
+                player, game.room,
+                f"{player.name}'s win was withdrawn after a rejected claim "
+                f"({remaining} goals).")
 
 
 def _record_game_played(room):
@@ -1221,12 +1273,15 @@ def assign_counter(request):
 @ratelimit_authenticated_action
 def review_claim(request):
     """
-    Counter reviews a claim with three options: under_review, confirm, or reject.
-    
-    Actions:
-    - under_review: Mark claim for later review (square stays marked, pending)
-    - confirm: Approve the claim (square permanently marked)
-    - reject: Deny the claim and remove the marking
+    Counter reviews a goal marked by the player they're counting for.
+
+    Marks are approved by default. Actions:
+    - under_review: put an approved goal in review (right-click on the board).
+      It keeps counting while in review.
+    - confirm: approve a goal that's in review, taking it out of review.
+    - reject: remove the mark, and take back what it counted for (square
+      total, any bingo line through it, and a lockout win that no longer
+      holds).
     """
     data = parse_body_json_or_400(
         request,
@@ -1270,23 +1325,32 @@ def review_claim(request):
         return HttpResponseBadRequest(
             f"Invalid action: {action}. Must be one of: {', '.join(valid_actions)}")
 
+    previous_status = square.claim_status
+    if action == 'under_review' and previous_status != 'confirmed':
+        return HttpResponseBadRequest(
+            "Only an approved goal can be put in review.")
+    # 'pending_decision' is the review state of the old flow, where marks
+    # waited for a decision; accept it so such squares can still be settled.
+    if action == 'confirm' and previous_status not in (
+            'under_review', 'pending_decision'):
+        return HttpResponseBadRequest("This goal isn't in review.")
+    was_counted = previous_status in COUNTED_CLAIM_STATUSES
+
     # Perform the review action
     with transaction.atomic():
         reviewed_player = square.claimed_by
-        
+
         if action == 'under_review':
-            # Counter wants to review this later
             square.claim_status = 'under_review'
             square.reviewed_by = counter
             square.save()
-            message = f"{counter.name} is reviewing {square.goal}"
-            
+            message = f"{counter.name} put {reviewed_player.name}'s {square.goal} in review"
+
         elif action == 'confirm':
-            # Counter approves the claim
             square.claim_status = 'confirmed'
             square.reviewed_by = counter
             square.save()
-            message = f"{counter.name} confirmed {reviewed_player.name}'s claim on {square.goal}"
+            message = f"{counter.name} approved {reviewed_player.name}'s claim on {square.goal}"
             
         elif action == 'reject':
             # Counter rejects the claim - remove the color
@@ -1316,12 +1380,13 @@ def review_claim(request):
     from bingosync.publish import publish_claim_review_event
     publish_claim_review_event(claim_review_event)
 
-    # Confirming a claim can push the reviewed player over the lockout
-    # threshold and/or complete one or more bingos.
-    if action == 'confirm':
+    if action == 'confirm' and not was_counted:
+        # An old-flow claim that hadn't counted yet: count it now.
         _record_square_marked(reviewed_player)
         check_and_record_lockout_win(game, reviewed_player)
         check_and_record_bingos(game, reviewed_player)
+    elif action == 'reject' and was_counted:
+        _revoke_rejected_goal(game, reviewed_player, slot)
 
     return HttpResponse("Claim reviewed successfully")
 

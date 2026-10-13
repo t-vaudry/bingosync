@@ -87,7 +87,10 @@ class CounterUIPanelTests(TestCase):
         
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'counter-panel')
-        self.assertContains(response, 'Claim Review')
+        self.assertContains(response, 'In Review')
+        # Counters choose who they count for in place of the color chooser
+        self.assertContains(response, 'counter-target-chooser')
+        self.assertNotContains(response, 'id="color-chooser"')
     
     def test_counter_panel_not_visible_to_player(self):
         """Test that counter panel is not visible to regular players"""
@@ -174,8 +177,8 @@ class CounterUIFunctionalityTests(TestCase):
         creator_player.role = Role.COUNTER
         creator_player.save()
     
-    def test_counter_ui_has_three_action_buttons(self):
-        """Test that counter panel shows three action buttons per claim"""
+    def test_counter_ui_script_loaded(self):
+        """Review buttons (approve/reject) are built by counter.js"""
         response = self.client.get(self.room_url)
         
         self.assertEqual(response.status_code, 200)

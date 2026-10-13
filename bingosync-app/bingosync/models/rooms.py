@@ -199,6 +199,32 @@ class Room(models.Model):
             "seed": game.seed,
         }
 
+    @property
+    def has_gamemaster(self):
+        return Player.objects.filter(room=self, role=Role.GAMEMASTER).exists()
+
+    def seed_visible_to(self, player):
+        """Whether `player` may see the seed.
+
+        In a room run by a Gamemaster, only the Gamemaster and counters see it;
+        players, spectators and anonymous viewers (stream overlay, Room
+        History) don't. Without a Gamemaster everyone does.
+        """
+        if not self.has_gamemaster:
+            return True
+        return player is not None and player.role in (
+            Role.GAMEMASTER, Role.COUNTER)
+
+    def settings_for(self, player, settings=None):
+        """Room settings as `player` may see them (seed removed if hidden).
+
+        `settings` lets callers pass an already-fetched (e.g. cached) copy.
+        """
+        settings = dict(self.settings if settings is None else settings)
+        if not self.seed_visible_to(player):
+            settings["seed"] = None
+        return settings
+
 
 class LockoutMode(Enum):
     non_lockout = 1
@@ -340,6 +366,12 @@ SLOT_CHOICES = [(num, str(num)) for num in SLOT_RANGE]
 
 def validate_in_slot_range(slot):
     return slot in SLOT_RANGE
+
+
+# Claim statuses that count toward score, bingos and a lockout win. Marks are
+# approved by default; a counter putting one in review doesn't stop it
+# counting. Only rejecting it (or unmarking it) does.
+COUNTED_CLAIM_STATUSES = ('confirmed', 'under_review')
 
 
 class Square(models.Model):
