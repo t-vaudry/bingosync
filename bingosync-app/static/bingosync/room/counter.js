@@ -24,8 +24,9 @@
  * Goal counts ("3/6 Gnomes") are private to this counter, kept on the server
  * per game and color (/api/counter-counts):
  * - Goals that take more than one step, or that also count toward other
- *   goals, get a [-] 3/6 [+] strip. Counting a goal moves the goals it
- *   triggers along with it (the server works that out).
+ *   goals, get a [-] 3/6 [+] strip that fills like a progress bar in the
+ *   counted color. Counting a goal moves the goals it triggers along with
+ *   it (the server works that out).
  * - A ⚠ shows on a goal of your color that was marked before you counted it
  *   complete. Click it to dismiss it; it also goes once the count is
  *   complete or the goal is in review. Load brings dismissed alerts back.
@@ -368,6 +369,12 @@ var Counter = (function() {
         var that = this;
         var count = this.countOf(slot);
         var $strip = $('<div class="goal-count"></div>');
+        // Progress bar in the counted color, inset in the dark strip so it
+        // shows on a goal already marked in that color
+        $('<div class="goal-count-fill"></div>')
+            .addClass(getSquareColorClass(this.monitoringColor))
+            .css('width', (100 * count / goal.amount) + '%')
+            .appendTo($('<div class="goal-count-track"></div>').appendTo($strip));
         var button = function(text, title, delta, enabled) {
             return $('<button type="button" class="goal-count-btn"></button>')
                 .text(text).attr('title', title).prop('disabled', !enabled)
