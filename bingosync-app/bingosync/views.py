@@ -420,6 +420,7 @@ def room_view(request, encoded_room_uuid):
                 "review_style": (request.user.review_style
                                  if request.user.is_authenticated
                                  else ReviewStyle.LIST),
+                "review_styles": ReviewStyle.choices,
                 "sockets_url": SOCKETS_URL,
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
@@ -1642,6 +1643,25 @@ def counter_counts(request):
     except CounterTally.Invalid as e:
         return HttpResponseBadRequest(str(e))
     return JsonResponse(tally.to_json(squares))
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def set_review_style(request):
+    """Save the logged-in user's review style (how they approve and reject
+    goals in review as a counter). The same preference as on their profile;
+    the room's Counter Settings panel sets it without leaving the room."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden("Log in to save preferences.")
+    data = parse_body_json_or_400(request, required_keys=["review_style"])
+    review_style = data["review_style"]
+    if review_style not in ReviewStyle.values:
+        return HttpResponseBadRequest("Unknown review style.")
+    request.user.review_style = review_style
+    request.user.save(update_fields=["review_style"])
+    return JsonResponse({"review_style": review_style})
 
 
 @handle_ratelimit

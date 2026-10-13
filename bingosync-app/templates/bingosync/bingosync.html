@@ -64,6 +64,11 @@
                 <div class="flex-col-content m-b-l">
                     {% include 'bingosync/players_panel.html' %}
                 </div>
+                {% if player.role == 'counter' %}
+                <div class="flex-col-footer m-b-l">
+                    {% include 'bingosync/counter_settings_panel.html' %}
+                </div>
+                {% endif %}
                 <div class="flex-col-footer m-b-l" id="room-settings-container">
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>

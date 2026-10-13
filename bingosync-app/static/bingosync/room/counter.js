@@ -9,7 +9,8 @@
  * - Marks are approved by default. Right-clicking a goal of your color puts
  *   it in review. (For a counter this replaces starring goals.)
  * - How a goal in review is approved or rejected on the board follows the
- *   counter's review style (a profile preference):
+ *   counter's review style (a preference, set on their profile or in the
+ *   room's Counter Settings panel, where it applies at once):
  *     list    - right-click again approves (the default)
  *     click   - left-click rejects, right-click approves
  *     hover   - a reject button shows on hover, right-click approves
@@ -74,10 +75,46 @@ var Counter = (function() {
             that.onCountAction($(this).data('action'));
         });
 
+        this.$settings = $('#counter-settings');
+        this.$settings.on('change', 'input[name=review_style]', function() {
+            that.chooseReviewStyle(this.value);
+        });
+        $('#counter-settings-collapse').on('mousedown', function() {
+            that.$settings.children('.panel-body').toggle(50);
+        });
+
         this.renderTargets();
         this.renderReviewList();
         this.renderHistory();
         this.renderCountActions();
+    };
+
+    // --- Counter Settings -----------------------------------------------
+
+    // Save the review style to the account and use it straight away
+    Counter.prototype.chooseReviewStyle = function(style) {
+        var that = this;
+        var previous = this.reviewStyle;
+        this.setReviewStyle(style);
+        var $status = this.$settings.find('#counter-settings-status').text('Saving…');
+        $.ajax({
+            url: "/api/review-style",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({review_style: style}),
+            success: function() { $status.text('Saved'); },
+            error: function(xhr) {
+                that.setReviewStyle(previous);
+                that.$settings.find('input[name=review_style][value=' + previous + ']').prop('checked', true);
+                $status.text("Couldn't save: " + xhr.responseText);
+            }
+        });
+    };
+
+    Counter.prototype.setReviewStyle = function(style) {
+        this.reviewStyle = style;
+        // The hover and buttons styles put buttons on goals in review
+        this.renderSquareButtons();
     };
 
     // --- Counting For ---------------------------------------------------
