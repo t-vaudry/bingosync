@@ -39,7 +39,8 @@
             {% if player.role == 'counter' %}
                 {% include 'bingosync/counter_target_chooser.html' %}
                 {% include 'bingosync/counter_count_actions.html' %}
-            {% else %}
+            {% elif not player.is_spectator %}
+                {# Spectators don't mark, so they get no color chooser #}
                 {% include 'bingosync/color_chooser.html' %}
             {% endif %}
             <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
@@ -59,9 +60,13 @@
                 <div class="flex-col-content m-b-l">
                     {% include 'bingosync/players_panel.html' %}
                 </div>
+                {# Spectators get no Room Settings panel; the room settings still #}
+                {# load for them (hidden card, fog of war) without one.           #}
+                {% if not player.is_spectator %}
                 <div class="flex-col-footer m-b-l" id="room-settings-container">
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>
+                {% endif %}
                 <div class="flex-col-footer">
                     {% include 'bingosync/chat_settings_panel.html' %}
                 </div>
