@@ -86,8 +86,8 @@ class CounterUIPanelTests(TestCase):
         response = self.counter_client.get(self.room_url)
         
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'counter-panel')
-        self.assertContains(response, 'In Review')
+        self.assertContains(response, 'goal-count-actions')
+        self.assertNotContains(response, 'In Review')
         # Counters choose who they count for in place of the color chooser
         self.assertContains(response, 'counter-target-chooser')
         self.assertNotContains(response, 'id="color-chooser"')
@@ -97,14 +97,14 @@ class CounterUIPanelTests(TestCase):
         response = self.player_client.get(self.room_url)
         
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'counter-panel')
+        self.assertNotContains(response, 'goal-count-actions')
     
     def test_counter_panel_not_visible_to_gamemaster(self):
         """Test that counter panel is not visible to gamemaster"""
         response = self.gm_client.get(self.room_url)
         
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'counter-panel')
+        self.assertNotContains(response, 'goal-count-actions')
     
     def test_counter_js_initialized_for_counter(self):
         """Test that counter.js is initialized for counter role"""
@@ -115,20 +115,6 @@ class CounterUIPanelTests(TestCase):
         self.assertContains(response, 'counter.js')
         # Check that Counter is initialized
         self.assertContains(response, "window.counterUI = new Counter")
-    
-    def test_pending_claims_list_present(self):
-        """Test that pending claims list element is present in counter panel"""
-        response = self.counter_client.get(self.room_url)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'pending-claims-list')
-    
-    def test_claim_history_list_present(self):
-        """Test that claim history list element is present in counter panel"""
-        response = self.counter_client.get(self.room_url)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'claim-history-list')
     
     def test_counter_panel_styling_loaded(self):
         """Test that claim-status.css is loaded"""

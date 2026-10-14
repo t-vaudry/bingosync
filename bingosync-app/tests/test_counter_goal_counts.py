@@ -323,10 +323,15 @@ class MarkedBeforeCountedTest(CounterGoalCountsTestBase):
         self._mark(1, remove=True)
         self.assertEqual(self._get().json()['dismissed'], [])
 
-    def test_rejecting_brings_the_alert_back_for_the_next_mark(self):
+    def test_counter_unmarking_brings_the_alert_back_for_the_next_mark(self):
         self._mark(1)
         self._ok('dismiss', slot=1)
-        self._review(1, 'reject')
+        response = self.counter_client.put(
+            '/api/select',
+            data=json.dumps({'room': self.room.encoded_uuid, 'slot': 1,
+                             'color': 'red', 'remove_color': True}),
+            content_type='application/json')
+        self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(self._get().json()['dismissed'], [])
 
     def test_approving_from_review_dismisses_it_for_that_counter(self):

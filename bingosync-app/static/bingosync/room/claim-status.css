@@ -36,23 +36,6 @@
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
 }
 
-/* Review buttons on a goal in review (counter's "hover"/"buttons" styles) */
-.square .review-actions {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    display: flex;
-    gap: 2px;
-    z-index: 7;
-    text-shadow: none;
-}
-.square .review-actions .btn {
-    padding: 0 5px;
-    line-height: 1.4;
-}
-.square .review-actions-hover { display: none; }
-.square:hover .review-actions-hover { display: flex; }
-
 /* Counter's goal counts: a [-] 3/6 [+] strip along the bottom of a goal.
    Stays under the board cover (z-index 3) and out of fogged squares. */
 /* Centred in the space above the strip */
@@ -73,6 +56,17 @@
     text-indent: 0;
     font-size: 12px;
     cursor: default;
+}
+/* A thin dead zone just above the strip: a click that narrowly misses a
+   count button lands here (part of the strip, which ignores clicks) instead
+   of marking or unmarking the goal */
+.square .goal-count::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 6px;
 }
 /* Progress bar: the counted color, inset from the edges of the dark strip
    and brightened and outlined, so it stands out on a square already
@@ -149,103 +143,6 @@
     font-weight: normal;
     color: #aaa;
 }
-
-/* Counter Settings panel (right sidebar) */
-.counter-settings-help {
-    color: #aaa;
-    margin-bottom: 4px;
-}
-.counter-settings-option {
-    margin: 4px 0;
-}
-.counter-settings-status {
-    font-size: 85%;
-    color: #888;
-    min-height: 1.2em;
-}
-
-/* Counter panel — fill its container properly */
-#counter-panel {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.counter-body {
-    flex: 1 1 auto;
-    overflow-y: auto;
-}
-
-.counter-history-divider {
-    border-top: 1px solid #444;
-    margin: 6px 0;
-}
-
-.counter-history-header {
-    font-size: 80%;
-    color: #888;
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-
-/* Pending claim items — compact with icon buttons */
-.counter-claim-item {
-    border-left: 3px solid #17a2b8;
-    padding: 4px 6px;
-    margin-bottom: 5px;
-    background-color: rgba(255,255,255,0.03);
-    border-radius: 0 3px 3px 0;
-}
-
-.counter-claim-item.status-under-review {
-    border-left-color: #ffc107;
-}
-
-.counter-claim-goal {
-    font-size: 0.85em;
-    color: #ddd;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.counter-claim-meta {
-    font-size: 0.75em;
-    color: #888;
-}
-
-/* Icon action buttons — single row, compact */
-.counter-claim-actions {
-    margin-top: 3px;
-    display: flex;
-    gap: 3px;
-}
-
-.counter-claim-actions .btn {
-    padding: 1px 8px;
-    font-size: 0.8em;
-    line-height: 1.4;
-}
-
-/* History items — compact */
-.counter-history-item {
-    padding: 3px 6px;
-    margin-bottom: 3px;
-    border-left: 2px solid #444;
-    font-size: 0.78em;
-}
-
-.counter-history-item.history-confirmed { border-left-color: #28a745; }
-.counter-history-item.history-rejected { border-left-color: #dc3545; }
-.counter-history-item.history-under-review { border-left-color: #ffc107; }
-
-.counter-history-action { font-weight: bold; }
-.counter-history-action.text-success { color: #62c462; }
-.counter-history-action.text-danger { color: #ee5f5b; }
-.counter-history-action.text-warning { color: #ffc107; }
-
-.counter-history-detail { color: #999; }
-.counter-history-time { color: #666; font-size: 0.85em; }
 
 /* "Counting For": one button per player, in their color (counter.js) */
 .counter-targets {

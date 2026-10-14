@@ -13,7 +13,7 @@ from bingosync.models.enums import Role
 from bingosync.models.events import ConnectionEvent, ChatEvent
 from bingosync.models.game_type import GameType
 from bingosync.models.rooms import Room, Game, Player
-from bingosync.models.user import User, ReviewStyle
+from bingosync.models.user import User
 from bingosync.forms import JoinRoomForm
 
 
@@ -170,47 +170,3 @@ class OwnRoleTests(RoomTestCase):
 
         self._player(role=Role.GAMEMASTER, name="gm")
         self.assertNotContains(self.client.get(url), 'id="own-role-select"')
-
-
-class ReviewStylePreferenceTests(RoomTestCase):
-
-    def _profile_url(self, user):
-        return reverse('user_profile', kwargs={'username': user.username})
-
-    def test_defaults_to_the_review_list(self):
-        self.assertEqual(self.user.review_style, ReviewStyle.LIST)
-
-    def test_save_your_own_preference(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self._profile_url(self.user),
-                                    {'review_style': ReviewStyle.BUTTONS})
-        self.assertEqual(response.status_code, 302)
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.review_style, ReviewStyle.BUTTONS)
-
-    def test_preferences_only_on_your_own_profile(self):
-        other = User.objects.create_user(username="ron", email="ron@test.com")
-        self.client.force_login(self.user)
-        self.assertContains(self.client.get(self._profile_url(self.user)), 'name="review_style"')
-        self.assertNotContains(self.client.get(self._profile_url(other)), 'name="review_style"')
-
-        response = self.client.post(self._profile_url(other),
-                                    {'review_style': ReviewStyle.CLICK})
-        self.assertEqual(response.status_code, 403)
-        other.refresh_from_db()
-        self.assertEqual(other.review_style, ReviewStyle.LIST)
-
-    def test_unknown_style_rejected(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self._profile_url(self.user), {'review_style': 'nope'})
-        self.assertEqual(response.status_code, 400)
-
-    def test_counter_page_uses_the_preference(self):
-        self.user.review_style = ReviewStyle.HOVER
-        self.user.save()
-        counter = self._player(self.user, role=Role.COUNTER)
-        self.client.force_login(self.user)
-        self._sit_in_room(counter)
-        response = self.client.get(reverse('room_view', kwargs={
-            'encoded_room_uuid': self.room.encoded_uuid}))
-        self.assertContains(response, 'playersPanel, "hover")')

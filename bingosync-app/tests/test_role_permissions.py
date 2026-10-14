@@ -129,8 +129,9 @@ class RolePermissionsTestCase(TestCase):
         # Counter can chat
         self.assertTrue(check_permission(counter, 'chat'))
 
-        # Counter CANNOT mark squares
-        self.assertFalse(check_permission(counter, 'mark_square'))
+        # Counter can mark squares (only the color they count; goal_selected
+        # enforces that)
+        self.assertTrue(check_permission(counter, 'mark_square'))
 
         # Counter CANNOT generate board
         self.assertFalse(check_permission(counter, 'generate_board'))
