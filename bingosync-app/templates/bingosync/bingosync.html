@@ -7,7 +7,7 @@
      layout that the chat and sidebar use
  -->
 {% block page_body %}
-<div class="room-page {% if player.role == 'counter' %}room-page-counter{% else %}room-page-standard{% endif %}">
+<div class="room-page room-page-standard">
     <div class="room-header">
         <h1 class="room-title"><a href="{% url 'rooms' %}">Bingosync</a> - {{ room.name }}</h1>
         <h4 class="room-identity">
@@ -35,11 +35,6 @@
     {# The board column keeps the board at its full size; chat takes the #}
     {# remaining width. See "Room page layout" in style.css.              #}
     <div class="room-layout">
-        {% if player.role == 'counter' %}
-        <div class="room-col room-claims-col">
-            {% include 'bingosync/counter_panel.html' %}
-        </div>
-        {% endif %}
         <div class="room-col room-board-col">
             {% if player.role == 'counter' %}
                 {% include 'bingosync/counter_target_chooser.html' %}
@@ -64,11 +59,6 @@
                 <div class="flex-col-content m-b-l">
                     {% include 'bingosync/players_panel.html' %}
                 </div>
-                {% if player.role == 'counter' %}
-                <div class="flex-col-footer m-b-l">
-                    {% include 'bingosync/counter_settings_panel.html' %}
-                </div>
-                {% endif %}
                 <div class="flex-col-footer m-b-l" id="room-settings-container">
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>
@@ -126,7 +116,7 @@
 
         // Initialize counter UI if player is a counter
         if (player.role === 'counter') {
-            window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, playersPanel, "{{ review_style }}");
+            window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, colorChooser, playersPanel);
         }
 
         // Without a Gamemaster, players pick their own role. The page is

@@ -337,7 +337,11 @@ class Game(models.Model):
     def board(self):
         return [square.to_json() for square in self.squares]
 
-    def update_goal(self, player, slot, color, remove_color, claim_status='confirmed'):
+    def update_goal(self, player, slot, color, remove_color, claim_status='confirmed',
+                    claimed_by=None):
+        """Mark (or unmark) `color` on a square. `player` is whoever clicked;
+        `claimed_by` is who the mark is credited to, when that's someone
+        else (a counter marking for the player they count)."""
         square = self.squares[slot - 1]
         square_color = square.color
 
@@ -352,15 +356,18 @@ class Game(models.Model):
 
         if remove_color:
             square_color.remove(color)
-            # When removing color, reset claim status
-            square.claim_status = 'none'
-            square.claimed_by = None
+            # Other colors left on the square (non-lockout) still count
+            remaining = [c for c in square_color.colors if c != Color.blank]
+            square.claim_status = 'confirmed' if remaining else 'none'
+            if not remaining or (square.claimed_by is not None
+                                 and square.claimed_by.color == color):
+                square.claimed_by = None
             square.reviewed_by = None
         else:
             square_color.add(color)
             # Set claim status and claimed_by
             square.claim_status = claim_status
-            square.claimed_by = player
+            square.claimed_by = claimed_by or player
         
         square.color = square_color
         square.save()
@@ -386,7 +393,7 @@ def validate_in_slot_range(slot):
 
 # Claim statuses that count toward score, bingos and a lockout win. Marks are
 # approved by default; a counter putting one in review doesn't stop it
-# counting. Only rejecting it (or unmarking it) does.
+# counting. Only unmarking it does ('rejected' is from the old review flow).
 COUNTED_CLAIM_STATUSES = ('confirmed', 'under_review')
 
 

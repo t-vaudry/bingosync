@@ -39,7 +39,7 @@ from bingosync.models.rooms import (
     ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
     COUNTED_CLAIM_STATUSES, CounterTally
 )
-from bingosync.models.user import User, ReviewStyle
+from bingosync.models.user import User
 from bingosync.publish import (
     publish_goal_event, publish_chat_event, publish_color_event,
     publish_revealed_event
@@ -417,10 +417,6 @@ def room_view(request, encoded_room_uuid):
                 "can_change_own_role": _can_change_own_role(player),
                 "role_choices": [(Role.PLAYER, "Player"), (Role.COUNTER, "Counter"),
                                  (Role.SPECTATOR, "Spectator")],
-                "review_style": (request.user.review_style
-                                 if request.user.is_authenticated
-                                 else ReviewStyle.LIST),
-                "review_styles": ReviewStyle.choices,
                 "sockets_url": SOCKETS_URL,
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
@@ -703,7 +699,6 @@ def export_account(request):
             "email": user.email,
             "date_joined": user.date_joined.isoformat(),
             "last_login": user.last_login.isoformat() if user.last_login else None,
-            "review_style": user.review_style,
         },
         "stats": {
             "games_played": user.total_games_played,
@@ -771,18 +766,6 @@ def user_profile(request, username):
     profile_user = get_object_or_404(User, username__iexact=username)
     is_own_profile = request.user == profile_user
 
-    # Your own profile also holds your preferences
-    if request.method == "POST":
-        if not is_own_profile:
-            return HttpResponseForbidden("You can only change your own preferences.")
-        review_style = request.POST.get("review_style")
-        if review_style not in ReviewStyle.values:
-            return HttpResponseBadRequest("Unknown review style.")
-        profile_user.review_style = review_style
-        profile_user.save(update_fields=["review_style"])
-        return redirect_params("user_profile", username=profile_user.username,
-                               params={"saved": "1"})
-
     stats = [
         ("Wins", profile_user.wins),
         ("Losses", profile_user.losses),
@@ -799,8 +782,6 @@ def user_profile(request, username):
         "achievements": achievements,
         "earned_count": earned_count,
         "is_own_profile": is_own_profile,
-        "review_styles": ReviewStyle.choices,
-        "preferences_saved": request.GET.get("saved") == "1",
         "delete_error": request.GET.get("delete_error") == "1",
     })
 
@@ -874,9 +855,29 @@ def goal_selected(request):
     color = Color.for_name(data["color"])
     remove_color = data["remove_color"]
 
+    # A counter marks and unmarks for the color they count (fixing a
+    # mistake either way); the mark is credited to that color's player.
+    credited = player
+    if player.role == Role.COUNTER:
+        if player.monitoring_color is None:
+            return HttpResponseBadRequest("Choose the color you're counting first.")
+        if color != player.monitoring_color:
+            return HttpResponseForbidden(
+                "You can only mark goals of the color you're counting.")
+        credited = _color_player(room, color)
+
+    try:
+        before = game.squares[slot - 1]
+    except IndexError:
+        return HttpResponseBadRequest(f"Invalid slot: {slot}")
+    was_counted = (before.claim_status in COUNTED_CLAIM_STATUSES
+                   and color in before.color.colors)
+    marker = before.claimed_by
+
     # Marks are approved by default and count immediately. A counter can put
     # one in review afterwards (right-click on the board); see review_claim.
-    goal_event = game.update_goal(player, slot, color, remove_color, claim_status='confirmed')
+    goal_event = game.update_goal(player, slot, color, remove_color,
+                                  claim_status='confirmed', claimed_by=credited)
     if not goal_event:
         return HttpResponseBadRequest("Blocked by Lockout")
 
@@ -885,14 +886,24 @@ def goal_selected(request):
     if remove_color:
         # Marking it again later should alert its counters again
         CounterTally.forget_dismissal(game, color, slot)
-
-    # A new mark may complete a lockout win and/or one or more bingos.
-    if not remove_color:
-        _record_square_marked(player)
-        check_and_record_lockout_win(game, player)
-        check_and_record_bingos(game, player)
+        # Take back what the mark counted for
+        if was_counted:
+            _revoke_unmarked_goal(game, color, marker, slot)
+    else:
+        # A new mark may complete a lockout win and/or one or more bingos.
+        _record_square_marked(credited)
+        check_and_record_lockout_win(game, credited or player)
+        check_and_record_bingos(game, credited)
 
     return HttpResponse("Recieved data: " + str(data))
+
+
+def _color_player(room, color):
+    """The player a color's marks are credited to: the first Player in the
+    room with that color, or None when nobody plays it."""
+    return Player.objects.filter(
+        room=room, role=Role.PLAYER, color_value=color.value
+    ).order_by('created_date', 'id').first()
 
 
 @handle_ratelimit
@@ -1036,7 +1047,7 @@ def _record_win_loss(game, winning_color, delta=1):
 
     Only Player-role participants with a linked account are scored; spectators,
     counters, and the gamemaster are not. `delta=-1` takes them back again
-    (used when a rejected claim withdraws a win).
+    (used when unmarking a goal withdraws a win).
     """
     scored_players = Player.objects.filter(
         room=game.room, role=Role.PLAYER).exclude(user__isnull=True)
@@ -1111,8 +1122,9 @@ def _record_square_marked(player):
             total_squares_marked=F('total_squares_marked') + 1)
 
 
-def _revoke_rejected_goal(game, color, marker, slot):
-    """Take back what a counted mark earned, once a counter rejects it.
+def _revoke_unmarked_goal(game, color, marker, slot):
+    """Take back what a counted mark earned, once it's unmarked (by a
+    player, or by a counter fixing a mistake).
 
     `color` has already been removed from the square. Takes the square off
     its marker's lifetime total, drops the color's bingo lines through it
@@ -1151,7 +1163,7 @@ def _revoke_rejected_goal(game, color, marker, slot):
             create_system_chat_message(
                 winner, game.room,
                 f"{game.room.color_label(color)}'s win was withdrawn after a "
-                f"rejected claim ({remaining} goals).")
+                f"goal was unmarked ({remaining} goals).")
 
 
 def _record_game_played(room):
@@ -1444,10 +1456,10 @@ def review_claim(request):
     Marks are approved by default. Actions:
     - under_review: put an approved goal in review (right-click on the board).
       It keeps counting while in review.
-    - confirm: approve a goal that's in review, taking it out of review.
-    - reject: remove the mark, and take back what it counted for (square
-      total, any bingo line through it, and a lockout win that no longer
-      holds).
+    - confirm: approve a goal that's in review, taking it out of review
+      (right-click it again).
+    To remove a mark that shouldn't be there, a counter unmarks it with a
+    left-click (goal_selected), which takes back what it counted for.
     """
     data = parse_body_json_or_400(
         request,
@@ -1486,7 +1498,7 @@ def review_claim(request):
 
     # Validate action
     action = data["action"]
-    valid_actions = ['under_review', 'confirm', 'reject']
+    valid_actions = ['under_review', 'confirm']
     if action not in valid_actions:
         return HttpResponseBadRequest(
             f"Invalid action: {action}. Must be one of: {', '.join(valid_actions)}")
@@ -1526,21 +1538,6 @@ def review_claim(request):
                 tally.dismiss([square], slot)
                 tally.save()
 
-        elif action == 'reject':
-            # Remove the counted color from the square. In non-lockout other
-            # colors may remain, and those still count.
-            square_color = square.color
-            square_color.remove(color)
-            square.color = square_color
-            remaining = [c for c in square_color.colors if c != Color.blank]
-            square.claim_status = 'confirmed' if remaining else 'rejected'
-            square.reviewed_by = counter
-            if reviewed_player is None or reviewed_player.color == color:
-                square.claimed_by = None
-            square.save()
-            CounterTally.forget_dismissal(game, color, slot)
-            message = f"{counter.name} rejected {label}'s claim on {square.goal}"
-
         # Create claim review event
         claim_review_event = ClaimReviewEvent(
             player=counter,
@@ -1563,8 +1560,6 @@ def review_claim(request):
         _record_square_marked(reviewed_player)
         check_and_record_lockout_win(game, reviewed_player)
         check_and_record_bingos(game, reviewed_player)
-    elif action == 'reject' and was_counted:
-        _revoke_rejected_goal(game, color, reviewed_player, slot)
 
     return HttpResponse("Claim reviewed successfully")
 
@@ -1643,25 +1638,6 @@ def counter_counts(request):
     except CounterTally.Invalid as e:
         return HttpResponseBadRequest(str(e))
     return JsonResponse(tally.to_json(squares))
-
-
-@handle_ratelimit
-@ratelimit_authenticated_action
-def set_review_style(request):
-    """Save the logged-in user's review style (how they approve and reject
-    goals in review as a counter). The same preference as on their profile;
-    the room's Counter Settings panel sets it without leaving the room."""
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-    if not request.user.is_authenticated:
-        return HttpResponseForbidden("Log in to save preferences.")
-    data = parse_body_json_or_400(request, required_keys=["review_style"])
-    review_style = data["review_style"]
-    if review_style not in ReviewStyle.values:
-        return HttpResponseBadRequest("Unknown review style.")
-    request.user.review_style = review_style
-    request.user.save(update_fields=["review_style"])
-    return JsonResponse({"review_style": review_style})
 
 
 @handle_ratelimit

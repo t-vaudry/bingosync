@@ -6,21 +6,11 @@
  *   with its player's name when exactly one player has it, otherwise with
  *   the color's name. Clicking one switches the color you count (and you
  *   take on that color).
- * - Marks are approved by default. Right-clicking a goal of your color puts
- *   it in review. (For a counter this replaces starring goals.)
- * - How a goal in review is approved or rejected on the board follows the
- *   counter's review style (a preference, set on their profile or in the
- *   room's Counter Settings panel, where it applies at once):
- *     list    - right-click again approves (the default)
- *     click   - left-click rejects, right-click approves
- *     hover   - a reject button shows on hover, right-click approves
- *     buttons - approve and reject buttons stay on the goal; right-click
- *               does nothing more
- * - The review list shows your color's goals in review, each with Approve
- *   (take it out of review) and Reject (remove the mark), whatever the style.
- *
- * The review list is derived from the board's squares, so it stays in step
- * with live updates and survives a page reload.
+ * - Left-click marks or unmarks a goal in the color you count, to fix a
+ *   mistake either way (the server credits the mark to that color's player).
+ * - Right-click a goal of your color to put it in review; right-click it
+ *   again to approve it, taking it out of review. Marks are approved by
+ *   default, and a goal in review still counts.
  *
  * Goal counts ("3/6 Gnomes") are private to this counter, kept on the server
  * per game and color (/api/counter-counts):
@@ -30,33 +20,25 @@
  *   it (the server works that out).
  * - A ⚠ shows on a goal of your color that was marked before you counted it
  *   complete. Click it to dismiss it; it also goes once the count is
- *   complete or the goal is in review. Load brings dismissed alerts back.
- * - Save / Load / Clear / Reset in the panel: Load goes back to the saved
- *   counts when the runner loses in-game progress.
+ *   complete, the goal is in review or it's approved. Load brings dismissed
+ *   alerts back.
+ * - Save / Load / Clear / Reset in the Counts panel: Load goes back to the
+ *   saved counts when the runner loses in-game progress.
  */
 var Counter = (function() {
     "use strict";
 
     var IN_REVIEW = ['under_review', 'pending_decision'];
 
-    var HISTORY_STYLES = {
-        under_review: {icon: '⏳', text: 'text-warning', item: 'history-under-review', label: 'In review'},
-        confirm: {icon: '✓', text: 'text-success', item: 'history-confirmed', label: 'Approved'},
-        reject: {icon: '✗', text: 'text-danger', item: 'history-rejected', label: 'Rejected'}
-    };
-
-    var Counter = function(roomUuid, counterJson, board, playersPanel, reviewStyle) {
+    var Counter = function(roomUuid, counterJson, board, colorChooser, playersPanel) {
         this.roomUuid = roomUuid;
-        this.reviewStyle = reviewStyle || 'list';
         this.counterUuid = counterJson.uuid;
         this.monitoringColor = counterJson.monitoring_color || null;
         this.board = board;
+        this.colorChooser = colorChooser;
         this.playersPanel = playersPanel;
-        this.history = [];
 
         this.$targets = $('#counter-target-chooser .counter-targets');
-        this.$reviewList = $('#pending-claims-list');
-        this.$historyList = $('#claim-history-list');
         this.$countActions = $('#goal-count-actions');
         this.$savedAt = $('#goal-count-saved-at');
 
@@ -75,46 +57,9 @@ var Counter = (function() {
             that.onCountAction($(this).data('action'));
         });
 
-        this.$settings = $('#counter-settings');
-        this.$settings.on('change', 'input[name=review_style]', function() {
-            that.chooseReviewStyle(this.value);
-        });
-        $('#counter-settings-collapse').on('mousedown', function() {
-            that.$settings.children('.panel-body').toggle(50);
-        });
-
+        this.useMonitoringColor();
         this.renderTargets();
-        this.renderReviewList();
-        this.renderHistory();
         this.renderCountActions();
-    };
-
-    // --- Counter Settings -----------------------------------------------
-
-    // Save the review style to the account and use it straight away
-    Counter.prototype.chooseReviewStyle = function(style) {
-        var that = this;
-        var previous = this.reviewStyle;
-        this.setReviewStyle(style);
-        var $status = this.$settings.find('#counter-settings-status').text('Saving…');
-        $.ajax({
-            url: "/api/review-style",
-            type: "POST",
-            contentType: "application/json",
-            data: JSON.stringify({review_style: style}),
-            success: function() { $status.text('Saved'); },
-            error: function(xhr) {
-                that.setReviewStyle(previous);
-                that.$settings.find('input[name=review_style][value=' + previous + ']').prop('checked', true);
-                $status.text("Couldn't save: " + xhr.responseText);
-            }
-        });
-    };
-
-    Counter.prototype.setReviewStyle = function(style) {
-        this.reviewStyle = style;
-        // The hover and buttons styles put buttons on goals in review
-        this.renderSquareButtons();
     };
 
     // --- Counting For ---------------------------------------------------
@@ -166,21 +111,33 @@ var Counter = (function() {
             return;
         }
         this.monitoringColor = json.monitored_color || null;
+        this.useMonitoringColor();
         this.renderTargets();
-        this.renderReviewList();
         // Each color has its own counts
         this.loadCounts();
     };
 
-    // --- Review ---------------------------------------------------------
+    // The board marks in its color chooser's color (a counter has no chooser
+    // of their own): the color they count. Fog of war reveals around it too.
+    Counter.prototype.useMonitoringColor = function() {
+        this.colorChooser.defaultColor = this.monitoringColor;
+        this.board.hideSquares();
+    };
+
+    // --- Marking and review ---------------------------------------------
 
     Counter.prototype.hasMyColor = function(square) {
         return !!this.monitoringColor && square.colors.indexOf(this.monitoringColor) !== -1;
     };
 
-    // A goal of the color you're counting (whoever marked it) that's in review
-    Counter.prototype.isMyGoalInReview = function(square) {
-        return !!square && this.hasMyColor(square) && IN_REVIEW.indexOf(square.claimStatus) !== -1;
+    // Left-click marks and unmarks like a player's, in the color you count.
+    // Returns true when the click is handled here instead.
+    Counter.prototype.onLeftClick = function(slot) {
+        if (!this.monitoringColor) {
+            alert("Choose who you're counting (above the board) first.");
+            return true;
+        }
+        return false;
     };
 
     Counter.prototype.onRightClick = function(slot) {
@@ -189,77 +146,24 @@ var Counter = (function() {
             return;
         }
         if (IN_REVIEW.indexOf(square.claimStatus) !== -1) {
-            // With buttons on the goal, a second right-click doesn't approve
-            if (this.reviewStyle !== 'buttons') {
-                this.review(slot, 'confirm');
-            }
+            this.review(slot, 'confirm');
         } else if (square.claimStatus === 'confirmed') {
             this.review(slot, 'under_review');
         }
     };
 
-    // Returns true when the click was a review action (so the board doesn't
-    // treat it as marking the goal).
-    Counter.prototype.onLeftClick = function(slot) {
-        if (this.reviewStyle === 'click' && this.isMyGoalInReview(this.board.squares[slot - 1])) {
-            this.review(slot, 'reject');
-            return true;
-        }
-        return false;
-    };
-
-    // The "hover" and "buttons" styles put review buttons on the goals
-    Counter.prototype.renderSquareButtons = function() {
-        var that = this;
-        this.board.squares.forEach(function(square, i) {
-            square.$square.children('.review-actions').remove();
-            if (that.reviewStyle !== 'hover' && that.reviewStyle !== 'buttons') {
-                return;
-            }
-            if (!that.isMyGoalInReview(square)) {
-                return;
-            }
-            var slot = i + 1;
-            var $actions = $('<div class="review-actions"></div>')
-                .toggleClass('review-actions-hover', that.reviewStyle === 'hover')
-                .appendTo(square.$square);
-            if (that.reviewStyle === 'buttons') {
-                that.squareButton('btn-success', '✓', 'Approve (take it out of review)', slot, 'confirm').appendTo($actions);
-            }
-            that.squareButton('btn-danger', '✗', 'Reject (removes the mark)', slot, 'reject').appendTo($actions);
-        });
-    };
-
-    Counter.prototype.squareButton = function(btnClass, text, title, slot, action) {
-        var that = this;
-        return $('<button class="btn btn-xs"></button>').addClass(btnClass).text(text).attr('title', title)
-            .on('click', function(ev) {
-                // Not a click on the goal itself
-                ev.stopPropagation();
-                that.review(slot, action);
-            });
-    };
-
     Counter.prototype.review = function(slot, action) {
-        var that = this;
-        var goal = this.goalName(slot);
         $.ajax({
             url: "/api/review-claim",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify({room: this.roomUuid, slot: slot, action: action}),
-            success: function() { that.addHistory(goal, action); },
             error: function(xhr) { console.error("Review failed:", xhr.responseText); }
         });
     };
 
-    Counter.prototype.goalName = function(slot) {
-        return this.board.squares[slot - 1].$square.children('.text-container').text();
-    };
-
     // Called after any change to the board (marks, reviews, a new card).
     Counter.prototype.onBoardChanged = function() {
-        this.renderReviewList();
         if (this.tallyGeneration !== this.board.generation) {
             // A newly loaded board (first load or a new card): its counts
             this.loadCounts();
@@ -267,40 +171,6 @@ var Counter = (function() {
             // The strips are still on the squares; alerts follow the marks
             this.renderCounts();
         }
-    };
-
-    Counter.prototype.renderReviewList = function() {
-        var that = this;
-        this.renderSquareButtons();
-        this.$reviewList.empty();
-        if (!this.monitoringColor) {
-            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Choose what you're counting above the board."}));
-            return;
-        }
-        var slots = [];
-        this.board.squares.forEach(function(square, i) {
-            if (that.hasMyColor(square) && IN_REVIEW.indexOf(square.claimStatus) !== -1) {
-                slots.push(i + 1);
-            }
-        });
-        if (slots.length === 0) {
-            this.$reviewList.append($('<span>', {"class": "history-placeholder", text: "Nothing in review. Right-click one of your color's goals to review it."}));
-            return;
-        }
-        slots.forEach(function(slot) { that.$reviewList.append(that.reviewItem(slot)); });
-    };
-
-    Counter.prototype.reviewItem = function(slot) {
-        var that = this;
-        var goal = this.goalName(slot);
-        var $item = $('<div class="counter-claim-item status-under-review"></div>');
-        $('<div class="counter-claim-goal"></div>').text(goal).attr('title', goal).appendTo($item);
-        var $actions = $('<div class="counter-claim-actions"></div>').appendTo($item);
-        $('<button class="btn btn-xs btn-success" title="Approve (take it out of review)">✓</button>')
-            .on('click', function() { that.review(slot, 'confirm'); }).appendTo($actions);
-        $('<button class="btn btn-xs btn-danger" title="Reject (removes the mark)">✗</button>')
-            .on('click', function() { that.review(slot, 'reject'); }).appendTo($actions);
-        return $item;
     };
 
     // --- Goal counts ----------------------------------------------------
@@ -444,34 +314,6 @@ var Counter = (function() {
             return;
         }
         this.sendCount({action: action});
-    };
-
-    // --- History (this session's own actions) ---------------------------
-
-    Counter.prototype.addHistory = function(goal, action) {
-        this.history.unshift({goal: goal, action: action, time: new Date()});
-        this.history = this.history.slice(0, 20);
-        this.renderHistory();
-    };
-
-    Counter.prototype.renderHistory = function() {
-        this.$historyList.empty();
-        if (this.history.length === 0) {
-            this.$historyList.append($('<span>', {"class": "history-placeholder", text: "No reviews yet"}));
-            return;
-        }
-        var that = this;
-        this.history.forEach(function(entry) {
-            var style = HISTORY_STYLES[entry.action];
-            var $item = $('<div class="counter-history-item"></div>').addClass(style.item);
-            $('<span class="counter-history-action"></span>').addClass(style.text).text(style.icon).attr('title', style.label).appendTo($item);
-            $item.append(' ');
-            $('<span class="counter-history-detail"></span>').text(entry.goal).appendTo($item);
-            $item.append(' ');
-            $('<span class="counter-history-time"></span>')
-                .text(entry.time.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})).appendTo($item);
-            that.$historyList.append($item);
-        });
     };
 
     return Counter;

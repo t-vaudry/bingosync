@@ -1015,13 +1015,10 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
 .room-sidebar-col {
     flex: 0 0 250px;
 }
-.room-claims-col {
-    flex: 0 0 220px;
-}
 
 /* Not enough width for every column beside the board (board + chat +
-   sidebar, plus the claims column for counters): let the columns wrap
-   below the board, each with a fixed height. */
+   sidebar): let the columns wrap below the board, each with a fixed
+   height. */
 @media (max-width: 1199px) {
     .room-page-standard {
         height: auto;
@@ -1034,22 +1031,6 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
         height: 540px;
     }
     .room-page-standard .room-board-col {
-        flex-grow: 0;
-        height: auto;
-    }
-}
-@media (max-width: 1459px) {
-    .room-page-counter {
-        height: auto;
-    }
-    .room-page-counter .room-layout {
-        flex-wrap: wrap;
-    }
-    .room-page-counter .room-col {
-        flex-grow: 1;
-        height: 540px;
-    }
-    .room-page-counter .room-board-col {
         flex-grow: 0;
         height: auto;
     }

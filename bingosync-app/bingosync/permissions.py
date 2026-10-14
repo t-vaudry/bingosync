@@ -26,6 +26,8 @@ ROLE_PERMISSIONS = {
         'chat': True,
     },
     Role.COUNTER: {
+        # Only the color they count, to fix mistakes (see goal_selected)
+        'mark_square': True,
         'view_board': True,
         'review_claims': True,
         'chat': True,
