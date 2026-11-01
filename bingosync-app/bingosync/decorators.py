@@ -92,6 +92,19 @@ def ratelimit_counting(view_func):
     return wrapped
 
 
+def ratelimit_public_api(view_func):
+    """
+    Rate limit the public room API to 60 requests per minute per IP.
+
+    Enough for a stream overlay polling every second or two.
+    """
+    @wraps(view_func)
+    @ratelimit(key='ip', rate='60/m', method='GET', block=True)
+    def wrapped(request, *args, **kwargs):
+        return view_func(request, *args, **kwargs)
+    return wrapped
+
+
 def handle_ratelimit(view_func):
     """
     Decorator to handle rate limit exceptions and return 429 Too Many Requests.

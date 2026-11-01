@@ -622,9 +622,10 @@ class CompletedLine(models.Model):
 class CounterTally(models.Model):
     """A counter's goal counts for one color in a game ("3/6 Gnomes").
 
-    Private to that counter: two counters on one color keep separate tallies
-    (they count independently to verify each other), and nothing here goes to
-    the room. `counts` and `saved_counts` map a slot ("7") to its count;
+    Private to that counter in the site: two counters on one color keep
+    separate tallies (they count independently to verify each other), and
+    nothing here is broadcast to the room. The counts alone (not the saved
+    snapshot or dismissed alerts) are also served by the public room API. `counts` and `saved_counts` map a slot ("7") to its count;
     `saved_counts` is the snapshot Load goes back to when the runner loses
     in-game progress (fainting, reloading a save book). `dismissed` lists
     slots whose "marked before counted" alert the counter has dismissed for
