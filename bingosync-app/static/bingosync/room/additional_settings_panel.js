@@ -40,9 +40,10 @@ var AdditionalSettingsPanel = (function(){
         });
 
         // The blackout view shows the color currently chosen to mark with.
-        $(".color-chooser").on("click", function() {
+        // Delegated: a counter's target buttons are created after this runs.
+        $(document).on("click", ".color-chooser", function() {
             if (that.$blackout.prop("checked")) {
-                that.applyBlackoutView();
+                setTimeout(function() { that.applyBlackoutView(); }, 0);
             }
         });
 
@@ -64,9 +65,17 @@ var AdditionalSettingsPanel = (function(){
         this.applyBlackoutView();
     };
 
+    // A player marks with the color chooser's color; a counter views the
+    // target they picked (those buttons carry the color as a class).
+    AdditionalSettingsPanel.prototype.chosenColor = function() {
+        var cls = $(".color-chooser.chosen-color").first().attr("class") || "";
+        var match = cls.match(/([a-z]+)square/);
+        return match ? match[1] : this.colorChooser.getChosenColor();
+    };
+
     AdditionalSettingsPanel.prototype.applyBlackoutView = function() {
         var on = this.$blackout.prop("checked");
-        this.board.setBlackoutView(on ? this.colorChooser.getChosenColor() : null);
+        this.board.setBlackoutView(on ? this.chosenColor() : null);
     };
 
     return AdditionalSettingsPanel;
