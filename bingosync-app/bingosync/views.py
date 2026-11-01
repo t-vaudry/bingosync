@@ -54,6 +54,7 @@ from bingosync.decorators import (
     ratelimit_registration,
     ratelimit_authenticated_action,
     ratelimit_counting,
+    ratelimit_public_api,
     handle_ratelimit,
     require_internal_api_secret
 )
@@ -456,6 +457,24 @@ def room_board(request, encoded_room_uuid):
     room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
     board = room.current_game.board
     return JsonResponse(board, safe=False)
+
+
+@handle_ratelimit
+@ratelimit_public_api
+def public_room(request, encoded_room_uuid):
+    """A room's non-sensitive state as JSON, readable by anyone with the room
+    link (stream overlays, bots). See bingosync.public_api for what it omits."""
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    from bingosync.public_api import room_public_json
+    room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
+    data = room_public_json(room)
+    if data is None:
+        raise Http404
+    response = JsonResponse(data)
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 def room_scores(request, encoded_room_uuid):

@@ -80,6 +80,8 @@ urlpatterns = [
     url(r'^account/export$', views.export_account, name='export_account'),
     url(r'^account/delete$', views.delete_account, name='delete_account'),
     url(r'^users/(?P<username>[\w.@+-]+)$', views.user_profile, name='user_profile'),
+    url(r'^api/room/(?P<encoded_room_uuid>[^/]+)$',
+        views.public_room, name='public_room'),
     url(r'^api/select$', views.goal_selected, name='goal_selected'),
     url(r'^api/chat$', views.chat_message, name='chat_message'),
     url(r'^api/color$', views.select_color, name='select_color'),
