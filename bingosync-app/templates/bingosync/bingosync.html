@@ -67,6 +67,9 @@
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>
                 {% endif %}
+                <div class="flex-col-footer m-b-l">
+                    {% include 'bingosync/additional_settings_panel.html' %}
+                </div>
                 <div class="flex-col-footer">
                     {% include 'bingosync/chat_settings_panel.html' %}
                 </div>
@@ -83,6 +86,7 @@
 <script src="{% static "bingosync/room/board_cover.js" %}"></script>
 <script src="{% static "bingosync/room/players_panel.js" %}"></script>
 <script src="{% static "bingosync/room/room_settings_panel.js" %}"></script>
+<script src="{% static "bingosync/room/additional_settings_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_socket.js" %}"></script>
 <script src="{% static "bingosync/room/counter.js" %}"></script>
@@ -113,6 +117,8 @@
         var boardCover = new BoardCover($(".board-container"), ROOM_SETTINGS.hide_card, boardRevealedUrl);
         var playersPanel = new PlayersPanel($("#players-panel"), player);
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
+
+        new AdditionalSettingsPanel($("#additional-settings"), $(".room-layout"), board, colorChooser);
 
         chatPanel = new ChatPanel($("#bingo-chat"), $("#chat-settings"), chatUrl, chatHistoryUrl);
         initializeChatSettings($("#chat-settings"), $("#bingo-chat"), ROOM_SETTINGS.fog_of_war);

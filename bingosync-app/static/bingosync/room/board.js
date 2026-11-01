@@ -30,9 +30,38 @@ var Board = (function(){
         return colors[colorClass];
     }
 
+    // Solo blackout view: the square class (e.g. "bluesquare") to show in
+    // full, or null when the view is off.
+    var blackoutColorClass = null;
+    var BLACKOUT_RESET = {'transform': '', 'border-right': '', 'left': '', 'right': '',
+                          'width': '', 'top': '', 'bottom': '', 'height': ''};
+
+    // The chosen color covers the square; every other color becomes a thin
+    // strip along the bottom edge.
+    function layoutBlackout($colorElements) {
+        var stripWidth = 100 / 9;
+        var stripIndex = 0;
+        $colorElements.each(function () {
+            var $el = $(this);
+            if ($el.hasClass(blackoutColorClass)) {
+                $el.css(BLACKOUT_RESET);
+                return;
+            }
+            $el.css({'transform': 'none', 'border-right': 'none', 'right': 'auto',
+                     'left': (stripIndex * stripWidth) + '%', 'width': stripWidth + '%',
+                     'top': 'auto', 'bottom': '0', 'height': '11%'});
+            stripIndex++;
+        });
+    }
+
     function updateColorOffsets($square) {
         var $colorElements = $square.children('.bg-color');
         var numColors = $colorElements.length;
+        if (blackoutColorClass) {
+            layoutBlackout($colorElements);
+            return;
+        }
+        $colorElements.css(BLACKOUT_RESET);
         var translatePercent = {
             2: ['0', '0'],
             3: ['0', '36', '-34'],
@@ -423,6 +452,14 @@ var Board = (function(){
             return;
         }
         this.colorSquare(ev, $square).then(response => this.hideSquares())
+    };
+
+    // Turns the solo blackout view on (with the color to show in full, e.g.
+    // "blue") or off (null).
+    Board.prototype.setBlackoutView = function(color) {
+        blackoutColorClass = color ? getSquareColorClass(color) : null;
+        if (!this.$squares) { return; }
+        this.$squares.each(function () { updateColorOffsets($(this)); });
     };
 
     Board.prototype.refitGoalText = function() {
