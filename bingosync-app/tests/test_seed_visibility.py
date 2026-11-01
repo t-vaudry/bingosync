@@ -116,6 +116,12 @@ class SeedVisibilityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(str(SEED), response.content.decode())
 
+    def test_stream_overlay_is_board_only(self):
+        html = Client().get(f"/room/{self.room.encoded_uuid}/stream").content.decode()
+        self.assertIn('id="bingo"', html)
+        self.assertIn("background: transparent", html)
+        self.assertNotIn("room-chat-col", html)
+
     def test_room_history_hides_seed_while_gamemaster_room_is_active(self):
         response = Client().get("/history")
         self.assertContains(response, "Seed Room")

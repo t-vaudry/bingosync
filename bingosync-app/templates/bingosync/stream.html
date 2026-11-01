@@ -6,16 +6,19 @@
      site because the main layout flexboxes screw with the fill-parent based
      layout that the chat and sidebar use
  -->
+{% block page_head %}
+<style>
+    /* Board-only page for an OBS Browser Source: transparent so OBS shows
+       nothing but the board. */
+    html, body { background: transparent !important; margin: 0; overflow: hidden; }
+    /* The A-E / 1-5 header cells inherit their alignment, so center it here. */
+    .stream-board { display: flex; justify-content: center; text-align: center; }
+</style>
+{% endblock %}
 {% block page_body %}
-<div class="container" style="height: 97vh">
-    <div class="row m-b-l" style="height: calc(100% - 70px);">
-        <div class="col-md-6">
-            <div class="fill-parent" style="text-align: center">
-                <div class="board-container">
-                    {% include 'bingosync/board.html' %}
-                </div>
-            </div>
-        </div>
+<div class="stream-board">
+    <div class="board-container">
+        {% include 'bingosync/board.html' %}
     </div>
 </div>
 <script src="{% static "bingosync/room/util.js" %}"></script>
