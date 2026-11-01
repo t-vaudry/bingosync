@@ -27,6 +27,11 @@
                     {% endfor %}
                 </select>
             {% endif %}
+            <button type="button" class="btn btn-default" id="copy-obs-link"
+                    data-url="{% url 'room_stream' room.encoded_uuid %}"
+                    title="Copy a board-only link to use as an OBS Browser Source">
+                Copy OBS link
+            </button>
             <a class="btn btn-default" href="{% url 'room_disconnect' room.encoded_uuid %}">
                 Disconnect
             </a>
@@ -74,6 +79,21 @@
         </div>
     </div>
 </div>
+<script>
+    $(document).on("click", "#copy-obs-link", function () {
+        var $btn = $(this);
+        var url = new URL($btn.data("url"), window.location.href).href;
+        var done = function () {
+            $btn.text("Copied!");
+            setTimeout(function () { $btn.text("Copy OBS link"); }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this link:", url); });
+        } else {
+            window.prompt("Copy this link:", url);
+        }
+    });
+</script>
 {% include 'bingosync/new_card_dialog.html' %}
 <link rel="stylesheet" href="{% static 'bingosync/room/claim-status.css' %}">
 <link rel="stylesheet" href="{% static 'bingosync/room/win_celebration.css' %}">
