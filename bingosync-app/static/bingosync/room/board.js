@@ -230,6 +230,20 @@ var Board = (function(){
             }
             return false;
         });
+
+        // Middle click always stars, so a counter (whose right-click is
+        // taken by review) can still star goals
+        this.$squares.on("mousedown", function(e) {
+            if (e.button === 1) {
+                e.preventDefault(); // no autoscroll
+            }
+        });
+        this.$squares.on("auxclick", function(e) {
+            if (e.button === 1) {
+                e.preventDefault();
+                $(this).children(".starred").toggleClass("hidden");
+            }
+        });
     };
 
     Board.prototype.checkTile = function(i, chosenColorClass) {
