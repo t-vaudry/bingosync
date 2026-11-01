@@ -135,6 +135,9 @@ def goal_counting_fields(goal):
     `uniqueAmount` caps what linked goals can add; the generator only sets it
     for goals with a randomised number ("{4-7} Gnomes"), otherwise it's the
     amount. Generators without these fields give a one-step goal.
+
+    These are the fields of HPBingoCounter's goal model (HPBingoGoal), by
+    nt5664: https://github.com/nt5664/HPBingoCounter (MIT License).
     """
     amount = goal.get("amount")
     if not isinstance(amount, int) or isinstance(amount, bool) or amount < 1:

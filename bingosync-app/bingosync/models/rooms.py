@@ -629,6 +629,10 @@ class CounterTally(models.Model):
     in-game progress (fainting, reloading a save book). `dismissed` lists
     slots whose "marked before counted" alert the counter has dismissed for
     the current mark.
+
+    The counting rules (linked goals, save / load) are ported from
+    HPBingoCounter by nt5664 (https://github.com/nt5664/HPBingoCounter, MIT
+    License); see THIRD_PARTY_NOTICES.md.
     """
     game = models.ForeignKey(
         Game, on_delete=models.CASCADE, related_name='counter_tallies')

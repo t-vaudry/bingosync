@@ -26,6 +26,15 @@ for the database. Conveniently, this machine is the same one that I run
 [bingobot](https://github.com/kbuzsaki/bingobot) off of. Maybe there's some 
 opportunity for integration there in the future :)
 
+#### Credits
+
+The counter role's goal counting (per-goal counts like "3/6 Gnomes", linked
+goals, and save / load of the counts) is ported from
+[HPBingoCounter](https://github.com/nt5664/HPBingoCounter) by
+[nt5664](https://github.com/nt5664), used under the MIT License. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for what was ported and the
+license text.
+
 #### Getting Started
 
 See [README-DEV.md](README-DEV.md) for development setup instructions.

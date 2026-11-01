@@ -24,6 +24,10 @@
  *   alerts back.
  * - Save / Load / Clear / Reset in the Counts panel: Load goes back to the
  *   saved counts when the runner loses in-game progress.
+ *
+ * Goal counting is ported from HPBingoCounter by nt5664
+ * (https://github.com/nt5664/HPBingoCounter, MIT License); see
+ * THIRD_PARTY_NOTICES.md.
  */
 var Counter = (function() {
     "use strict";
