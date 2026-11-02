@@ -23,15 +23,17 @@
             {% if can_change_own_role %}
                 <select id="own-role-select" class="form-control input-sm own-role-select" title="Change your role">
                     {% for value, label in role_choices %}
-                        <option value="{{ value }}"{% if player.role == value %} selected{% endif %}{% if value != 'spectator' and not player.user %} disabled title="Log in to play or count"{% endif %}>{{ label }}</option>
+                        <option value="{{ value }}"{% if player.role == value %} selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             {% endif %}
+            {% if player.user %}
             <button type="button" class="btn btn-default" id="copy-obs-link"
                     data-url="{% url 'room_stream' room.encoded_uuid %}"
                     title="Copy a board-only link to use as an OBS Browser Source">
                 Copy OBS link
             </button>
+            {% endif %}
             <a class="btn btn-default" href="{% url 'room_disconnect' room.encoded_uuid %}">
                 Disconnect
             </a>

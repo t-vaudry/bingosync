@@ -17,10 +17,9 @@
                 <div class="alert alert-info" role="alert">
                     <strong>Room Code:</strong> <span style="font-size: 1.5em; font-weight: bold;">{{ room.room_code }}</span>
                 </div>
-                
                 {% if not user.is_authenticated %}
-                <div class="alert alert-warning" role="alert">
-                    <strong>Note:</strong> You must <a href="{% url 'login' %}?next={{ request.path }}">log in</a> or <a href="{% url 'register' %}">register</a> to join as Player or Counter. You can join as Spectator without logging in.
+                <div class="alert alert-info" role="alert">
+                    You can join as Player, Counter or Spectator without an account; no stats are tracked. <a href="{% url 'login' %}?next={{ request.path }}">Log in</a> or <a href="{% url 'register' %}">register</a> to track them.
                 </div>
                 {% endif %}
                 <form class="form-horizontal" action="{% url 'room_view' encoded_room_uuid %}" method="post">

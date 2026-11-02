@@ -56,59 +56,76 @@
         {% endif %}
 
         <div class="row">
-            <!-- Join Room as Spectator -->
+            <!-- Join a room -->
             <div class="col-md-6">
                 <div class="panel panel-primary">
                     <div class="panel-heading">
-                        <h3 class="panel-title">Join Room as Spectator</h3>
+                        <h3 class="panel-title">Join a Room</h3>
                     </div>
                     <div class="panel-body">
-                        <p>Watch a game in progress without logging in.</p>
-                        <form action="{% url 'join_as_spectator' %}" method="post">
+                        <form action="{% url 'join_room_by_code' %}" method="post">
                             {% csrf_token %}
                             <div class="form-group">
-                                <label for="spectator_room_code">Room Code</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="spectator_room_code" 
-                                       name="room_code" 
-                                       placeholder="Enter 6-character code" 
+                                <label for="join_room_code">Room Code</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="join_room_code"
+                                       name="room_code"
+                                       placeholder="Enter 6-character code"
                                        maxlength="6"
                                        style="text-transform: uppercase;"
                                        required>
                             </div>
                             <div class="form-group">
-                                <label for="spectator_password">Password</label>
-                                <input type="password" 
-                                       class="form-control" 
-                                       id="spectator_password" 
-                                       name="password" 
+                                <label for="join_password">Password</label>
+                                <input type="password"
+                                       class="form-control"
+                                       id="join_password"
+                                       name="password"
                                        placeholder="Room password (leave blank if none)">
                             </div>
+                            {% if not user.is_authenticated %}
                             <div class="form-group">
-                                <label for="spectator_name">Display Name</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="spectator_name" 
-                                       name="display_name" 
+                                <label for="join_name">Display Name</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="join_name"
+                                       name="display_name"
                                        placeholder="Your display name"
                                        maxlength="50"
                                        required>
                             </div>
-                            <button type="submit" class="btn btn-primary btn-block">Join as Spectator</button>
+                            {% endif %}
+                            <div class="form-group">
+                                <label for="join_role">Join as</label>
+                                <select class="form-control" id="join_role" name="role" required>
+                                    <option value="player">Player</option>
+                                    <option value="counter">Counter</option>
+                                    <option value="spectator">Spectator</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Join Room</button>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Login/Register -->
+            <!-- Create a room / account -->
             <div class="col-md-6">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title">Create or Join Room</h3>
+                        <h3 class="panel-title">Create a Room</h3>
                     </div>
                     <div class="panel-body">
-                        <p>Log in to create rooms or join as Player/Counter.</p>
+                        <p>Start a room and share its code. No account needed.</p>
+                        <a href="{% url 'rooms' %}" class="btn btn-primary btn-block">Create a Room</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Account</h3>
+                    </div>
+                    <div class="panel-body">
                         {% if user.is_authenticated %}
                             <p style="color: var(--cos-gold-bright);"><strong>Logged in as {{ user.username }}</strong></p>
                             <a href="{% url 'rooms' %}" class="btn btn-primary btn-block">Go to Dashboard</a>
@@ -122,15 +139,6 @@
             </div>
         </div>
 
-        <!-- Stats -->
-        <div class="panel panel-default m-t-l">
-            <div class="panel-heading">
-                <h3 class="panel-title">Global Stats</h3>
-            </div>
-            <div class="panel-body">
-                <p>There have been {{ stats.rooms }} rooms with {{ stats.games }} games played in them. 
-                   There have been {{ stats.ticks }} ticks and {{ stats.unticks }} unticks.</p>
-            </div>
-        </div>
+        {% include "bingosync/account_benefits.html" %}
     </div>
 {% endblock %}

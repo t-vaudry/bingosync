@@ -151,10 +151,10 @@ class OwnRoleTests(RoomTestCase):
         }), content_type='application/json')
         self.assertEqual(response.status_code, 403)
 
-    def test_spectator_without_an_account_stays_a_spectator(self):
+    def test_spectator_without_an_account_can_become_a_player(self):
         spectator = self._player(role=Role.SPECTATOR, name="anon")
         response = self._change_own_role(spectator, Role.PLAYER)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
 
     def test_cannot_make_yourself_gamemaster(self):
         player = self._player(self.user)

@@ -117,8 +117,8 @@ class HomeTestCase(test.TestCase):
             self.fail("form error: " + repr(room_form.errors))
         room_form.create_room(user=self.user)
         resp = self.client.get("/dashboard")
-        # The home page now shows global stats, not a list of rooms
-        self.assertContains(resp, "Global Stats")
+        # The home page no longer shows global stats
+        self.assertNotContains(resp, "Global Stats")
         self.assertEqual(resp.status_code, 200)
 
 
