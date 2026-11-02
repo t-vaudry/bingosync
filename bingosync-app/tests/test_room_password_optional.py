@@ -65,3 +65,22 @@ class RoomPasswordOptionalTests(TestCase):
         room = self._make_room("secret")
         form = self._join_form(room, "secret")
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class JoinPageMarkupTests(TestCase):
+    """The join-by-code forms must not demand a password in the browser."""
+
+    def _password_input(self, html):
+        import re
+        return re.search(r'<input[^>]*name="password"[^>]*>', html).group(0)
+
+    def test_landing_password_not_required(self):
+        response = self.client.get("/")
+        self.assertNotIn("required", self._password_input(response.content.decode()))
+
+    def test_index_password_not_required(self):
+        user = User.objects.create_user(
+            username="u", email="u@t.com", password="pw12345678")
+        self.client.force_login(user)
+        response = self.client.get("/dashboard")
+        self.assertNotIn("required", self._password_input(response.content.decode()))
