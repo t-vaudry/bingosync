@@ -1583,7 +1583,8 @@ def review_claim(request):
     return HttpResponse("Claim reviewed successfully")
 
 
-COUNTER_TALLY_ACTIONS = ("change", "save", "load", "clear", "reset", "dismiss")
+COUNTER_TALLY_ACTIONS = ("change", "save", "load", "clear", "reset", "dismiss",
+                         "complete")
 
 
 @handle_ratelimit
@@ -1598,6 +1599,7 @@ def counter_counts(request):
     - save / load / clear: the saved state Load goes back to after the
       runner loses in-game progress
     - reset: every count back to zero, saved state cleared
+    - complete (slot): mark a goal with no count complete, or unmark it
     - dismiss (slot): hide the alert on a goal marked before it was counted
     """
     if request.method == "GET":
@@ -1633,7 +1635,7 @@ def counter_counts(request):
             f"Invalid action: {action}. Must be one of: "
             f"{', '.join(COUNTER_TALLY_ACTIONS)}")
     try:
-        slot = int(data["slot"]) if action in ("change", "dismiss") else None
+        slot = int(data["slot"]) if action in ("change", "dismiss", "complete") else None
         delta = int(data["delta"]) if action == "change" else None
     except (KeyError, TypeError, ValueError):
         return HttpResponseBadRequest("Missing or invalid slot or delta")
@@ -1653,6 +1655,8 @@ def counter_counts(request):
                 tally.reset()
             elif action == "dismiss":
                 tally.dismiss(squares, slot)
+            elif action == "complete":
+                tally.toggle_completed(squares, slot)
             tally.save()
     except CounterTally.Invalid as e:
         return HttpResponseBadRequest(str(e))

@@ -644,6 +644,9 @@ class CounterTally(models.Model):
     saved_counts = models.JSONField(null=True, blank=True)
     saved_at = models.DateTimeField(null=True, blank=True)
     dismissed = models.JSONField(default=list, blank=True)
+    # Slots of goals with no count ("Complete Goyle") the counter has marked
+    # complete for themselves; never shown to the player or the room.
+    completed = models.JSONField(default=list, blank=True)
 
     class Meta:
         unique_together = (("game", "counter", "color_value"),)
@@ -701,7 +704,22 @@ class CounterTally(models.Model):
     def reset(self):
         self.counts = {}
         self.dismissed = []
+        self.completed = []
         self.clear_saved()
+
+    def toggle_completed(self, squares, slot):
+        """Mark an uncounted goal complete, or take the mark back. Counted
+        goals are complete once their count is."""
+        for square in squares:
+            if square.slot == slot:
+                if square.is_counted:
+                    raise CounterTally.Invalid("Count that goal instead.")
+                if slot in self.completed:
+                    self.completed.remove(slot)
+                else:
+                    self.completed.append(slot)
+                return
+        raise CounterTally.Invalid("Invalid slot: {}".format(slot))
 
     def dismiss(self, squares, slot):
         self._counted_square(squares, slot)
@@ -737,4 +755,5 @@ class CounterTally(models.Model):
             "counts": self.counts,
             "saved_at": self.saved_at.isoformat() if self.saved_at else None,
             "dismissed": self.dismissed,
+            "completed": self.completed,
         }

@@ -123,6 +123,19 @@
     cursor: pointer;
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
 }
+/* Counter's private "counted complete" strip on a goal with no count: click
+   anywhere on it; the bar fills when done */
+.square .goal-count.goal-complete {
+    justify-content: center;
+    cursor: pointer;
+}
+.square .goal-count.goal-complete:hover {
+    background: rgba(0, 0, 0, 0.65);
+}
+.square .goal-count.goal-complete:not(.done) .goal-count-value {
+    opacity: 0.4;
+}
+.square.hiddentext .goal-complete,
 .square.hiddentext .goal-count,
 .square.hiddentext .count-alert {
     display: none;

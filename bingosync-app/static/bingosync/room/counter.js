@@ -22,6 +22,8 @@
  *   complete. Click it to dismiss it; it also goes once the count is
  *   complete, the goal is in review or it's approved. Load brings dismissed
  *   alerts back.
+ * - Other goals get a strip with a ✔ in the middle: click it to note you've
+ *   counted the goal complete (it fills). Only you see it; it doesn't mark the goal.
  * - Save / Load / Clear / Reset in the Counts panel: Load goes back to the
  *   saved counts when the runner loses in-game progress.
  *
@@ -250,10 +252,14 @@ var Counter = (function() {
         var hadStrips = this.board.$board.find('.goal-count').length;
         this.board.squares.forEach(function(square, i) {
             var slot = i + 1;
-            square.$square.children('.goal-count, .count-alert').remove();
+            square.$square.children('.goal-count, .count-alert, .goal-complete').remove();
             square.$square.removeClass('has-goal-count');
             var goal = that.tally && that.tally.goals[slot];
             if (!goal) {
+                if (that.tally) {
+                    square.$square.addClass('has-goal-count');
+                    that.completeStrip(slot).appendTo(square.$square);
+                }
                 return;
             }
             square.$square.addClass('has-goal-count');
@@ -274,6 +280,29 @@ var Counter = (function() {
             this.board.refitGoalText();
         }
         this.renderCountActions();
+    };
+
+    // A goal with no count: the same strip, with a ✔ in the middle. Click
+    // anywhere on it to count the goal complete (the bar fills, as when a
+    // count reaches its total) without marking it for the player.
+    Counter.prototype.completeStrip = function(slot) {
+        var that = this;
+        var done = this.tally.completed.indexOf(slot) !== -1;
+        var $strip = $('<div class="goal-count goal-complete"></div>')
+            .toggleClass('done', done)
+            .attr('title', done ? "You counted this complete (only you see this). Click to undo"
+                                : "Count this complete (only you see this)")
+            .on('click', function(ev) {
+                // Not a click on the goal itself
+                ev.stopPropagation();
+                that.sendCount({action: 'complete', slot: slot});
+            });
+        $('<div class="goal-count-fill"></div>')
+            .addClass(getSquareColorClass(this.monitoringColor))
+            .css('width', done ? '100%' : '0')
+            .appendTo($('<div class="goal-count-track"></div>').appendTo($strip));
+        $('<span class="goal-count-value"></span>').text('✔').appendTo($strip);
+        return $strip;
     };
 
     Counter.prototype.countStrip = function(slot, goal) {

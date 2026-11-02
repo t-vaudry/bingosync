@@ -349,3 +349,26 @@ class MarkedBeforeCountedTest(CounterGoalCountsTestBase):
         self._review(5, 'under_review')
         self._review(5, 'confirm')
         self.assertFalse(CounterTally.objects.exists())
+
+
+class CompletedWithoutCountTest(CounterGoalCountsTestBase):
+    """A counter notes a one-step goal as complete, privately."""
+
+    def test_toggle_a_one_step_goal_complete(self):
+        self.assertEqual(self._get().json()['completed'], [])
+        self.assertEqual(self._ok('complete', slot=5)['completed'], [5])
+        self.assertEqual(self._ok('complete', slot=5)['completed'], [])
+
+    def test_counted_goals_are_completed_by_counting(self):
+        self.assertEqual(self._post('complete', slot=1).status_code, 400)
+        self.assertEqual(self._post('complete', slot=30).status_code, 400)
+
+    def test_doesnt_mark_the_goal_or_reach_the_player(self):
+        self._ok('complete', slot=5)
+        square = Game.objects.get(pk=self.game.pk).squares[4]
+        self.assertEqual(square.color.colors, [Color.blank])
+        self.assertEqual(self._get(client=self.player_client).status_code, 403)
+
+    def test_reset_clears_it(self):
+        self._ok('complete', slot=5)
+        self.assertEqual(self._ok('reset')['completed'], [])
