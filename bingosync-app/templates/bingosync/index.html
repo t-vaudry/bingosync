@@ -5,7 +5,23 @@
 {% load crispy_forms_tags %}
 
 {% block page_content %}
-    {% if request.GET.error %}
+    {% if request.GET.account_deleted == '1' %}
+    <div class="alert alert-info alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        Your account and its data have been deleted.
+    </div>
+    {% endif %}
+
+    {% if request.GET.error == 'room_inactive' %}
+    <div class="alert alert-warning alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        <strong>Room Closed:</strong> This room is no longer active. All players have left.
+    </div>
+    {% elif request.GET.error %}
     <div class="alert alert-danger alert-dismissible" role="alert">
         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
             <span aria-hidden="true">&times;</span>
@@ -81,7 +97,7 @@
                     New Room
                 </div>
                 <div id="new_room_form" class="panel-body">
-                    <form class="form-horizontal" action="/dashboard" method="post">
+                    <form class="form-horizontal" action="{% url 'landing' %}" method="post">
                         {% csrf_token %}
                         {% crispy form %}
                         <div class="form-group">

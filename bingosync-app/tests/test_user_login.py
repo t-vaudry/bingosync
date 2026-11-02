@@ -58,7 +58,7 @@ class UserLoginViewTests(TestCase):
         self.client = Client()
         self.login_url = reverse('login')
         self.logout_url = reverse('logout')
-        self.rooms_url = reverse('rooms')
+        self.rooms_url = reverse('landing')
 
         # Ensure URLs have trailing slashes
         if not self.login_url.endswith('/'):
@@ -97,7 +97,7 @@ class UserLoginViewTests(TestCase):
         self.assertIn(response.status_code, [301, 302])
 
         # Now verify user is logged in by making another request
-        response = self.client.get(reverse('rooms'))
+        response = self.client.get(reverse('landing'))
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.wsgi_request.user.username, 'testuser')
 
@@ -172,7 +172,7 @@ class UserLoginViewTests(TestCase):
         self.assertIn(response.status_code, [301, 302])
 
         # User should be logged in - verify with another request
-        response = self.client.get(reverse('rooms'))
+        response = self.client.get(reverse('landing'))
         self.assertTrue(response.wsgi_request.user.is_authenticated)
 
         # Session should expire when browser closes
@@ -260,7 +260,7 @@ class SessionExpiryTests(TestCase):
         self.assertIn(response.status_code, [301, 302])
 
         # User should be logged in - verify with another request
-        response = self.client.get(reverse('rooms'))
+        response = self.client.get(reverse('landing'))
         self.assertTrue(response.wsgi_request.user.is_authenticated)
 
         # Session should expire when browser closes

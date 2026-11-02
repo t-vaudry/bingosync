@@ -82,5 +82,5 @@ class JoinPageMarkupTests(TestCase):
         user = User.objects.create_user(
             username="u", email="u@t.com", password="pw12345678")
         self.client.force_login(user)
-        response = self.client.get("/dashboard")
+        response = self.client.get("/")
         self.assertNotIn("required", self._password_input(response.content.decode()))

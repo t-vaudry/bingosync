@@ -113,13 +113,13 @@ class AuthenticationEnforcementTest(TestCase):
         self.assertNotContains(resp, 'Global Stats')
         self.assertContains(resp, 'Do you need an account?')
 
-    def test_dashboard_open_to_anonymous(self):
-        resp = self.client.get('/dashboard')
+    def test_home_open_to_anonymous(self):
+        resp = self.client.get('/')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'name="player_name"')
 
-    def test_anonymous_can_create_room_via_dashboard(self):
-        resp = self.client.post('/dashboard', {
+    def test_anonymous_can_create_room_from_home(self):
+        resp = self.client.post('/', {
             'room_name': 'Anon Room',
             'passphrase': '',
             'player_name': 'Hosty',

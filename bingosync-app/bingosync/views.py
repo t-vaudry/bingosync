@@ -38,7 +38,7 @@ from bingosync.models.events import (
 from bingosync.models.enums import Role
 from bingosync.models.rooms import (
     ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
-    COUNTED_CLAIM_STATUSES, CounterTally, CardReveal
+    COUNTED_CLAIM_STATUSES, CounterTally, CardReveal, StarredSquare
 )
 from bingosync.models.user import User
 from bingosync.publish import (
@@ -77,10 +77,6 @@ def redirect_params(url, params=None, **kwargs):
         response['Location'] += '?' + query_string
     return response
 
-
-def landing(request):
-    """Main landing page - join or create a room, with or without an account."""
-    return render(request, "bingosync/landing.html")
 
 
 def join_by_code(request):
@@ -152,7 +148,7 @@ def join_room_by_code(request):
     display name and isn't tracked.
     """
     if request.method != 'POST':
-        return redirect('rooms')
+        return redirect('landing')
 
     user = request.user if request.user.is_authenticated else None
 
@@ -163,14 +159,14 @@ def join_room_by_code(request):
                     else request.POST.get('display_name', '').strip())
 
     if not room_code:
-        return redirect_params('rooms', params={'error': 'missing_code'})
+        return redirect_params('landing', params={'error': 'missing_code'})
     if not display_name:
-        return redirect_params('rooms', params={'error': 'missing_fields'})
+        return redirect_params('landing', params={'error': 'missing_fields'})
 
     try:
         room = Room.get_for_room_code(room_code)
     except Room.DoesNotExist:
-        return redirect_params('rooms', params={'error': 'invalid_code'})
+        return redirect_params('landing', params={'error': 'invalid_code'})
 
     # Create join form with the data
     form_data = {
@@ -188,19 +184,19 @@ def join_room_by_code(request):
             _save_session_player(request.session, player)
             return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
         except ValidationError as e:
-            return redirect_params('rooms', params={'error': str(e)})
+            return redirect_params('landing', params={'error': str(e)})
     else:
         # Form validation failed (likely wrong password)
         error_msg = 'Invalid password or room details'
         if 'passphrase' in join_form.errors:
             error_msg = 'Incorrect password'
-        return redirect_params('rooms', params={'error': error_msg})
+        return redirect_params('landing', params={'error': error_msg})
 
 
 @handle_ratelimit
 @ratelimit_registration
-def rooms(request):
-    """Create or join a room. Open to everyone; accounts add tracking."""
+def landing(request):
+    """The home page: join or create a room. Open to everyone; accounts add tracking."""
     user = request.user if request.user.is_authenticated else None
     anonymous = user is None
 
@@ -305,8 +301,8 @@ def login(request):
                 if next_url:
                     return redirect(next_url)
                 
-                # Redirect to dashboard after login
-                return redirect("rooms")
+                # Back to the home page after login
+                return redirect("landing")
             else:
                 # Login failed - create a new form with the error
                 logger.warning(
@@ -412,14 +408,17 @@ def room_view(request, encoded_room_uuid):
             }
             # Whether this player has the card covered (server-side, so a
             # reload and the player's OBS source always agree)
-            from bingosync.obs import board_hidden_for
+            from bingosync.obs import board_hidden_for, starred_slots
             params["board_hidden"] = board_hidden_for(player)
+            params["starred_slots"] = starred_slots(player)
             # A user has one permanent OBS link for every room; someone
             # without an account gets one for this room
             if player.user_id and request.user.is_authenticated:
                 token = request.user.ensure_obs_token()
+                from bingosync.obs import obs_target
+                source = obs_target(request.user)
                 params["obs_selected"] = (
-                    request.user.obs_room_id == room.id)
+                    source is not None and source.room_id == room.id)
             else:
                 token = player.ensure_obs_token()
             params["obs_url"] = reverse("obs_stream", args=[token])
@@ -467,7 +466,7 @@ def obs_stream(request, obs_token):
     obs_state) and keeps their own board cover, so it only reveals a hidden
     card when that player does.
     """
-    from bingosync.obs import resolve_target, board_hidden_for
+    from bingosync.obs import resolve_target, board_hidden_for, starred_slots
     user, anon_player = _obs_subject_or_404(obs_token)
     player = resolve_target(user, anon_player)
     params = {"obs_token": obs_token, "player": None}
@@ -478,6 +477,7 @@ def obs_stream(request, obs_token):
             "game": room.current_game,
             "player": player,
             "board_hidden": board_hidden_for(player),
+            "starred_slots": starred_slots(player),
             "room_settings": room.settings_for(None),
             "sockets_url": SOCKETS_URL,
             "temporary_socket_key": _create_anon_socket_key(room),
@@ -516,6 +516,34 @@ def card_revealed(request):
 
 @handle_ratelimit
 @ratelimit_authenticated_action
+def star_square(request):
+    """Star (or unstar) a square for the player, so their OBS shows it too.
+
+    Any role may star: it's a private marker that tells nobody else anything.
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    data = parse_body_json_or_400(request, required_keys=["room", "slot", "starred"])
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    player = _get_session_player(request.session, room)
+    if player is ANON_PLAYER or not player.pk:
+        return HttpResponseForbidden("Join the room first.")
+    game = room.current_game
+    try:
+        slot = int(data["slot"])
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Bad slot.")
+    if not 1 <= slot <= len(game.squares):
+        return HttpResponseBadRequest("Bad slot.")
+    if data["starred"]:
+        StarredSquare.objects.get_or_create(player=player, game=game, slot=slot)
+    else:
+        StarredSquare.objects.filter(player=player, game=game, slot=slot).delete()
+    return HttpResponse("OK")
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
 def obs_regenerate(request):
     """Replace the user's OBS token, so a leaked link stops working."""
     if request.method != "POST":
@@ -545,12 +573,17 @@ def obs_select_room(request):
     user = request.user
     if not Player.objects.filter(room=room, user=user).exists():
         return HttpResponseForbidden("You are not in that room.")
+    from bingosync.obs import obs_target
     if data["selected"]:
         user.obs_room = room
+        user.save(update_fields=["obs_room"])
     elif user.obs_room_id == room.id:
+        # Unticking hands the link to another live room, if there is one
         user.obs_room = None
-    user.save(update_fields=["obs_room"])
-    return JsonResponse({"selected": user.obs_room_id == room.id})
+        user.save(update_fields=["obs_room"])
+    source = obs_target(user)
+    return JsonResponse({
+        "selected": source is not None and source.room_id == room.id})
 
 
 def _join_room(request, join_form, room):
@@ -956,11 +989,7 @@ def room_disconnect(request, encoded_room_uuid):
 
     _clear_session_player(request.session, room)
     
-    # Redirect authenticated users to dashboard, anonymous to landing
-    if request.user.is_authenticated:
-        return redirect("rooms")
-    else:
-        return redirect("landing")
+    return redirect("landing")
 
 
 @handle_ratelimit

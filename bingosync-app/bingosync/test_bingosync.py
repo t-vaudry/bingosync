@@ -63,14 +63,14 @@ class HomeTestCase(test.TestCase):
         }
 
     def test_home_empty(self):
-        resp = self.client.get("/dashboard")
+        resp = self.client.get("/")
         # User is logged in, so should see the room creation form
         # Check for form elements instead of exact button text
         self.assertEqual(resp.status_code, 200)
 
     def test_home_create_room(self):
         # test room creation
-        create_resp = self.client.post("/dashboard", self.room_form_data, follow=True)
+        create_resp = self.client.post("/", self.room_form_data, follow=True)
         self.assertContains(create_resp, "Test Room")
         self.assertContains(create_resp, BOARD_CONTAINER_HTML)
         self.assertNotContains(create_resp, JOIN_ROOM_BUTTON)
@@ -95,7 +95,7 @@ class HomeTestCase(test.TestCase):
             "some error message")
 
         # create room with expected generation error
-        create_resp = self.client.post("/dashboard", self.room_form_data, follow=True)
+        create_resp = self.client.post("/", self.room_form_data, follow=True)
         # assert that the old form values and error message are present
         self.assertContains(create_resp, "Test Room")
         self.assertContains(create_resp, "some error message")
@@ -105,7 +105,7 @@ class HomeTestCase(test.TestCase):
         self.assertNotContains(create_resp, JOIN_ROOM_BUTTON)
 
         # try again and succeed
-        create_resp = self.client.post("/dashboard", self.room_form_data, follow=True)
+        create_resp = self.client.post("/", self.room_form_data, follow=True)
         self.assertContains(create_resp, "Test Room")
         self.assertContains(create_resp, BOARD_CONTAINER_HTML)
         self.assertNotContains(create_resp, JOIN_ROOM_BUTTON)
@@ -116,7 +116,7 @@ class HomeTestCase(test.TestCase):
         if not room_form.is_valid():
             self.fail("form error: " + repr(room_form.errors))
         room_form.create_room(user=self.user)
-        resp = self.client.get("/dashboard")
+        resp = self.client.get("/")
         # The home page no longer shows global stats
         self.assertNotContains(resp, "Global Stats")
         self.assertEqual(resp.status_code, 200)
@@ -149,7 +149,7 @@ class ApiTestCase(test.TestCase):
 
     def test_join_room_api(self):
         # create a room to join
-        room_resp = self.client.post("/dashboard", {
+        room_resp = self.client.post("/", {
             "room_name": "Test Room",
             "passphrase": "test password",
             "game_type": str(models.GameType.hp_cos.value),
@@ -187,7 +187,7 @@ class ApiTestCase(test.TestCase):
 
     def test_join_room_api_wrong_password(self):
         # create a room to join
-        room_resp = self.client.post("/dashboard", {
+        room_resp = self.client.post("/", {
             "room_name": "Test Room",
             "passphrase": "test password",
             "game_type": str(models.GameType.hp_cos.value),

@@ -794,3 +794,23 @@ class CardReveal(models.Model):
             models.UniqueConstraint(
                 fields=['player', 'game'], name='one_card_reveal_per_game'),
         ]
+
+
+class StarredSquare(models.Model):
+    """A square this player starred (middle/right click) on the current card.
+
+    Starring is a private marker, stored so the player's OBS source can show
+    the same stars as their own screen.
+    """
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='starred_squares')
+    game = models.ForeignKey(
+        Game, on_delete=models.CASCADE, related_name='starred_squares')
+    slot = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['player', 'game', 'slot'],
+                name='one_star_per_square'),
+        ]

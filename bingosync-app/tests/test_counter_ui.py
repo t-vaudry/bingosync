@@ -47,7 +47,7 @@ class CounterUIPanelTests(TestCase):
         gm_client = Client()
         gm_client.force_login(self.gamemaster)
         
-        room_resp = gm_client.post("/dashboard", {
+        room_resp = gm_client.post("/", {
             "room_name": "Test Room",
             "passphrase": "testpass",
             "game_type": str(models.GameType.hp_cos.value),
@@ -148,7 +148,7 @@ class CounterUIFunctionalityTests(TestCase):
         self.client = Client()
         self.client.force_login(self.counter)
         
-        room_resp = self.client.post("/dashboard", {
+        room_resp = self.client.post("/", {
             "room_name": "Test Room",
             "passphrase": "testpass",
             "game_type": str(models.GameType.hp_cos.value),

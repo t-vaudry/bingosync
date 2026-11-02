@@ -56,12 +56,30 @@ var AdditionalSettingsPanel = (function(){
                 type: "POST",
                 contentType: "application/json",
                 data: JSON.stringify({room: $box.data("room"), selected: this.checked}),
+                success: function(result) {
+                    // The server decides which room really is the source
+                    // (e.g. unticking the only live room keeps it ticked)
+                    $box.prop("checked", result.selected);
+                },
                 error: function(xhr) {
                     alert("Couldn't change your OBS source: " + xhr.responseText);
                     $box.prop("checked", !$box.prop("checked"));
                 }
             });
         });
+
+        // Ticking this in another room (or that room closing) changes which
+        // room is the source, so keep the box in step with the OBS link.
+        var $obsBox = $panel.find("#obs-room-toggle");
+        if ($obsBox.length) {
+            setInterval(function() {
+                var obsUrl = $("#copy-obs-link").data("url");  // changes on regenerate
+                if (!obsUrl) { return; }
+                $.getJSON(obsUrl + "/state", function(state) {
+                    $obsBox.prop("checked", state.room === $obsBox.data("room"));
+                });
+            }, 10000);
+        }
         $panel.find("#obs-regenerate").on("click", function() {
             if (!window.confirm("Make a new OBS link? The current one will stop working, " +
                                 "and you'll need to paste the new one into OBS.")) {
