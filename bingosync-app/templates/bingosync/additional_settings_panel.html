@@ -15,6 +15,19 @@
             <div class="checkbox" style="margin-bottom: 0">
                 <label><input id="blackoutview-toggle" type="checkbox"> Solo Blackout View</label>
             </div>
+            {% if user.is_authenticated %}
+            <hr class="m-t-s m-b-s">
+            <div class="checkbox m-b-s" style="margin-top: 0">
+                <label title="Your OBS link shows the board of one room. Tick this to make it this one.">
+                    <input id="obs-room-toggle" type="checkbox" data-room="{{ room.encoded_uuid }}"{% if obs_selected %} checked{% endif %}>
+                    Use this board as my OBS source
+                </label>
+            </div>
+            <button type="button" id="obs-regenerate" class="btn btn-default btn-xs"
+                    title="Makes a new OBS link and stops the old one working. Update your OBS browser source afterwards.">
+                Regenerate OBS link
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>

@@ -28,7 +28,7 @@
                 </select>
             {% endif %}
             <button type="button" class="btn btn-default" id="copy-obs-link"
-                    data-url="{% url 'room_stream' room.encoded_uuid %}"
+                    data-url="{{ obs_url }}"
                     title="Copy a board-only link to use as an OBS Browser Source">
                 Copy OBS link
             </button>
@@ -48,9 +48,9 @@
                 {# Spectators don't mark, so they get no color chooser #}
                 {% include 'bingosync/color_chooser.html' %}
             {% endif %}
-            <div class="board-container{{ room.hide_card|yesno:" hidden-card," }}">
+            <div class="board-container{{ board_hidden|yesno:" hidden-card," }}">
                 {% include 'bingosync/board.html' %}
-                <div class="board-cover" style="z-index: 3;">
+                <div class="board-cover" style="z-index: 10;">
                     <div class="board-cover-text unselectable">
                         Click to Reveal
                     </div>
@@ -127,6 +127,7 @@
         var socketsUrl = "{{ sockets_url }}/broadcast";
         var goalSelectedUrl = "{% url 'goal_selected' %}";
         var boardRevealedUrl = "{% url 'board_revealed' %}";
+        var cardRevealedUrl = "{% url 'card_revealed' %}";
         var roomSettingsUrl = "{% url 'room_settings' room.encoded_uuid %}";
         var temporarySocketKey = "{{ temporary_socket_key }}";
 
@@ -134,7 +135,7 @@
         var colorChooser = new ColorChooser($("#color-chooser"), player, colorSelectedUrl);
         board = new Board($("#bingo"), player, colorChooser, boardUrl, goalSelectedUrl, ROOM_SETTINGS.fog_of_war);
         colorChooser.$board = board;
-        var boardCover = new BoardCover($(".board-container"), ROOM_SETTINGS.hide_card, boardRevealedUrl);
+        var boardCover = new BoardCover($(".board-container"), {{ board_hidden|yesno:"true,false" }}, boardRevealedUrl, cardRevealedUrl);
         var playersPanel = new PlayersPanel($("#players-panel"), player);
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
 

@@ -1,3 +1,5 @@
+import secrets
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -25,6 +27,19 @@ class User(AbstractUser):
         blank=True,
         related_name='current_users',
         help_text='The room the user is currently in (one room at a time)'
+    )
+
+    # Permanent OBS Browser Source link: /obs/<obs_token> always shows the
+    # board of a room this user is in. Created on first use.
+    obs_token = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False)
+    # Which room the OBS link follows when the user is in several.
+    obs_room = models.ForeignKey(
+        'Room',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='obs_users',
     )
 
     # Timestamps
@@ -64,6 +79,13 @@ class User(AbstractUser):
 
     def __repr__(self):
         return f"<User: id={self.id!r}, username={self.username!r}>"
+
+    def ensure_obs_token(self, regenerate=False):
+        """The user's OBS token, creating (or replacing) it if needed."""
+        if self.obs_token is None or regenerate:
+            self.obs_token = secrets.token_urlsafe(24)
+            self.save(update_fields=['obs_token'])
+        return self.obs_token
 
     @property
     def win_rate(self):

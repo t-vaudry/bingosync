@@ -7,18 +7,35 @@
      layout that the chat and sidebar use
  -->
 {% block page_head %}
+<link rel="stylesheet" href="{% static 'bingosync/room/claim-status.css' %}">
 <style>
     /* Board-only page for an OBS Browser Source: transparent so OBS shows
        nothing but the board. */
     html, body { background: transparent !important; margin: 0; overflow: hidden; }
-    /* The A-E / 1-5 header cells inherit their alignment, so center it here. */
     .stream-board { display: flex; justify-content: center; text-align: center; }
+    /* No A-E / 1-5 / diagonal headers on the stream. */
+    .stream-board #bingo .popout { display: none; }
+    /* Without the headers the cover fits the board exactly, and it sits above
+       the squares' own overlays (e.g. the under-review stripes). */
+    .stream-board .board-container { position: relative; }
+    .stream-board .board-cover {
+        left: 0; top: 0; margin: 0; width: 100%; height: 100%;
+        z-index: 10; cursor: default;
+    }
 </style>
 {% endblock %}
 {% block page_body %}
+{% if room %}
 <div class="stream-board">
-    <div class="board-container">
+    <div class="board-container{% if board_hidden %} hidden-card{% endif %}">
         {% include 'bingosync/board.html' %}
+        {% if board_hidden %}
+        <div class="board-cover">
+            <div class="board-cover-text unselectable">
+                Click to Reveal
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 <script src="{% static "bingosync/room/util.js" %}"></script>
@@ -28,23 +45,25 @@
 <script>
     $(document).ready(function() {
         ROOM_SETTINGS = JSON.parse('{{ room_settings|jsonify|escapejs }}');
-        var player = JSON.parse('{{ player.to_json|jsonify|escapejs }}');
+        var player = {% if player %}JSON.parse('{{ player.to_json|jsonify|escapejs }}'){% else %}null{% endif %};
         window.sessionStorage.setItem("room", "{{ room.encoded_uuid }}");
 
         var boardUrl = "{% url 'room_board' room.encoded_uuid %}";
         var socketsUrl = "{{ sockets_url }}/broadcast";
-        var roomSettingsUrl = "{% url 'room_settings' room.encoded_uuid %}";
         var temporarySocketKey = "{{ temporary_socket_key }}";
 
         // Construct all of the UI components
-        var board = new Board($("#bingo"), player, null, boardUrl, null, ROOM_SETTINGS.fog_of_war);
+        var board = new Board($("#bingo"), {is_spectator: true}, null, boardUrl, null, ROOM_SETTINGS.fog_of_war);
 
         var chatSocket = new ChatSocket(null, board, null, socketsUrl);
 
-        // hacky callback to trigger an update of the playersPanel counters (& highlighter) whenever we update the board.
-        // initialize magic global hack hooks
+        // A new card starts the hidden/revealed state over, so start over too.
         refreshBoard = function () {
-            board.reloadBoard();
+            window.location.reload();
+        };
+        // An OBS source is left running for hours: come back if the socket drops.
+        chatSocket.onSocketClose = function () {
+            setTimeout(function () { window.location.reload(); }, 5000);
         };
         window.addEventListener('resize', function() { board.refitGoalText(); }, false);
 
@@ -53,4 +72,30 @@
         chatSocket.init(temporarySocketKey);
     });
 </script>
+{% endif %}
+{% if obs_token %}
+<script>
+    // The OBS link stays the same while the player moves between rooms (or
+    // leaves them all), so watch for the page needing to change.
+    (function () {
+        var shown = {
+            room: {% if room %}"{{ room.encoded_uuid }}"{% else %}null{% endif %},
+            game: {% if game %}{{ game.id }}{% else %}null{% endif %}
+        };
+        function check() {
+            $.getJSON("{% url 'obs_state' obs_token %}").done(function (now) {
+                var coveredHere = $(".board-cover").length > 0;
+                if (now.room !== shown.room || now.game !== shown.game ||
+                        now.hidden !== coveredHere) {
+                    window.location.reload();
+                }
+            }).fail(function (xhr) {
+                // The link was regenerated: reload to show the "not found" page
+                if (xhr.status === 404) { window.location.reload(); }
+            });
+        }
+        setInterval(check, 2000);
+    })();
+</script>
+{% endif %}
 {% endblock %}

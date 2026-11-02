@@ -761,3 +761,24 @@ class CounterTally(models.Model):
             "dismissed": self.dismissed,
             "completed": self.completed,
         }
+
+
+class CardReveal(models.Model):
+    """A player uncovered the hidden card on their own screen.
+
+    Kept apart from RevealedEvent (the Gamemaster revealing the card for the
+    room, which also unhides the seed): a player's own reveal must not expose
+    anything to anyone else. It's what lets the player's OBS source uncover
+    its board at the same moment.
+    """
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='card_reveals')
+    game = models.ForeignKey(
+        Game, on_delete=models.CASCADE, related_name='card_reveals')
+    created_date = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['player', 'game'], name='one_card_reveal_per_game'),
+        ]

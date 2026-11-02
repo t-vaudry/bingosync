@@ -174,13 +174,6 @@ class RoomForm(forms.Form):
                 "Please log in or register first."
             )
 
-        # Check if authenticated user is already in a room
-        if user.current_room:
-            raise ValidationError(
-                f"You are already in room '{user.current_room.name}'. "
-                f"Please leave that room before creating another."
-            )
-        
         # Use username as display name
         nickname = user.username
 
@@ -373,13 +366,7 @@ class JoinRoomForm(forms.Form):
                     f"Please log in or register first, or join as a Spectator."
                 )
 
-        # Check if authenticated user is already in a room
         if user and user.is_authenticated:
-            if user.current_room and user.current_room != room:
-                raise ValidationError(
-                    f"You are already in room '{user.current_room.name}'. "
-                    f"Please leave that room before joining another."
-                )
             # For authenticated users, use their username as nickname
             nickname = user.username
 
