@@ -10,7 +10,7 @@ from bingosync.forms import RoomForm, JoinRoomForm
 
 
 class OneRoomPerUserTests(TestCase):
-    """Test that users can only be in one room at a time."""
+    """Test the current_room bookkeeping (users may be in several rooms)."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -79,15 +79,12 @@ class OneRoomPerUserTests(TestCase):
         form = RoomForm(data=form_data)
         self.assertTrue(form.is_valid())
 
-        # Should raise ValidationError
-        with self.assertRaises(ValidationError) as context:
-            form.create_room(user=self.user)
+        # Users may be in several rooms at once (the OBS link follows them)
+        second = form.create_room(user=self.user)
+        self.assertEqual(second.name, 'Second Room')
 
-        # Check error message mentions the first room
-        self.assertIn('First Room', str(context.exception))
-
-    def test_user_cannot_join_second_room(self):
-        """Test that a user cannot join a second room while in another."""
+    def test_user_can_join_second_room(self):
+        """Test that a user can join a second room while in another."""
         # Create first room
         form_data = {
             'room_name': 'First Room',
@@ -130,12 +127,10 @@ class OneRoomPerUserTests(TestCase):
         join_form = JoinRoomForm(data=join_form_data, user=self.user)
         self.assertTrue(join_form.is_valid())
 
-        # Should raise ValidationError
-        with self.assertRaises(ValidationError) as context:
-            join_form.create_player(user=self.user)
-
-        # Check error message mentions the first room
-        self.assertIn('First Room', str(context.exception))
+        player = join_form.create_player(user=self.user)
+        self.assertEqual(player.room, second_room)
+        self.assertEqual(
+            self.user.player_sessions.count(), 2)
 
     def test_user_can_rejoin_same_room(self):
         """Test that a user can rejoin the same room they're already in."""

@@ -4,6 +4,7 @@ from django.http import (
     JsonResponse, Http404
 )
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.exceptions import ValidationError
@@ -37,7 +38,7 @@ from bingosync.models.events import (
 from bingosync.models.enums import Role
 from bingosync.models.rooms import (
     ANON_PLAYER, Room, Game, LockoutMode, Player, Square, CompletedLine,
-    COUNTED_CLAIM_STATUSES, CounterTally
+    COUNTED_CLAIM_STATUSES, CounterTally, CardReveal
 )
 from bingosync.models.user import User
 from bingosync.publish import (
@@ -409,6 +410,19 @@ def room_view(request, encoded_room_uuid):
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
             }
+            # Whether this player has the card covered (server-side, so a
+            # reload and the player's OBS source always agree)
+            from bingosync.obs import board_hidden_for
+            params["board_hidden"] = board_hidden_for(player)
+            # A user has one permanent OBS link for every room; someone
+            # without an account gets one for this room
+            if player.user_id and request.user.is_authenticated:
+                token = request.user.ensure_obs_token()
+                params["obs_selected"] = (
+                    request.user.obs_room_id == room.id)
+            else:
+                token = player.ensure_obs_token()
+            params["obs_url"] = reverse("obs_stream", args=[token])
             return render(request, "bingosync/bingosync.html", params)
     except NotAuthenticatedError:
         join_form = JoinRoomForm.for_room(room, user=request.user)
@@ -429,6 +443,114 @@ def room_stream(request, encoded_room_uuid):
         "temporary_socket_key": _create_anon_socket_key(room)
     }
     return render(request, "bingosync/stream.html", params)
+
+
+def _obs_subject_or_404(token):
+    """(user, None) for an account's OBS token, (None, player) for an
+    anonymous player's."""
+    if token:
+        user = User.objects.filter(obs_token=token).first()
+        if user is not None:
+            return user, None
+        player = (Player.objects.select_related("room")
+                  .filter(obs_token=token, user__isnull=True).first())
+        if player is not None:
+            return None, player
+    raise Http404
+
+
+@xframe_options_exempt
+def obs_stream(request, obs_token):
+    """A user's permanent OBS Browser Source: the board of the room they're in.
+
+    The URL never changes; the page follows the user from room to room (see
+    obs_state) and keeps their own board cover, so it only reveals a hidden
+    card when that player does.
+    """
+    from bingosync.obs import resolve_target, board_hidden_for
+    user, anon_player = _obs_subject_or_404(obs_token)
+    player = resolve_target(user, anon_player)
+    params = {"obs_token": obs_token, "player": None}
+    if player is not None:
+        room = player.room
+        params.update({
+            "room": room,
+            "game": room.current_game,
+            "player": player,
+            "board_hidden": board_hidden_for(player),
+            "room_settings": room.settings_for(None),
+            "sockets_url": SOCKETS_URL,
+            "temporary_socket_key": _create_anon_socket_key(room),
+        })
+    response = render(request, "bingosync/stream.html", params)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@xframe_options_exempt
+def obs_state(request, obs_token):
+    """What the OBS page should be showing; it reloads when this changes."""
+    from bingosync.obs import obs_state as current_obs_state
+    user, anon_player = _obs_subject_or_404(obs_token)
+    response = JsonResponse(current_obs_state(user, anon_player))
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def card_revealed(request):
+    """The player uncovered the hidden card on their own screen.
+
+    Any role may: it only tells that player's own OBS source to uncover, and
+    exposes nothing (unlike board_revealed, which reveals the card to the room).
+    """
+    data = parse_body_json_or_400(request, required_keys=["room"])
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    player = _get_session_player(request.session, room)
+    if player is ANON_PLAYER or not player.pk:
+        return HttpResponseForbidden("Join the room first.")
+    CardReveal.objects.get_or_create(player=player, game=room.current_game)
+    return HttpResponse("OK")
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def obs_regenerate(request):
+    """Replace the user's OBS token, so a leaked link stops working."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if request.user.is_authenticated:
+        token = request.user.ensure_obs_token(regenerate=True)
+    else:
+        data = parse_body_json_or_400(request, required_keys=["room"])
+        room = Room.get_for_encoded_uuid_or_404(data["room"])
+        player = _get_session_player(request.session, room)
+        if player is ANON_PLAYER or not player.pk or player.user_id:
+            return HttpResponseForbidden("Join the room first.")
+        token = player.ensure_obs_token(regenerate=True)
+    return JsonResponse({"url": reverse("obs_stream", args=[token])})
+
+
+@handle_ratelimit
+@ratelimit_authenticated_action
+def obs_select_room(request):
+    """Make a room the one the user's OBS link shows (or stop doing so)."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden("Log in to use an OBS link.")
+    data = parse_body_json_or_400(request, required_keys=["room", "selected"])
+    room = Room.get_for_encoded_uuid_or_404(data["room"])
+    user = request.user
+    if not Player.objects.filter(room=room, user=user).exists():
+        return HttpResponseForbidden("You are not in that room.")
+    if data["selected"]:
+        user.obs_room = room
+    elif user.obs_room_id == room.id:
+        user.obs_room = None
+    user.save(update_fields=["obs_room"])
+    return JsonResponse({"selected": user.obs_room_id == room.id})
 
 
 def _join_room(request, join_form, room):

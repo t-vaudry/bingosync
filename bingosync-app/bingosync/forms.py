@@ -217,12 +217,6 @@ class RoomForm(forms.Form):
             user = None
 
         if user is not None:
-            # Check if authenticated user is already in a room
-            if user.current_room:
-                raise ValidationError(
-                    f"You are already in room '{user.current_room.name}'. "
-                    f"Please leave that room before creating another."
-                )
             # Use username as display name
             nickname = user.username
         else:
@@ -402,13 +396,7 @@ class JoinRoomForm(forms.Form):
         if user is not None and not user.is_authenticated:
             user = None
 
-        # Check if authenticated user is already in a room
         if user and user.is_authenticated:
-            if user.current_room and user.current_room != room:
-                raise ValidationError(
-                    f"You are already in room '{user.current_room.name}'. "
-                    f"Please leave that room before joining another."
-                )
             # For authenticated users, use their username as nickname
             nickname = user.username
         else:

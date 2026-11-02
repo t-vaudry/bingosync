@@ -26,7 +26,8 @@ var ChatSocket = (function(){
     ChatSocket.prototype.onSocketClose = function() {
         var disconnectText = "*** Disconnected from server, try refreshing.";
         var message = $("<div>", {"class": "connection-message", text: disconnectText}).toHtml();
-        this.chatPanel.appendChatMessage(message);
+        // The OBS page has no chat or players panel
+        if (this.chatPanel) { this.chatPanel.appendChatMessage(message); }
     };
 
     ChatSocket.prototype.onSocketMessage = function(evt) {
@@ -38,7 +39,7 @@ var ChatSocket = (function(){
             var square = this.board.getSquare(json["square"]["slot"]);
             square.setColors(json["square"]["colors"]);
             square.setClaim(json["square"]["claim_status"], json["square"]["claimed_by"]);
-            this.playersPanel.updateGoalCounters(this.board);
+            if (this.playersPanel) { this.playersPanel.updateGoalCounters(this.board); }
             this.board.hideSquares();
 
             // An unmarked goal drops out of the counter's review list
@@ -47,11 +48,21 @@ var ChatSocket = (function(){
             }
         }
         else if(json["type"] === "color") {
-            this.playersPanel.setPlayer(json["player"]);
-            this.playersPanel.updateGoalCounters(this.board);
+            if (this.playersPanel) {
+                this.playersPanel.setPlayer(json["player"]);
+                this.playersPanel.updateGoalCounters(this.board);
+            }
+        }
+        else if(json["type"] === "revealed") {
+            // The Gamemaster revealed the card for the room: uncover it here
+            // too (a no-op on pages that have no cover).
+            revealBoard();
         }
         else if(json["type"] === "connection") {
-            if(json["event_type"] === "connected") {
+            if (!this.playersPanel) {
+                // nothing to show; the OBS page only cares about the board
+            }
+            else if(json["event_type"] === "connected") {
                 this.playersPanel.setPlayer(json["player"]);
                 this.playersPanel.updateGoalCounters(this.board);
             }
@@ -74,10 +85,10 @@ var ChatSocket = (function(){
             }
         }
         else if(json["type"] === "role_change") {
-            this.playersPanel.handleRoleChange(json);
+            if (this.playersPanel) { this.playersPanel.handleRoleChange(json); }
         }
         else if(json["type"] === "counter_assignment") {
-            this.playersPanel.handleCounterAssignment(json);
+            if (this.playersPanel) { this.playersPanel.handleCounterAssignment(json); }
             if (window.counterUI) {
                 window.counterUI.handleCounterAssignment(json);
             }
@@ -87,7 +98,7 @@ var ChatSocket = (function(){
             var square = this.board.getSquare(json["square"]["slot"]);
             square.setColors(json["square"]["colors"]);
             square.setClaim(json["square"]["claim_status"], json["square"]["claimed_by"]);
-            this.playersPanel.updateGoalCounters(this.board);
+            if (this.playersPanel) { this.playersPanel.updateGoalCounters(this.board); }
             this.board.hideSquares();
 
             if (window.counterUI) {
@@ -109,7 +120,7 @@ var ChatSocket = (function(){
         } else {
             console.log("unrecognized event type: ", json);
         }
-        this.chatPanel.handleEvent(json);
+        if (this.chatPanel) { this.chatPanel.handleEvent(json); }
     };
 
 
