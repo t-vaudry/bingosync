@@ -171,3 +171,5 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.square .goal-count-btn:disabled { pointer-events: none; }

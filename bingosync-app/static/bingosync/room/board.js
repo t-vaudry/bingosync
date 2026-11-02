@@ -172,6 +172,10 @@ var Board = (function(){
         this.onSquareRightClick = null;
         // Also set by the counter UI; returns true when it handled the click.
         this.onSquareClick = null;
+        // Squares this player starred, by slot; the room page sets starUrl
+        // so changes are saved (the OBS page only displays them).
+        this.starred = {};
+        this.starUrl = null;
     };
 
     Board.prototype.setup = function(size) {
@@ -255,24 +259,61 @@ var Board = (function(){
             if (that.onSquareRightClick) {
                 that.onSquareRightClick(parseInt(this.id.substring(4)));
             } else {
-                $(this).children(".starred").toggleClass("hidden");
+                that.toggleStar(parseInt(this.id.substring(4)));
             }
             return false;
         });
 
         // Middle click always stars, so a counter (whose right-click is
-        // taken by review) can still star goals
+        // taken by review) can still star goals. It goes on mouseup because
+        // that fires wherever the cursor is over the square (count strips and
+        // their buttons included), unlike auxclick.
         this.$squares.on("mousedown", function(e) {
             if (e.button === 1) {
                 e.preventDefault(); // no autoscroll
             }
         });
-        this.$squares.on("auxclick", function(e) {
+        this.$squares.on("mouseup", function(e) {
             if (e.button === 1) {
                 e.preventDefault();
-                $(this).children(".starred").toggleClass("hidden");
+                that.toggleStar(parseInt(this.id.substring(4)));
             }
         });
+        this.$squares.on("auxclick", function(e) {
+            if (e.button === 1) { e.preventDefault(); }
+        });
+    };
+
+    // Stars are private to the player. They're kept on the server so the
+    // player's OBS source shows them too, and survive the board reloading.
+    Board.prototype.setStars = function(slots) {
+        this.starred = {};
+        (slots || []).forEach(function(slot) { this.starred[slot] = true; }, this);
+        this.applyStars();
+    };
+
+    Board.prototype.applyStars = function() {
+        if (!this.$squares) { return; }
+        var that = this;
+        this.$squares.each(function() {
+            var slot = parseInt(this.id.substring(4));
+            $(this).children(".starred").toggleClass("hidden", !that.starred[slot]);
+        });
+    };
+
+    Board.prototype.toggleStar = function(slot) {
+        var on = !this.starred[slot];
+        if (on) { this.starred[slot] = true; } else { delete this.starred[slot]; }
+        this.applyStars();
+        if (this.starUrl) {
+            $.ajax({
+                url: this.starUrl,
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    room: window.sessionStorage.getItem("room"), slot: slot, starred: on})
+            });
+        }
     };
 
     Board.prototype.checkTile = function(i, chosenColorClass) {
@@ -370,6 +411,7 @@ var Board = (function(){
             // allow newlines in generators
             this.$squares[i].innerHTML = this.$squares[i].innerHTML.replaceAll("\n","<br>")
         }
+        this.applyStars();
         this.refitGoalText();
     };
 

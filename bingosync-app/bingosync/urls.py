@@ -15,13 +15,14 @@ Including another URLconf
 """
 from django.urls import re_path as url
 from django.contrib import admin
+from django.views.generic import RedirectView
 from django.contrib.auth import views as auth_views
 
 from bingosync import views
 
 urlpatterns = [
     url(r'^$', views.landing, name='landing'),
-    url(r'^dashboard$', views.rooms, name='rooms'),
+    url(r'^dashboard$', RedirectView.as_view(pattern_name='landing', permanent=True)),
     url(r'^join$', views.join_by_code, name='join_by_code'),
     url(r'^join-spectator$', views.join_as_spectator, name='join_as_spectator'),
     url(r'^join-room$', views.join_room_by_code, name='join_room_by_code'),
@@ -88,6 +89,7 @@ urlpatterns = [
     url(r'^api/revealed$', views.board_revealed, name='board_revealed'),
     url(r'^api/assign-role$', views.assign_role, name='assign_role'),
     url(r'^api/card-revealed$', views.card_revealed, name='card_revealed'),
+    url(r'^api/star$', views.star_square, name='star_square'),
     url(r'^api/obs/regenerate$', views.obs_regenerate, name='obs_regenerate'),
     url(r'^api/obs/room$', views.obs_select_room, name='obs_select_room'),
     url(r'^obs/(?P<obs_token>[A-Za-z0-9_-]+)/state$', views.obs_state, name='obs_state'),
