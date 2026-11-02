@@ -78,18 +78,8 @@ def redirect_params(url, params=None, **kwargs):
 
 
 def landing(request):
-    """Main landing page - offers login or join as spectator."""
-    stats = {
-        "rooms": Room.objects.count(),
-        "games": Game.objects.count(),
-        "ticks": GoalEvent.objects.filter(remove_color=False).count(),
-        "unticks": GoalEvent.objects.filter(remove_color=True).count(),
-    }
-    
-    params = {
-        "stats": stats,
-    }
-    return render(request, "bingosync/landing.html", params)
+    """Main landing page - join or create a room, with or without an account."""
+    return render(request, "bingosync/landing.html")
 
 
 def join_by_code(request):
@@ -155,38 +145,45 @@ def join_as_spectator(request):
 @handle_ratelimit
 @ratelimit_login
 def join_room_by_code(request):
-    """Join a room directly with code, password, and role (for authenticated users)."""
+    """Join a room directly with code, password, and role.
+
+    Works with or without an account; someone without one supplies a
+    display name and isn't tracked.
+    """
     if request.method != 'POST':
         return redirect('rooms')
-    
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+
+    user = request.user if request.user.is_authenticated else None
+
     room_code = request.POST.get('room_code', '').strip().upper()
     password = request.POST.get('password', '')
     role = request.POST.get('role', 'player')
-    
+    display_name = (user.username if user
+                    else request.POST.get('display_name', '').strip())
+
     if not room_code:
         return redirect_params('rooms', params={'error': 'missing_code'})
-    
+    if not display_name:
+        return redirect_params('rooms', params={'error': 'missing_fields'})
+
     try:
         room = Room.get_for_room_code(room_code)
     except Room.DoesNotExist:
         return redirect_params('rooms', params={'error': 'invalid_code'})
-    
+
     # Create join form with the data
     form_data = {
         'encoded_room_uuid': room.encoded_uuid,
-        'player_name': request.user.username,
+        'player_name': display_name,
         'passphrase': password,
         'role': role,
     }
-    
-    join_form = JoinRoomForm(data=form_data, room=room, user=request.user)
-    
+
+    join_form = JoinRoomForm(data=form_data, room=room, user=user)
+
     if join_form.is_valid():
         try:
-            player = join_form.create_player(user=request.user)
+            player = join_form.create_player(user=user)
             _save_session_player(request.session, player)
             return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
         except ValidationError as e:
@@ -202,17 +199,15 @@ def join_room_by_code(request):
 @handle_ratelimit
 @ratelimit_registration
 def rooms(request):
-    """Dashboard for authenticated users - room creation and management."""
-    # Require authentication
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+    """Create or join a room. Open to everyone; accounts add tracking."""
+    user = request.user if request.user.is_authenticated else None
+    anonymous = user is None
+
     if request.method == "POST":
-        form = RoomForm(request.POST, user=request.user)
+        form = RoomForm(request.POST, user=user, anonymous=anonymous)
         if form.is_valid():
             try:
-                # Pass the authenticated user to create_room
-                room = form.create_room(user=request.user)
+                room = form.create_room(user=user)
                 creator = room.creator
                 _save_session_player(request.session, creator)
                 # Show room code in success message
@@ -232,18 +227,10 @@ def rooms(request):
                     "custom_json", "")[
                     :2000])
     else:
-        form = RoomForm(user=request.user)
-
-    stats = {
-        "rooms": Room.objects.count(),
-        "games": Game.objects.count(),
-        "ticks": GoalEvent.objects.filter(remove_color=False).count(),
-        "unticks": GoalEvent.objects.filter(remove_color=True).count(),
-    }
+        form = RoomForm(user=user, anonymous=anonymous)
 
     params = {
         "form": form,
-        "stats": stats,
         "variants": ALL_VARIANTS,
     }
     return render(request, "bingosync/index.html", params)
@@ -1238,14 +1225,6 @@ def assign_role(request):
     valid_roles = [role[0] for role in Role.choices]
     if new_role not in valid_roles:
         return HttpResponseBadRequest(f"Invalid role: {new_role}")
-
-    # Check if target player is logged in when changing to Player/Counter
-    if new_role in [Role.PLAYER, Role.COUNTER]:
-        if not target_player.user:
-            return HttpResponseBadRequest(
-                "Player must be logged in to become a Player or Counter. "
-                "Only logged-in users can have these roles."
-            )
 
     # Store old role for event
     old_role = target_player.role
