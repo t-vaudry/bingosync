@@ -82,23 +82,10 @@ var PlayersPanel = (function(){
             
             // Get player info from DOM
             var playerName = $playerEntry.find('.playername').text().trim();
-            var $roleBadge = $playerEntry.find('.player-role-badge');
-            var roleBadgeText = $roleBadge.text().trim();
             var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
             var role = $playerEntry.attr('data-role') || 'player';
             var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
-            
-            // Determine role from badge if not in data attribute
-            if (!$playerEntry.attr('data-role')) {
-                if (roleBadgeText === '[GM]') {
-                    role = 'gamemaster';
-                } else if (roleBadgeText === '[C]') {
-                    role = 'counter';
-                } else if (roleBadgeText === '[S]') {
-                    role = 'spectator';
-                }
-            }
-            
+
             // Create player JSON object
             var playerJson = {
                 uuid: playerUuid,
@@ -148,23 +135,10 @@ var PlayersPanel = (function(){
                 
                 // Get player info from DOM
                 var playerName = $playerEntry.find('.playername').text().trim();
-                var $roleBadge = $playerEntry.find('.player-role-badge');
-                var roleBadgeText = $roleBadge.text().trim();
                 var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
                 var role = $playerEntry.attr('data-role') || 'player';
                 var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
-                
-                // Determine role from badge if not in data attribute
-                if (!$playerEntry.attr('data-role')) {
-                    if (roleBadgeText === '[GM]') {
-                        role = 'gamemaster';
-                    } else if (roleBadgeText === '[C]') {
-                        role = 'counter';
-                    } else if (roleBadgeText === '[S]') {
-                        role = 'spectator';
-                    }
-                }
-                
+
                 // Create player JSON object
                 var playerJson = {
                     uuid: playerUuid,
@@ -197,14 +171,11 @@ var PlayersPanel = (function(){
 
     PlayersPanel.prototype.setPlayer = function(playerJson) {
         var isSpectator = playerJson["role"] === "spectator";
-        
+        var isCounter = playerJson["role"] === "counter";
+
         if(this.$playersPanel.find("#" + playerJson["uuid"]).length === 0) {
             // Player doesn't exist, insert them
-            if (isSpectator) {
-                this._addSpectator(playerJson);
-            } else {
-                this._addPlayer(playerJson);
-            }
+            this._addEntry(playerJson);
         } else {
             // Player exists, update them
             var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
@@ -218,19 +189,17 @@ var PlayersPanel = (function(){
                 $playerEntry.removeAttr('data-monitoring-color');
             }
             
-            // Check if role changed (e.g., player became spectator or vice versa)
+            // Players, counters and spectators each have their own section, so
+            // a change between them means moving the entry
             var wasSpectator = $playerEntry.hasClass("spectator-entry");
-            if (isSpectator !== wasSpectator) {
-                // Role changed between spectator and non-spectator, remove and re-add
+            var wasCounter = $playerEntry.hasClass("counter-entry");
+            if (isSpectator !== wasSpectator || isCounter !== wasCounter) {
                 $playerEntry.remove();
-                if (isSpectator) {
-                    this._addSpectator(playerJson);
-                } else {
-                    this._addPlayer(playerJson);
-                }
+                this._removeEmptySections();
+                this._addEntry(playerJson);
             } else {
                 // Just update the existing entry
-                if (!isSpectator) {
+                if (!isSpectator && !isCounter) {
                     // Update color for non-spectators
                     var $playerGoalCounter = $playerEntry.find(".goalcounter");
                     COLORS.forEach(function(color) {
@@ -240,11 +209,79 @@ var PlayersPanel = (function(){
                 }
                 
                 // Update role badge
-                var $roleBadge = $playerEntry.find(".player-role-badge");
-                $roleBadge.replaceWith(this._createRoleBadge(playerJson));
+                if (!isSpectator && !isCounter) {
+                    $playerEntry.find(".player-role-badge").replaceWith(this._createRoleBadge(playerJson));
+                }
             }
         }
         this._notifyChange();
+    };
+
+    PlayersPanel.prototype._addEntry = function(playerJson) {
+        if (playerJson["role"] === "spectator") {
+            this._addSpectator(playerJson);
+        } else if (playerJson["role"] === "counter") {
+            this._addCounter(playerJson);
+        } else {
+            this._addPlayer(playerJson);
+        }
+    };
+
+    // Counters and spectators are listed in their own sections below the
+    // players. Returns the section for the given kind, creating it if needed.
+    PlayersPanel.prototype._ensureSection = function(kind) {
+        var $section = this.$playersPanel.find("." + kind + "s-section");
+        if ($section.length === 0) {
+            $section = $("<div>", {"class": kind + "s-section"});
+            $section.append($("<div>", {"class": kind + "s-header", text: kind === "counter" ? "Counters" : "Spectators"}));
+            var $spectators = this.$playersPanel.find(".spectators-section");
+            if (kind === "counter" && $spectators.length > 0) {
+                // Counters sit above spectators
+                $spectators.before($section);
+            } else {
+                this.$playersPanel.append($section);
+            }
+        }
+        return $section;
+    };
+
+    PlayersPanel.prototype._removeEmptySections = function() {
+        this.$playersPanel.find(".counters-section, .spectators-section").each(function() {
+            if ($(this).find(".player-panel-entry").length === 0) {
+                $(this).remove();
+            }
+        });
+    };
+
+    PlayersPanel.prototype._appendManagementButtons = function($entry, playerJson) {
+        if (!this.currentPlayer || this.currentPlayer.role !== 'gamemaster') {
+            return;
+        }
+        $entry.append(this._createRoleButton(playerJson));
+        // No kicking yourself
+        if (playerJson["uuid"] !== this.currentPlayer.uuid) {
+            $entry.append(this._createKickButton(playerJson));
+        }
+        if (playerJson["role"] === "counter") {
+            $entry.append(this._createAssignCounterButton(playerJson));
+        }
+    };
+
+    PlayersPanel.prototype._addCounter = function(playerJson) {
+        var counterDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry counter-entry"});
+        counterDiv.attr('data-role', 'counter');
+        counterDiv.attr('data-is-logged-in', playerJson["is_logged_in"] ? 'true' : 'false');
+        if (playerJson["monitoring_color"]) {
+            counterDiv.attr('data-monitoring-color', playerJson["monitoring_color"]);
+        }
+
+        counterDiv.append($("<span>", {"class": "playername", text: " " + playerJson["name"]}));
+        if (playerJson["monitoring_color"]) {
+            counterDiv.append(this._counterBadge(this.colorLabel(playerJson["monitoring_color"])));
+        }
+        this._appendManagementButtons(counterDiv, playerJson);
+
+        this._ensureSection("counter").append(counterDiv);
     };
 
     PlayersPanel.prototype._addPlayer = function(playerJson) {
@@ -269,33 +306,12 @@ var PlayersPanel = (function(){
         playerDiv.append(playerName);
         playerDiv.append(roleBadge);
         
-        // Add counter assignment badge if this is a counter counting a color
-        if (playerJson["role"] === "counter" && playerJson["monitoring_color"]) {
-            playerDiv.append(this._counterBadge(this.colorLabel(playerJson["monitoring_color"])));
-        }
-        
-        // Add role management button if current player is gamemaster
-        if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
-            var roleButton = this._createRoleButton(playerJson);
-            playerDiv.append(roleButton);
-            
-            // Add kick button (but not for yourself)
-            if (playerJson["uuid"] !== this.currentPlayer.uuid) {
-                var kickButton = this._createKickButton(playerJson);
-                playerDiv.append(kickButton);
-            }
-            
-            // Add counter assignment button for counters
-            if (playerJson["role"] === "counter") {
-                var assignButton = this._createAssignCounterButton(playerJson);
-                playerDiv.append(assignButton);
-            }
-        }
+        this._appendManagementButtons(playerDiv, playerJson);
 
-        // Insert before spectators section if it exists, otherwise at end
-        var $spectatorsSection = this.$playersPanel.find(".spectators-section");
-        if ($spectatorsSection.length > 0) {
-            $spectatorsSection.before(playerDiv);
+        // Players go above the counters and spectators sections
+        var $firstSection = this.$playersPanel.find(".counters-section, .spectators-section").first();
+        if ($firstSection.length > 0) {
+            $firstSection.before(playerDiv);
         } else {
             this.$playersPanel.append(playerDiv);
         }
@@ -303,8 +319,6 @@ var PlayersPanel = (function(){
 
     PlayersPanel.prototype._addSpectator = function(playerJson) {
         var playerName = $("<span>", {"class": "playername", text: " " + playerJson["name"]});
-        var roleBadge = this._createRoleBadge(playerJson);
-        
         var spectatorDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry spectator-entry"});
         
         // Set data attributes
@@ -312,7 +326,6 @@ var PlayersPanel = (function(){
         spectatorDiv.attr('data-is-logged-in', playerJson["is_logged_in"] ? 'true' : 'false');
         
         spectatorDiv.append(playerName);
-        spectatorDiv.append(roleBadge);
         
         // Add role management button if current player is gamemaster
         if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
@@ -324,18 +337,7 @@ var PlayersPanel = (function(){
             spectatorDiv.append(kickButton);
         }
         
-        // Ensure spectators section exists
-        var $spectatorsSection = this.$playersPanel.find(".spectators-section");
-        if ($spectatorsSection.length === 0) {
-            // Create spectators section
-            $spectatorsSection = $("<div>", {"class": "spectators-section"});
-            var header = $("<div>", {"class": "spectators-header", text: "Spectators"});
-            $spectatorsSection.append(header);
-            this.$playersPanel.append($spectatorsSection);
-        }
-        
-        // Add spectator to the section
-        $spectatorsSection.append(spectatorDiv);
+        this._ensureSection("spectator").append(spectatorDiv);
     };
 
     PlayersPanel.prototype._createRoleBadge = function(playerJson) {
@@ -344,10 +346,6 @@ var PlayersPanel = (function(){
         
         if (playerJson["role"] === "gamemaster") {
             roleText = "[GM]";
-        } else if (playerJson["role"] === "counter") {
-            roleText = "[C]";
-        } else if (playerJson["role"] === "spectator") {
-            roleText = "[S]";
         }
         
         return $("<span>", {
@@ -655,7 +653,7 @@ var PlayersPanel = (function(){
         // Replace the assignment badge
         $counterEntry.find('.counter-assignment-badge').remove();
         if (color) {
-            $counterEntry.find('.player-role-badge').after(this._counterBadge(assignmentJson["monitored_label"] || color));
+            $counterEntry.find('.playername').after(this._counterBadge(assignmentJson["monitored_label"] || color));
         }
     };
 
@@ -706,16 +704,9 @@ var PlayersPanel = (function(){
 
     PlayersPanel.prototype.removePlayer = function(playerJson) {
         var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
-        var wasSpectator = $playerEntry.hasClass("spectator-entry");
         $playerEntry.remove();
-        
-        // If it was a spectator and spectators section is now empty (only header), remove the section
-        if (wasSpectator) {
-            var $spectatorsSection = this.$playersPanel.find(".spectators-section");
-            if ($spectatorsSection.find(".spectator-entry").length === 0) {
-                $spectatorsSection.remove();
-            }
-        }
+        // Drop the Counters / Spectators section once it's empty
+        this._removeEmptySections();
         this._notifyChange();
     };
 
