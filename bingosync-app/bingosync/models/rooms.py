@@ -128,6 +128,10 @@ class Room(models.Model):
         return [player for player in self.connected_players if player.is_spectator]
 
     @property
+    def connected_counters(self):
+        return [player for player in self.connected_players if player.role == 'counter']
+
+    @property
     def latest_event_timestamp(self):
         latest_event = Event.get_latest_for_room(self)
         return latest_event.timestamp if latest_event else self.created_date
