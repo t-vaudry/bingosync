@@ -71,7 +71,7 @@ var AdditionalSettingsPanel = (function(){
                 url: "/api/obs/regenerate",
                 type: "POST",
                 contentType: "application/json",
-                data: "{}",
+                data: JSON.stringify({room: window.sessionStorage.getItem("room")}),
                 success: function(result) {
                     $("#copy-obs-link").data("url", result.url);
                     window.alert("New OBS link made. Use \"Copy OBS link\" to copy it.");

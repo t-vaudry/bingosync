@@ -44,6 +44,29 @@ CUSTOM_JSON_PLACEHOLDER_TEXT = """Paste the board as a JSON list of goals, e.g:
   ... ]"""
 
 
+def _clean_nickname(player_name, original):
+    """Strip HTML from a nickname and normalize its whitespace.
+
+    `original` is the raw submitted value, used to reject names that had
+    tags in them rather than quietly altering them.
+    """
+    import re
+    from django.utils.html import strip_tags
+
+    player_name = strip_tags(player_name)
+    if strip_tags(original) != original:
+        raise ValidationError("Player name cannot contain HTML tags.")
+    return re.sub(r'\s+', ' ', player_name.strip())
+
+
+def _reject_registered_name(nickname):
+    """Keep nicknames of people without an account from posing as accounts."""
+    if User.objects.filter(username__iexact=nickname).exists():
+        raise ValidationError(
+            f"'{nickname}' belongs to a registered account. "
+            "Pick another nickname, or log in.")
+
+
 class RoomForm(forms.Form):
     room_name = forms.CharField(
         label="Room Name",
@@ -52,6 +75,17 @@ class RoomForm(forms.Form):
             validate_room_name,
             validate_no_html_tags,
             validate_no_script_tags])
+    # Only kept for people without an account (see __init__); accounts use
+    # their username.
+    player_name = forms.CharField(
+        label="Nickname",
+        max_length=50,
+        required=False,
+        validators=[
+            validate_player_name,
+            validate_no_html_tags,
+            validate_no_script_tags]
+    )
     passphrase = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(),
@@ -98,7 +132,14 @@ class RoomForm(forms.Form):
     def __init__(self, *args, **kwargs):
         # Extract user from kwargs if provided
         self.user = kwargs.pop('user', None)
+        # True on the create-room page for someone without an account, who
+        # has to say what to call themselves
+        self.anonymous = kwargs.pop('anonymous', False)
         super(RoomForm, self).__init__(*args, **kwargs)
+        if self.anonymous:
+            self.fields['player_name'].required = True
+        else:
+            del self.fields['player_name']
         self.helper = FormHelper(self)
         self.helper.form_tag = False
 
@@ -116,6 +157,10 @@ class RoomForm(forms.Form):
         # Apply profanity filter
         room_name = FilteredPattern.filter_string(room_name)
         return room_name
+
+    def clean_player_name(self):
+        return _clean_nickname(self.cleaned_data.get('player_name', ''),
+                               self.data.get('player_name', ''))
 
     def clean_seed(self):
         """Clean and validate seed."""
@@ -148,13 +193,14 @@ class RoomForm(forms.Form):
         Create a new room with the specified settings.
 
         Args:
-            user: Authenticated User instance (required)
+            user: Authenticated User instance, or None to create the room as
+                an anonymous Player named by the form's nickname
 
         Returns:
             Room instance
 
         Raises:
-            ValidationError: If user is not authenticated or already in another room
+            ValidationError: If the user is already in another room
         """
         room_name = self.cleaned_data["room_name"]
         passphrase = self.cleaned_data["passphrase"]
@@ -167,15 +213,17 @@ class RoomForm(forms.Form):
         hide_card = self.cleaned_data["hide_card"]
         fog_of_war = self.cleaned_data["fog_of_war"]
 
-        # Room creation always requires authentication
-        if not user or not user.is_authenticated:
-            raise ValidationError(
-                "You must be logged in to create a room. "
-                "Please log in or register first."
-            )
+        if user is not None and not user.is_authenticated:
+            user = None
 
-        # Use username as display name
-        nickname = user.username
+        if user is not None:
+            # Use username as display name
+            nickname = user.username
+        else:
+            nickname = self.cleaned_data.get("player_name")
+            if not nickname:
+                raise ValidationError("Please enter a nickname.")
+            _reject_registered_name(nickname)
 
         if not seed:
             seed = "" if game_type.uses_seed else "0"
@@ -230,8 +278,9 @@ class RoomForm(forms.Form):
             creator.save()
 
             # Set current_room for authenticated users
-            user.current_room = room
-            user.save()
+            if user is not None:
+                user.current_room = room
+                user.save()
 
             room.update_active()
         return room
@@ -296,23 +345,8 @@ class JoinRoomForm(forms.Form):
 
     def clean_player_name(self):
         """Sanitize player name by removing HTML tags and normalizing whitespace."""
-        import re
-        from django.utils.html import strip_tags
-
-        player_name = self.cleaned_data.get('player_name', '')
-
-        # Strip HTML tags
-        player_name = strip_tags(player_name)
-
-        # Check if HTML tags were present (after stripping, if different)
-        original = self.data.get('player_name', '')
-        if strip_tags(original) != original:
-            raise ValidationError("Player name cannot contain HTML tags.")
-
-        # Normalize whitespace: strip leading/trailing and collapse multiple spaces
-        player_name = re.sub(r'\s+', ' ', player_name.strip())
-
-        return player_name
+        return _clean_nickname(self.cleaned_data.get('player_name', ''),
+                               self.data.get('player_name', ''))
 
     def clean(self):
         cleaned_data = super().clean()
@@ -357,18 +391,16 @@ class JoinRoomForm(forms.Form):
         # Note: player_name is already sanitized and filtered in clean_player_name()
         # (HTML tags stripped, whitespace normalized)
 
-        # Validate authentication requirements
-        if role != Role.SPECTATOR:
-            # Player/Counter roles require authentication
-            if not user or not user.is_authenticated:
-                raise ValidationError(
-                    f"You must be logged in to join as {role}. "
-                    f"Please log in or register first, or join as a Spectator."
-                )
+        # Anyone can take any role; without an account (user is None) they
+        # just aren't tracked and lose the account-only features.
+        if user is not None and not user.is_authenticated:
+            user = None
 
         if user and user.is_authenticated:
             # For authenticated users, use their username as nickname
             nickname = user.username
+        else:
+            _reject_registered_name(nickname)
 
         with transaction.atomic():
             # Someone rejoining gets their player back (color, marks and

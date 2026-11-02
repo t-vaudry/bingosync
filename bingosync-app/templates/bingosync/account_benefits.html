@@ -1,0 +1,36 @@
+<div class="panel panel-default m-t-l">
+    <div class="panel-heading">
+        <h3 class="panel-title">Do you need an account?</h3>
+    </div>
+    <div class="panel-body">
+        <p>No. You can create rooms and play, count or spectate in them without one.
+           An account adds the following:</p>
+        <div class="row">
+            <div class="col-sm-6">
+                <h4>With an account</h4>
+                <ul>
+                    <li>Your wins, losses, bingos, squares marked and games played are tracked</li>
+                    <li>Achievements and a public profile page</li>
+                    <li>An OBS link for your room's board, to use as a stream overlay</li>
+                    <li>Your username is reserved as your name in every room</li>
+                    <li>Rejoin a room as the same player, with your color and marks</li>
+                </ul>
+            </div>
+            <div class="col-sm-6">
+                <h4>Without an account</h4>
+                <ul>
+                    <li>Create rooms and join as Player, Counter or Spectator</li>
+                    <li>Pick any display name each time</li>
+                    <li>No stats or achievements are recorded</li>
+                    <li>No OBS link</li>
+                </ul>
+            </div>
+        </div>
+        {% if not user.is_authenticated %}
+        <p>
+            <a href="{% url 'register' %}" class="btn btn-primary">Register</a>
+            <a href="{% url 'login' %}" class="btn btn-default">Login</a>
+        </p>
+        {% endif %}
+    </div>
+</div>

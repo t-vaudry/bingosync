@@ -79,18 +79,8 @@ def redirect_params(url, params=None, **kwargs):
 
 
 def landing(request):
-    """Main landing page - offers login or join as spectator."""
-    stats = {
-        "rooms": Room.objects.count(),
-        "games": Game.objects.count(),
-        "ticks": GoalEvent.objects.filter(remove_color=False).count(),
-        "unticks": GoalEvent.objects.filter(remove_color=True).count(),
-    }
-    
-    params = {
-        "stats": stats,
-    }
-    return render(request, "bingosync/landing.html", params)
+    """Main landing page - join or create a room, with or without an account."""
+    return render(request, "bingosync/landing.html")
 
 
 def join_by_code(request):
@@ -156,38 +146,45 @@ def join_as_spectator(request):
 @handle_ratelimit
 @ratelimit_login
 def join_room_by_code(request):
-    """Join a room directly with code, password, and role (for authenticated users)."""
+    """Join a room directly with code, password, and role.
+
+    Works with or without an account; someone without one supplies a
+    display name and isn't tracked.
+    """
     if request.method != 'POST':
         return redirect('rooms')
-    
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+
+    user = request.user if request.user.is_authenticated else None
+
     room_code = request.POST.get('room_code', '').strip().upper()
     password = request.POST.get('password', '')
     role = request.POST.get('role', 'player')
-    
+    display_name = (user.username if user
+                    else request.POST.get('display_name', '').strip())
+
     if not room_code:
         return redirect_params('rooms', params={'error': 'missing_code'})
-    
+    if not display_name:
+        return redirect_params('rooms', params={'error': 'missing_fields'})
+
     try:
         room = Room.get_for_room_code(room_code)
     except Room.DoesNotExist:
         return redirect_params('rooms', params={'error': 'invalid_code'})
-    
+
     # Create join form with the data
     form_data = {
         'encoded_room_uuid': room.encoded_uuid,
-        'player_name': request.user.username,
+        'player_name': display_name,
         'passphrase': password,
         'role': role,
     }
-    
-    join_form = JoinRoomForm(data=form_data, room=room, user=request.user)
-    
+
+    join_form = JoinRoomForm(data=form_data, room=room, user=user)
+
     if join_form.is_valid():
         try:
-            player = join_form.create_player(user=request.user)
+            player = join_form.create_player(user=user)
             _save_session_player(request.session, player)
             return redirect('room_view', encoded_room_uuid=room.encoded_uuid)
         except ValidationError as e:
@@ -203,17 +200,15 @@ def join_room_by_code(request):
 @handle_ratelimit
 @ratelimit_registration
 def rooms(request):
-    """Dashboard for authenticated users - room creation and management."""
-    # Require authentication
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+    """Create or join a room. Open to everyone; accounts add tracking."""
+    user = request.user if request.user.is_authenticated else None
+    anonymous = user is None
+
     if request.method == "POST":
-        form = RoomForm(request.POST, user=request.user)
+        form = RoomForm(request.POST, user=user, anonymous=anonymous)
         if form.is_valid():
             try:
-                # Pass the authenticated user to create_room
-                room = form.create_room(user=request.user)
+                room = form.create_room(user=user)
                 creator = room.creator
                 _save_session_player(request.session, creator)
                 # Show room code in success message
@@ -233,18 +228,10 @@ def rooms(request):
                     "custom_json", "")[
                     :2000])
     else:
-        form = RoomForm(user=request.user)
-
-    stats = {
-        "rooms": Room.objects.count(),
-        "games": Game.objects.count(),
-        "ticks": GoalEvent.objects.filter(remove_color=False).count(),
-        "unticks": GoalEvent.objects.filter(remove_color=True).count(),
-    }
+        form = RoomForm(user=user, anonymous=anonymous)
 
     params = {
         "form": form,
-        "stats": stats,
         "variants": ALL_VARIANTS,
     }
     return render(request, "bingosync/index.html", params)
@@ -427,15 +414,15 @@ def room_view(request, encoded_room_uuid):
             # reload and the player's OBS source always agree)
             from bingosync.obs import board_hidden_for
             params["board_hidden"] = board_hidden_for(player)
-            # A logged-in user has one permanent OBS link for every room
-            if request.user.is_authenticated:
+            # A user has one permanent OBS link for every room; someone
+            # without an account gets one for this room
+            if player.user_id and request.user.is_authenticated:
                 token = request.user.ensure_obs_token()
-                params["obs_url"] = reverse("obs_stream", args=[token])
                 params["obs_selected"] = (
                     request.user.obs_room_id == room.id)
             else:
-                params["obs_url"] = reverse(
-                    "room_stream", args=[room.encoded_uuid])
+                token = player.ensure_obs_token()
+            params["obs_url"] = reverse("obs_stream", args=[token])
             return render(request, "bingosync/bingosync.html", params)
     except NotAuthenticatedError:
         join_form = JoinRoomForm.for_room(room, user=request.user)
@@ -458,11 +445,18 @@ def room_stream(request, encoded_room_uuid):
     return render(request, "bingosync/stream.html", params)
 
 
-def _user_for_obs_token_or_404(token):
-    user = User.objects.filter(obs_token=token).first() if token else None
-    if user is None:
-        raise Http404
-    return user
+def _obs_subject_or_404(token):
+    """(user, None) for an account's OBS token, (None, player) for an
+    anonymous player's."""
+    if token:
+        user = User.objects.filter(obs_token=token).first()
+        if user is not None:
+            return user, None
+        player = (Player.objects.select_related("room")
+                  .filter(obs_token=token, user__isnull=True).first())
+        if player is not None:
+            return None, player
+    raise Http404
 
 
 @xframe_options_exempt
@@ -473,9 +467,9 @@ def obs_stream(request, obs_token):
     obs_state) and keeps their own board cover, so it only reveals a hidden
     card when that player does.
     """
-    from bingosync.obs import obs_target, board_hidden_for
-    user = _user_for_obs_token_or_404(obs_token)
-    player = obs_target(user)
+    from bingosync.obs import resolve_target, board_hidden_for
+    user, anon_player = _obs_subject_or_404(obs_token)
+    player = resolve_target(user, anon_player)
     params = {"obs_token": obs_token, "player": None}
     if player is not None:
         room = player.room
@@ -497,8 +491,8 @@ def obs_stream(request, obs_token):
 def obs_state(request, obs_token):
     """What the OBS page should be showing; it reloads when this changes."""
     from bingosync.obs import obs_state as current_obs_state
-    user = _user_for_obs_token_or_404(obs_token)
-    response = JsonResponse(current_obs_state(user))
+    user, anon_player = _obs_subject_or_404(obs_token)
+    response = JsonResponse(current_obs_state(user, anon_player))
     response["Cache-Control"] = "no-store"
     return response
 
@@ -526,9 +520,15 @@ def obs_regenerate(request):
     """Replace the user's OBS token, so a leaked link stops working."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    if not request.user.is_authenticated:
-        return HttpResponseForbidden("Log in to use an OBS link.")
-    token = request.user.ensure_obs_token(regenerate=True)
+    if request.user.is_authenticated:
+        token = request.user.ensure_obs_token(regenerate=True)
+    else:
+        data = parse_body_json_or_400(request, required_keys=["room"])
+        room = Room.get_for_encoded_uuid_or_404(data["room"])
+        player = _get_session_player(request.session, room)
+        if player is ANON_PLAYER or not player.pk or player.user_id:
+            return HttpResponseForbidden("Join the room first.")
+        token = player.ensure_obs_token(regenerate=True)
     return JsonResponse({"url": reverse("obs_stream", args=[token])})
 
 
@@ -1347,14 +1347,6 @@ def assign_role(request):
     valid_roles = [role[0] for role in Role.choices]
     if new_role not in valid_roles:
         return HttpResponseBadRequest(f"Invalid role: {new_role}")
-
-    # Check if target player is logged in when changing to Player/Counter
-    if new_role in [Role.PLAYER, Role.COUNTER]:
-        if not target_player.user:
-            return HttpResponseBadRequest(
-                "Player must be logged in to become a Player or Counter. "
-                "Only logged-in users can have these roles."
-            )
 
     # Store old role for event
     old_role = target_player.role

@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 import datetime
+import secrets
 from uuid import uuid4
 from enum import Enum
 import math
@@ -528,8 +529,19 @@ class Player(models.Model):
         help_text="For Counter role: the color being counted"
     )
 
+    # OBS link token for a player without an account (accounts keep theirs
+    # on the User, so their link survives moving between rooms).
+    obs_token = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False)
+
     class Meta:
         indexes = [models.Index(fields=['room', 'user'])]
+
+    def ensure_obs_token(self, regenerate=False):
+        if self.obs_token is None or regenerate:
+            self.obs_token = secrets.token_urlsafe(24)
+            self.save(update_fields=['obs_token'])
+        return self.obs_token
 
     @staticmethod
     def get_for_encoded_uuid(encoded_player_uuid):

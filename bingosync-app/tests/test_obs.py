@@ -204,3 +204,49 @@ class ObsTestCase(test.TestCase):
             content_type="application/json")
         self.assertIn(resp.status_code, (401, 403, 404))
         self.assertEqual(CardReveal.objects.count(), 0)
+
+
+class AnonymousObsTestCase(test.TestCase):
+    """People without an account get an OBS link for their room."""
+
+    def setUp(self):
+        self.client = test.Client()
+        self.owner = User.objects.create_user(
+            username='owner', email='o@example.com', password='x')
+        c = test.Client()
+        c.force_login(self.owner)
+        resp = c.post("/dashboard", {
+            "room_name": "R", "passphrase": "", "game_type":
+            str(models.GameType.hp_cos.value),
+            "lockout_mode": str(models.LockoutMode.lockout.value),
+            "hide_card": "on"}, follow=True)
+        self.room = resp.context["room"]
+        join = self.client.post("/api/join-room", json.dumps({
+            "room": self.room.encoded_uuid, "nickname": "guest",
+            "password": "", "role": "spectator"}),
+            content_type="application/json")
+        self.assertEqual(join.status_code, 200, join.content)
+
+    def test_anonymous_player_gets_working_obs_link(self):
+        resp = self.client.get(self.room.get_absolute_url())
+        self.assertContains(resp, 'id="copy-obs-link"')
+        player = models.Player.objects.get(room=self.room, name="guest")
+        self.assertIsNotNone(player.obs_token)
+        self.assertContains(resp, 'data-url="/obs/%s"' % player.obs_token)
+        obs = test.Client().get("/obs/" + player.obs_token)
+        self.assertEqual(obs.status_code, 200)
+        self.assertEqual(obs.context["room"].id, self.room.id)
+        self.assertContains(obs, 'class="board-cover"')
+
+    def test_anonymous_regenerate(self):
+        self.client.get(self.room.get_absolute_url())
+        player = models.Player.objects.get(room=self.room, name="guest")
+        old = player.obs_token
+        resp = self.client.post(
+            "/api/obs/regenerate",
+            json.dumps({"room": self.room.encoded_uuid}),
+            content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(test.Client().get("/obs/" + old).status_code, 404)
+        self.assertEqual(
+            test.Client().get(resp.json()["url"]).status_code, 200)

@@ -23,7 +23,7 @@
             {% if can_change_own_role %}
                 <select id="own-role-select" class="form-control input-sm own-role-select" title="Change your role">
                     {% for value, label in role_choices %}
-                        <option value="{{ value }}"{% if player.role == value %} selected{% endif %}{% if value != 'spectator' and not player.user %} disabled title="Log in to play or count"{% endif %}>{{ label }}</option>
+                        <option value="{{ value }}"{% if player.role == value %} selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             {% endif %}

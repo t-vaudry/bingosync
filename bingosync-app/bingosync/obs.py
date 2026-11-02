@@ -40,9 +40,15 @@ def board_hidden_for(player):
         player__room=room, timestamp__gt=game.created_date).exists()
 
 
-def obs_state(user):
+def resolve_target(user, anon_player):
+    """The Player an OBS link shows: a user's link follows them between
+    rooms; an anonymous player's link is tied to their one player."""
+    return obs_target(user) if user is not None else anon_player
+
+
+def obs_state(user, anon_player=None):
     """What the OBS page shows, as a small dict the page polls for changes."""
-    player = obs_target(user)
+    player = resolve_target(user, anon_player)
     if player is None:
         return {"room": None, "game": None, "hidden": False}
     return {

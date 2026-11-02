@@ -340,7 +340,9 @@
     position: absolute;
     left: -0.5px;
     top: 0px;
-    z-index: 1;
+    /* above everything drawn on a square (under-review stripes, count strips,
+       star at 100), below popouts (10000) */
+    z-index: 101;
 
     /* size of popouts (measured, not enforced) */
     margin-top: 31px;

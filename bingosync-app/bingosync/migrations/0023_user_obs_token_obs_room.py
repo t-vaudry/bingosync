@@ -20,6 +20,11 @@ class Migration(migrations.Migration):
             name='obs_room',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='obs_users', to='bingosync.room'),
         ),
+        migrations.AddField(
+            model_name='player',
+            name='obs_token',
+            field=models.CharField(blank=True, editable=False, max_length=64, null=True, unique=True),
+        ),
         migrations.CreateModel(
             name='CardReveal',
             fields=[
