@@ -1047,3 +1047,31 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
         min-width: 0;
     }
 }
+
+/* Full Width Board (Additional Settings): the board takes the whole row and
+   its squares grow with the window; chat and the side panels move below. */
+.room-layout-fullwidth {
+    flex-wrap: wrap;
+}
+.room-layout-fullwidth .room-board-col {
+    flex: 1 1 100%;
+}
+.room-layout-fullwidth .room-board-col #bingo {
+    width: 100%;
+}
+.room-layout-fullwidth .square {
+    width: auto;
+    height: clamp(95px, 12vw, 190px);
+}
+.room-layout-fullwidth #bingo td:first-child {
+    width: 31px;
+}
+.room-layout-fullwidth .room-col:not(.room-board-col) {
+    height: 540px;
+}
+.room-layout-fullwidth .room-chat-col {
+    flex-grow: 1;
+}
+.room-layout-fullwidth .board-container {
+    display: block;
+}

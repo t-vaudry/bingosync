@@ -48,3 +48,9 @@ class SpectatorPanelsTest(TestCase):
         response = self._page_for(Role.PLAYER, user)
         self.assertContains(response, 'id="color-chooser"')
         self.assertContains(response, 'id="room-settings"')
+
+    def test_everyone_gets_additional_settings(self):
+        response = self._page_for(Role.SPECTATOR)
+        self.assertContains(response, 'id="additional-settings"')
+        self.assertContains(response, 'id="fullwidth-toggle"')
+        self.assertContains(response, 'id="blackoutview-toggle"')
