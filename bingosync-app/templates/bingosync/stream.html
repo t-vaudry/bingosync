@@ -12,12 +12,15 @@
     /* Board-only page for an OBS Browser Source: transparent so OBS shows
        nothing but the board. */
     html, body { background: transparent !important; margin: 0; overflow: hidden; }
-    .stream-board { display: flex; justify-content: center; text-align: center; }
+    /* The board is laid out at its natural size, then scaled by a transform to
+       fill the browser source (see fitBoard). Transforms re-rasterize text at
+       the final size, so it stays sharp at any resolution. */
+    .stream-board { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; overflow: hidden; }
+    .stream-board .board-container { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
     /* No A-E / 1-5 / diagonal headers on the stream. */
     .stream-board #bingo .popout { display: none; }
     /* Without the headers the cover fits the board exactly, and it sits above
        the squares' own overlays (e.g. the under-review stripes). */
-    .stream-board .board-container { position: relative; }
     .stream-board .board-cover {
         left: 0; top: 0; margin: 0; width: 100%; height: 100%;
         z-index: 10; cursor: default;
@@ -67,7 +70,24 @@
         chatSocket.onSocketClose = function () {
             setTimeout(function () { window.location.reload(); }, 5000);
         };
-        window.addEventListener('resize', function() { board.refitGoalText(); }, false);
+        // Scale the board (at its natural size) to the largest that fits the
+        // browser source, centered.
+        function fitBoard() {
+            var el = $(".stream-board .board-container")[0];
+            if (!el) { return; }
+            var w = el.offsetWidth, h = el.offsetHeight;
+            if (!w || !h || !window.innerWidth || !window.innerHeight) { return; }
+            var scale = Math.min(window.innerWidth / w, window.innerHeight / h);
+            var x = (window.innerWidth - w * scale) / 2;
+            var y = (window.innerHeight - h * scale) / 2;
+            el.style.transform = "translate(" + x + "px, " + y + "px) scale(" + scale + ")";
+        }
+        window.addEventListener('resize', fitBoard, false);
+        $(window).on('load', fitBoard);
+        fitBoard();
+        // Goal text refits (and the board can change size) after the data loads
+        var origRefit = board.refitGoalText;
+        board.refitGoalText = function () { origRefit.apply(board, arguments); fitBoard(); };
 
         // Load in all of the actual data
         board.reloadBoard();
