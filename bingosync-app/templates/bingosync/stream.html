@@ -56,7 +56,11 @@
         var temporarySocketKey = "{{ temporary_socket_key }}";
 
         // Construct all of the UI components
-        var board = new Board($("#bingo"), {is_spectator: true}, null, boardUrl, null, ROOM_SETTINGS.fog_of_war);
+        // Fog of war reveals squares around the streamer's own color, so the
+        // board needs to know whose view this source mirrors.
+        var fogColor = "{{ fog_color|default:'' }}";
+        var colorChooser = { getChosenColor: function () { return fogColor || "undefined"; } };
+        var board = new Board($("#bingo"), {is_spectator: true}, colorChooser, boardUrl, null, ROOM_SETTINGS.fog_of_war);
 
         board.setStars(JSON.parse('{{ starred_slots|jsonify|escapejs }}' || "[]"));
         window.obsBoard = board;
@@ -102,13 +106,15 @@
     (function () {
         var shown = {
             room: {% if room %}"{{ room.encoded_uuid }}"{% else %}null{% endif %},
-            game: {% if game %}{{ game.id }}{% else %}null{% endif %}
+            game: {% if game %}{{ game.id }}{% else %}null{% endif %},
+            color: {% if fog_color %}"{{ fog_color }}"{% else %}null{% endif %}
         };
         function check() {
             $.getJSON("{% url 'obs_state' obs_token %}").done(function (now) {
                 var coveredHere = $(".board-cover").length > 0;
                 if (window.obsBoard && now.stars) { window.obsBoard.setStars(now.stars); }
                 if (now.room !== shown.room || now.game !== shown.game ||
+                        (now.color || null) !== shown.color ||
                         now.hidden !== coveredHere) {
                     window.location.reload();
                 }

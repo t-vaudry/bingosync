@@ -45,6 +45,13 @@ def board_hidden_for(player):
         player__room=room, timestamp__gt=game.created_date).exists()
 
 
+def fog_color_for(player):
+    """The color whose view of a fog of war board the player's OBS source
+    shows: a counter watches their monitored color, anyone else their own."""
+    monitoring = player.monitoring_color
+    return (monitoring or player.color).name
+
+
 def resolve_target(user, anon_player):
     """The Player an OBS link shows: a user's link follows them between
     rooms; an anonymous player's link is tied to their one player and only
@@ -60,12 +67,14 @@ def obs_state(user, anon_player=None):
     """What the OBS page shows, as a small dict the page polls for changes."""
     player = resolve_target(user, anon_player)
     if player is None:
-        return {"room": None, "game": None, "hidden": False, "stars": []}
+        return {"room": None, "game": None, "hidden": False, "stars": [],
+                "color": None}
     return {
         "room": player.room.encoded_uuid,
         "game": player.room.current_game.id,
         "hidden": board_hidden_for(player),
         "stars": starred_slots(player),
+        "color": fog_color_for(player),
     }
 
 
