@@ -466,7 +466,8 @@ def obs_stream(request, obs_token):
     obs_state) and keeps their own board cover, so it only reveals a hidden
     card when that player does.
     """
-    from bingosync.obs import resolve_target, board_hidden_for, starred_slots
+    from bingosync.obs import (resolve_target, board_hidden_for, starred_slots,
+                               fog_color_for)
     user, anon_player = _obs_subject_or_404(obs_token)
     player = resolve_target(user, anon_player)
     params = {"obs_token": obs_token, "player": None}
@@ -478,6 +479,7 @@ def obs_stream(request, obs_token):
             "player": player,
             "board_hidden": board_hidden_for(player),
             "starred_slots": starred_slots(player),
+            "fog_color": fog_color_for(player),
             "room_settings": room.settings_for(None),
             "sockets_url": SOCKETS_URL,
             "temporary_socket_key": _create_anon_socket_key(room),
