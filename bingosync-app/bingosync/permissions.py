@@ -15,6 +15,7 @@ ROLE_PERMISSIONS = {
         'generate_board': True,
         'reveal_fog': True,
         'assign_roles': True,
+        'assign_colors': True,
         'remove_players': True,
         'delete_room': True,
         'view_board': True,

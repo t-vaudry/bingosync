@@ -63,110 +63,43 @@ var PlayersPanel = (function(){
         }
     };
 
+    // The management buttons a Gamemaster gets on each entry
+    var MANAGEMENT_BUTTONS = '.role-change-btn, .kick-player-btn, .assign-counter-btn, .change-color-btn';
+
+    // A player's details as read back from their entry in the panel
+    PlayersPanel.prototype._playerJsonFromEntry = function($playerEntry) {
+        var colorClass = ($playerEntry.find('.goalcounter').attr('class') || '').split(' ')[1] || '';
+        return {
+            uuid: $playerEntry.attr('id'),
+            name: $playerEntry.find('.playername').text().trim(),
+            role: $playerEntry.attr('data-role') || 'player',
+            color: colorClass.replace(/square$/, '') || null,
+            is_logged_in: $playerEntry.attr('data-is-logged-in') === 'true',
+            monitoring_color: $playerEntry.attr('data-monitoring-color') || null
+        };
+    };
+
     PlayersPanel.prototype._initializeExistingPlayers = function() {
         var self = this;
-        
-        // Process all existing player entries
         this.$playersPanel.find('.player-panel-entry').each(function() {
             var $playerEntry = $(this);
-            var playerUuid = $playerEntry.attr('id');
-            
             // Skip if buttons already exist
-            if ($playerEntry.find('.role-change-btn, .kick-player-btn, .assign-counter-btn').length > 0) {
+            if ($playerEntry.find(MANAGEMENT_BUTTONS).length > 0) {
                 return;
-            }
-            
-            // Determine if this is the current player
-            var isCurrentPlayer = playerUuid === self.currentPlayer.uuid;
-            var isSpectator = $playerEntry.hasClass('spectator-entry');
-            
-            // Get player info from DOM
-            var playerName = $playerEntry.find('.playername').text().trim();
-            var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
-            var role = $playerEntry.attr('data-role') || 'player';
-            var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
-
-            // Create player JSON object
-            var playerJson = {
-                uuid: playerUuid,
-                name: playerName,
-                role: role,
-                is_logged_in: isLoggedIn,
-                monitoring_color: monitoringColor
-            };
-            
-            // Add management buttons if current player is gamemaster or counter
-            if (self.currentPlayer.role === 'gamemaster') {
-                var roleButton = self._createRoleButton(playerJson);
-                $playerEntry.append(roleButton);
-                
-                // Add kick button (not for yourself)
-                if (!isCurrentPlayer) {
-                    var kickButton = self._createKickButton(playerJson);
-                    $playerEntry.append(kickButton);
-                }
-                
-                // Add counter assignment button for counters
-                if (role === 'counter') {
-                    var assignButton = self._createAssignCounterButton(playerJson);
-                    $playerEntry.append(assignButton);
-                }
             }
             // Counters pick who they count for with the "Counting for"
             // buttons above the board (counter.js), not a button here.
+            self._appendManagementButtons($playerEntry, self._playerJsonFromEntry($playerEntry));
         });
     };
 
     PlayersPanel.prototype._refreshAllManagementButtons = function() {
         var self = this;
-        
-        console.log("_refreshAllManagementButtons called, current player role:", this.currentPlayer.role);
-        
-        // Remove all existing management buttons
-        this.$playersPanel.find('.role-change-btn, .kick-player-btn, .assign-counter-btn').remove();
-        
-        // Re-add buttons if current player is gamemaster or counter
-        if (this.currentPlayer.role === 'gamemaster') {
-            console.log("Current player is gamemaster, adding buttons");
-            this.$playersPanel.find('.player-panel-entry').each(function() {
-                var $playerEntry = $(this);
-                var playerUuid = $playerEntry.attr('id');
-                var isCurrentPlayer = playerUuid === self.currentPlayer.uuid;
-                
-                // Get player info from DOM
-                var playerName = $playerEntry.find('.playername').text().trim();
-                var isLoggedIn = $playerEntry.attr('data-is-logged-in') === 'true';
-                var role = $playerEntry.attr('data-role') || 'player';
-                var monitoringColor = $playerEntry.attr('data-monitoring-color') || null;
-
-                // Create player JSON object
-                var playerJson = {
-                    uuid: playerUuid,
-                    name: playerName,
-                    role: role,
-                    is_logged_in: isLoggedIn,
-                    monitoring_color: monitoringColor
-                };
-                
-                // Add management buttons
-                var roleButton = self._createRoleButton(playerJson);
-                $playerEntry.append(roleButton);
-                
-                // Add kick button (not for yourself)
-                if (!isCurrentPlayer) {
-                    var kickButton = self._createKickButton(playerJson);
-                    $playerEntry.append(kickButton);
-                }
-                
-                // Add counter assignment button for counters
-                if (role === 'counter') {
-                    var assignButton = self._createAssignCounterButton(playerJson);
-                    $playerEntry.append(assignButton);
-                }
-            });
-        } else {
-            console.log("Current player is not gamemaster, buttons removed");
-        }
+        this.$playersPanel.find(MANAGEMENT_BUTTONS).remove();
+        this.$playersPanel.find('.player-panel-entry').each(function() {
+            var $playerEntry = $(this);
+            self._appendManagementButtons($playerEntry, self._playerJsonFromEntry($playerEntry));
+        });
     };
 
     PlayersPanel.prototype.setPlayer = function(playerJson) {
@@ -262,6 +195,9 @@ var PlayersPanel = (function(){
         if (playerJson["uuid"] !== this.currentPlayer.uuid) {
             $entry.append(this._createKickButton(playerJson));
         }
+        if (playerJson["role"] === "player") {
+            $entry.append(this._createColorButton(playerJson));
+        }
         if (playerJson["role"] === "counter") {
             $entry.append(this._createAssignCounterButton(playerJson));
         }
@@ -327,15 +263,7 @@ var PlayersPanel = (function(){
         
         spectatorDiv.append(playerName);
         
-        // Add role management button if current player is gamemaster
-        if (this.currentPlayer && this.currentPlayer.role === 'gamemaster') {
-            var roleButton = this._createRoleButton(playerJson);
-            spectatorDiv.append(roleButton);
-            
-            // Add kick button for spectators
-            var kickButton = this._createKickButton(playerJson);
-            spectatorDiv.append(kickButton);
-        }
+        this._appendManagementButtons(spectatorDiv, playerJson);
         
         this._ensureSection("spectator").append(spectatorDiv);
     };
@@ -461,6 +389,89 @@ var PlayersPanel = (function(){
             },
             error: function(xhr) {
                 alert("Failed to change role: " + xhr.responseText);
+            }
+        });
+    };
+
+    PlayersPanel.prototype._createColorButton = function(playerJson) {
+        var self = this;
+        var button = $("<button>", {
+            "class": "btn btn-xs btn-default change-color-btn",
+            "text": "Color",
+            "title": "Change player color",
+            "data-player-uuid": playerJson["uuid"],
+            "data-player-name": playerJson["name"]
+        });
+
+        button.on("click", function(e) {
+            e.preventDefault();
+            // Read the entry at click time: the color may have changed since
+            // the button was made
+            var $entry = self.$playersPanel.find("#" + playerJson["uuid"]);
+            self._showColorChangeDialog(self._playerJsonFromEntry($entry));
+        });
+
+        return button;
+    };
+
+    PlayersPanel.prototype._showColorChangeDialog = function(playerJson) {
+        var self = this;
+
+        var dialogHtml = '<div class="role-change-dialog color-change-dialog">';
+        dialogHtml += '<p>Change color for <strong class="player-name-display"></strong></p>';
+        dialogHtml += '<select class="form-control color-select"></select>';
+        dialogHtml += '<div class="m-t-s">';
+        dialogHtml += '<button class="btn btn-primary btn-sm confirm-color-change">Confirm</button> ';
+        dialogHtml += '<button class="btn btn-default btn-sm cancel-color-change">Cancel</button>';
+        dialogHtml += '</div>';
+        dialogHtml += '</div>';
+
+        var $dialog = $(dialogHtml);
+        $dialog.find('.player-name-display').text(playerJson["name"]);
+        var $select = $dialog.find('.color-select');
+        COLORS.forEach(function(color) {
+            if (color === "blank") {
+                return;
+            }
+            $select.append($('<option>', {
+                value: color,
+                text: color,
+                selected: color === playerJson["color"]
+            }));
+        });
+        var $overlay = $('<div class="role-change-overlay"></div>');
+
+        $('body').append($overlay);
+        $('body').append($dialog);
+
+        var close = function() {
+            $dialog.remove();
+            $overlay.remove();
+        };
+
+        $dialog.find('.confirm-color-change').on('click', function() {
+            var newColor = $select.val();
+            if (newColor !== playerJson["color"]) {
+                self._changeColor(playerJson["uuid"], newColor);
+            }
+            close();
+        });
+        $dialog.find('.cancel-color-change').on('click', close);
+        $overlay.on('click', close);
+    };
+
+    PlayersPanel.prototype._changeColor = function(targetPlayerUuid, newColor) {
+        $.ajax({
+            url: "/api/color",
+            type: "PUT",
+            contentType: "application/json",
+            data: JSON.stringify({
+                room: window.sessionStorage.getItem("room"),
+                target_player_uuid: targetPlayerUuid,
+                color: newColor
+            }),
+            error: function(xhr) {
+                alert("Failed to change color: " + xhr.responseText);
             }
         });
     };

@@ -42,7 +42,15 @@ var ChatPanel = (function(){
             var playerName = $("<span>", {"class": playerColorClass, text: json["player"]["name"]}).toHtml();
             var newColorClass = getPlayerColorClass(json["color"]);
             var colorName = $("<span>", {"class": "color-name " + newColorClass, text: json["color"]}).toHtml();
-            var colorMessage = playerName + " changed color to " + colorName;
+            var colorMessage;
+            if (json["changed_by"]) {
+                // A Gamemaster changed this player's color for them
+                var changedBy = json["changed_by"];
+                var changedByName = $("<span>", {"class": getPlayerColorClass(changedBy["color"]), text: changedBy["name"]}).toHtml();
+                colorMessage = changedByName + " changed " + playerName + "'s color to " + colorName;
+            } else {
+                colorMessage = playerName + " changed color to " + colorName;
+            }
             return $("<div>", {"class": "color-message", html: timeHtml + " " + colorMessage}).toHtml();
         }
         else if(json["type"] === "revealed") {

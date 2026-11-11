@@ -57,7 +57,8 @@ class GoalEventInline(admin.TabularInline):
 
 class ColorEventInline(admin.TabularInline):
     model = ColorEvent
-    raw_id_fields = ["player"]
+    fk_name = "player"
+    raw_id_fields = ["player", "changed_by"]
     extra = 0
 
 

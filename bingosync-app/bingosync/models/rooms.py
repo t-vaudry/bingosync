@@ -583,12 +583,13 @@ class Player(models.Model):
             or last_connection_event.event_type == ConnectionEventType.connected
         )
 
-    def update_color(self, color):
+    def update_color(self, color, changed_by=None):
         with transaction.atomic():
             color_event = ColorEvent(
                 player=self,
                 player_color_value=self.color.value,
-                color_value=color.value)
+                color_value=color.value,
+                changed_by=changed_by)
             color_event.save()
             self.color_value = color.value
             self.save()

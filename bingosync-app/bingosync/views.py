@@ -1090,9 +1090,31 @@ def select_color(request):
 
     room = Room.get_for_encoded_uuid_or_404(data["room"])
     player = _get_session_player(request.session, room)
-    color = Color.for_name(data["color"])
+    try:
+        color = Color.for_name(data["color"])
+    except IndexError:
+        return HttpResponseBadRequest(f"Invalid color: {data['color']}")
+    if color == Color.blank:
+        return HttpResponseBadRequest("Invalid color: blank")
 
-    color_event = player.update_color(color)
+    # A Gamemaster may change another player's color by naming them
+    target_uuid = data.get("target_player_uuid")
+    if target_uuid and target_uuid != player.encoded_uuid:
+        if not check_permission(player, 'assign_colors'):
+            return HttpResponseForbidden(
+                "You do not have permission to change other players' colors.")
+        try:
+            target_player = Player.get_for_encoded_uuid(target_uuid)
+        except (Player.DoesNotExist, ValueError):
+            return HttpResponseBadRequest("Target player not found.")
+        if target_player.room != room:
+            return HttpResponseForbidden("Target player is not in this room.")
+        if target_player.role != Role.PLAYER:
+            return HttpResponseBadRequest(
+                "Only players' colors can be changed.")
+        color_event = target_player.update_color(color, changed_by=player)
+    else:
+        color_event = player.update_color(color)
     publish_color_event(color_event)
     return HttpResponse("Received data: " + str(data))
 
