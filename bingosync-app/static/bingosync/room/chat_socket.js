@@ -52,6 +52,17 @@ var ChatSocket = (function(){
                 this.playersPanel.setPlayer(json["player"]);
                 this.playersPanel.updateGoalCounters(this.board);
             }
+            // A Gamemaster changed our color: mark with it from now on, and
+            // under fog of war see the board as the new color does
+            var colorChooser = this.board && this.board.colorChooser;
+            if (json["changed_by"] && this.currentPlayer &&
+                    json["player"]["uuid"] === this.currentPlayer.uuid &&
+                    colorChooser && colorChooser.setChosenColor) {
+                this.currentPlayer.color = json["color"];
+                colorChooser.defaultColor = json["color"];
+                colorChooser.setChosenColor(json["color"]);
+                this.board.hideSquares();
+            }
         }
         else if(json["type"] === "revealed") {
             // The Gamemaster revealed the card for the room: uncover it here

@@ -164,7 +164,15 @@ class GoalEvent(Event):
 
 
 class ColorEvent(Event):
+    """A player's color changed. `player` is whose color it is; `changed_by`
+    is the Gamemaster who changed it for them, or None when they chose it."""
     color_value = models.IntegerField(choices=Color.player_choices())
+    changed_by = models.ForeignKey(
+        "bingosync.Player",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='color_changes_made')
 
     class Meta(Event.Meta):
         indexes = [models.Index(fields=['timestamp'])]
@@ -179,6 +187,8 @@ class ColorEvent(Event):
             "player": self.player.to_json(),
             "player_color": self.player_color.name,
             "color": self.color.name,
+            "changed_by": (self.changed_by.to_json()
+                           if self.changed_by else None),
             "timestamp": self.json_timestamp
         }
 
