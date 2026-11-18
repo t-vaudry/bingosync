@@ -406,10 +406,11 @@ def room_view(request, encoded_room_uuid):
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
             }
-            # Whether this player has the card covered (server-side, so a
-            # reload and the player's OBS source always agree)
-            from bingosync.obs import board_hidden_for, starred_slots
-            params["board_hidden"] = board_hidden_for(player)
+            # A hide-card room covers the board on every page load; the
+            # player reveals it again (announced in chat each time). The OBS
+            # source keeps its own reveal (board_hidden_for).
+            from bingosync.obs import starred_slots
+            params["board_hidden"] = room.hide_card
             params["starred_slots"] = starred_slots(player)
             # A user has one permanent OBS link for every room; someone
             # without an account gets one for this room
@@ -512,11 +513,12 @@ def card_revealed(request):
     player = _get_session_player(request.session, room)
     if player is ANON_PLAYER or not player.pk:
         return HttpResponseForbidden("Join the room first.")
-    _, created = CardReveal.objects.get_or_create(
-        player=player, game=room.current_game)
-    # Tell the room, so everyone can see nobody peeks unannounced. The
-    # Gamemaster's reveal is announced by board_revealed's own message.
-    if created and room.hide_card and player.role != Role.GAMEMASTER:
+    CardReveal.objects.get_or_create(player=player, game=room.current_game)
+    # Tell the room on every reveal, so everyone can see nobody peeks
+    # unannounced. The client only calls this when the cover is actually
+    # lifted, so each call is one reveal. The Gamemaster's reveal is announced
+    # by board_revealed's own message.
+    if room.hide_card and player.role != Role.GAMEMASTER:
         create_system_chat_message(
             player, room, f"{player.name} revealed the card")
     return HttpResponse("OK")
