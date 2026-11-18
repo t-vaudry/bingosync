@@ -400,6 +400,7 @@ def room_view(request, encoded_room_uuid):
                 "room_settings": room.settings_for(player),
                 "seed_visible": room.seed_visible_to(player),
                 "can_change_own_role": _can_change_own_role(player),
+                "can_generate_board": can_generate_board(player),
                 "role_choices": [(Role.PLAYER, "Player"), (Role.COUNTER, "Counter"),
                                  (Role.SPECTATOR, "Spectator")],
                 "sockets_url": SOCKETS_URL,
@@ -710,7 +711,8 @@ def room_settings(request, encoded_room_uuid):
         viewer = None
     panel = loader.get_template("bingosync/room_settings_panel.html").render(
         {"game": room.current_game, "room": room,
-         "seed_visible": room.seed_visible_to(viewer)}, request)
+         "seed_visible": room.seed_visible_to(viewer),
+         "can_generate_board": can_generate_board(viewer)}, request)
 
     # Use cached room settings
     settings = room.settings_for(viewer, get_room_settings(room))

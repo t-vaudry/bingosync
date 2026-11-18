@@ -35,9 +35,16 @@
             </table>
         </div>
         <div style="margin-top: 8px; text-align: center">
+            {% if can_generate_board %}
             <div id="new-card" class="btn btn-default" data-toggle="modal" data-target="#new-card-dialog">
                 New Card
             </div>
+            {% else %}
+            <div id="new-card" class="btn btn-default disabled" aria-disabled="true"
+                 title="Only the Gamemaster can generate a new card">
+                New Card
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
