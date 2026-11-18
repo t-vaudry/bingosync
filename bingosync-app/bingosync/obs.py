@@ -33,7 +33,9 @@ def board_hidden_for(player):
 
     The card is uncovered for the current game once this player reveals it
     (CardReveal) or the Gamemaster reveals it for the room (RevealedEvent).
-    The room page and the player's OBS source both use this, so they agree.
+    The player's OBS source and the star endpoint use this. The room page
+    covers on every load instead (see room_view), so it does not match this
+    after a page reload.
     """
     room = player.room
     if not room.hide_card:

@@ -197,7 +197,7 @@ class ObsTestCase(test.TestCase):
             content_type="application/json")
         self.assertEqual(CardReveal.objects.count(), 1)
 
-    def test_player_reveal_is_announced_once_in_chat(self):
+    def test_every_player_reveal_is_announced_in_chat(self):
         from unittest.mock import patch
         from bingosync.models.events import ChatEvent
         room = self.make_room("Hidden", hide_card=True)
@@ -205,12 +205,14 @@ class ObsTestCase(test.TestCase):
         with patch("bingosync.publish._publish_json") as publish:
             self.client.post("/api/card-revealed", body,
                              content_type="application/json")
+            # A page reload covers the card again, so the next reveal counts
+            self.client.get(room.get_absolute_url())
             self.client.post("/api/card-revealed", body,
                              content_type="application/json")
         messages = ChatEvent.objects.filter(is_system_message=True)
-        self.assertEqual(messages.count(), 1)
+        self.assertEqual(messages.count(), 2)
         self.assertIn("revealed the card", messages.first().body)
-        self.assertEqual(publish.call_count, 1)
+        self.assertEqual(publish.call_count, 2)
 
     def test_cannot_star_while_card_is_covered(self):
         room = self.make_room("Hidden", hide_card=True)
@@ -247,7 +249,7 @@ class ObsTestCase(test.TestCase):
         self.assertFalse(board_hidden_for(mine))
         self.assertFalse(obs_state(self.user)["hidden"])
 
-    def test_room_page_cover_matches_obs_state(self):
+    def test_page_reload_covers_the_card_again(self):
         room = self.make_room("Hidden", hide_card=True)
         resp = self.client.get(room.get_absolute_url())
         self.assertContains(resp, 'board-container hidden-card')
@@ -255,8 +257,19 @@ class ObsTestCase(test.TestCase):
             "/api/card-revealed", json.dumps({"room": room.encoded_uuid}),
             content_type="application/json")
         resp = self.client.get(room.get_absolute_url())
-        self.assertNotContains(resp, 'board-container hidden-card')
+        self.assertContains(resp, 'board-container hidden-card')
+        # The player's OBS source keeps its own reveal
         self.assertFalse(obs_state(self.user)["hidden"])
+
+    def test_page_reload_covers_after_gamemaster_reveal_too(self):
+        from bingosync.models.events import RevealedEvent
+        room = self.make_room("Hidden", hide_card=True)
+        gm = models.Player.objects.create(
+            room=room, name="gm", role="gamemaster")
+        RevealedEvent.objects.create(
+            player=gm, player_color_value=gm.color.value)
+        resp = self.client.get(room.get_absolute_url())
+        self.assertContains(resp, 'board-container hidden-card')
 
     def test_card_reveal_needs_a_joined_player(self):
         room = self.make_room("Hidden", hide_card=True)
