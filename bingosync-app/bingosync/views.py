@@ -512,7 +512,13 @@ def card_revealed(request):
     player = _get_session_player(request.session, room)
     if player is ANON_PLAYER or not player.pk:
         return HttpResponseForbidden("Join the room first.")
-    CardReveal.objects.get_or_create(player=player, game=room.current_game)
+    _, created = CardReveal.objects.get_or_create(
+        player=player, game=room.current_game)
+    # Tell the room, so everyone can see nobody peeks unannounced. The
+    # Gamemaster's reveal is announced by board_revealed's own message.
+    if created and room.hide_card and player.role != Role.GAMEMASTER:
+        create_system_chat_message(
+            player, room, f"{player.name} revealed the card")
     return HttpResponse("OK")
 
 
@@ -538,6 +544,9 @@ def star_square(request):
     if not 1 <= slot <= len(game.squares):
         return HttpResponseBadRequest("Bad slot.")
     if data["starred"]:
+        from bingosync.obs import board_hidden_for
+        if board_hidden_for(player):
+            return HttpResponseForbidden("Reveal the card before starring.")
         StarredSquare.objects.get_or_create(player=player, game=game, slot=slot)
     else:
         StarredSquare.objects.filter(player=player, game=game, slot=slot).delete()

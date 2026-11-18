@@ -197,6 +197,32 @@ class ObsTestCase(test.TestCase):
             content_type="application/json")
         self.assertEqual(CardReveal.objects.count(), 1)
 
+    def test_player_reveal_is_announced_once_in_chat(self):
+        from unittest.mock import patch
+        from bingosync.models.events import ChatEvent
+        room = self.make_room("Hidden", hide_card=True)
+        body = json.dumps({"room": room.encoded_uuid})
+        with patch("bingosync.publish._publish_json") as publish:
+            self.client.post("/api/card-revealed", body,
+                             content_type="application/json")
+            self.client.post("/api/card-revealed", body,
+                             content_type="application/json")
+        messages = ChatEvent.objects.filter(is_system_message=True)
+        self.assertEqual(messages.count(), 1)
+        self.assertIn("revealed the card", messages.first().body)
+        self.assertEqual(publish.call_count, 1)
+
+    def test_cannot_star_while_card_is_covered(self):
+        room = self.make_room("Hidden", hide_card=True)
+        body = json.dumps({"room": room.encoded_uuid, "slot": 1, "starred": True})
+        resp = self.client.post("/api/star", body, content_type="application/json")
+        self.assertEqual(resp.status_code, 403)
+        self.client.post(
+            "/api/card-revealed", json.dumps({"room": room.encoded_uuid}),
+            content_type="application/json")
+        resp = self.client.post("/api/star", body, content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+
     def test_new_card_covers_again(self):
         room = self.make_room("Hidden", hide_card=True)
         player = self.player_in(room)

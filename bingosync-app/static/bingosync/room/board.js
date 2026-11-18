@@ -302,6 +302,9 @@ var Board = (function(){
     };
 
     Board.prototype.toggleStar = function(slot) {
+        var that = this;
+        // No starring through the reveal-card veil
+        if (this.$board.closest(".hidden-card").length) { return; }
         var on = !this.starred[slot];
         if (on) { this.starred[slot] = true; } else { delete this.starred[slot]; }
         this.applyStars();
@@ -311,7 +314,12 @@ var Board = (function(){
                 type: "POST",
                 contentType: "application/json",
                 data: JSON.stringify({
-                    room: window.sessionStorage.getItem("room"), slot: slot, starred: on})
+                    room: window.sessionStorage.getItem("room"), slot: slot, starred: on}),
+                error: function() {
+                    // The server refused (e.g. card still covered): undo
+                    if (on) { delete that.starred[slot]; } else { that.starred[slot] = true; }
+                    that.applyStars();
+                }
             });
         }
     };
