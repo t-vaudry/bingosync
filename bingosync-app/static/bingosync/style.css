@@ -330,6 +330,11 @@
     width: 15px;
 }
 
+/* stars must never show through the reveal-card veil */
+.hidden-card .starred {
+    display: none;
+}
+
 .board-container {
     display: inline-block;
     position: relative;

@@ -125,6 +125,8 @@ var ChatSocket = (function(){
             // TODO: remove this external dependency
             // if the card was never revealed show what the seed was in the chat anyway
             $("#bingo-chat .new-card-message .seed-hidden").text(seedText(ROOM_SETTINGS.seed)).removeClass('seed-hidden').addClass('seed');
+            // Stars belong to one card; a new card starts with none
+            this.board.setStars([]);
             refreshBoard();
         } else if (json["type"] === "chat") {
             // no special effects for chat, it just gets written to the panel
