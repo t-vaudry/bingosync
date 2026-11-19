@@ -2,9 +2,9 @@
  * Counter UI. Colors claim squares; players are associated with a color, so
  * a counter counts a color.
  *
- * - "Counting For" (above the board): one button per color in use, labelled
- *   with its player's name when exactly one player has it, otherwise with
- *   the color's name. Clicking one switches the color you count (and you
+ * - "Counting For" (above the board): one button per color, labelled with
+ *   its player's name when exactly one player has it, otherwise with the
+ *   color's name (a color can be counted before anyone plays it). Clicking one switches the color you count (and you
  *   take on that color).
  * - Left-click marks or unmarks a goal in the color you count, to fix a
  *   mistake either way (the server credits the mark to that color's player).
@@ -72,16 +72,14 @@ var Counter = (function() {
 
     Counter.prototype.renderTargets = function() {
         var that = this;
-        var groups = this.playersPanel.getColorGroups();
-        // Keep the color you're counting listed even once nobody's using it
-        if (this.monitoringColor && !groups.some(function(g) { return g.color === that.monitoringColor; })) {
-            groups.push({color: this.monitoringColor, label: this.monitoringColor, players: []});
-        }
+        // Every color can be counted, whether or not players are there yet;
+        // a color in use is labelled with its player
+        var inUse = this.playersPanel.getColorGroups();
+        var groups = COLORS.filter(function(color) { return color !== "blank"; }).map(function(color) {
+            var group = inUse.filter(function(g) { return g.color === color; })[0];
+            return group || {color: color, label: color, players: []};
+        });
         this.$targets.empty();
-        if (groups.length === 0) {
-            this.$targets.append($('<span>', {"class": "history-placeholder", text: "No players in the room yet"}));
-            return;
-        }
         groups.forEach(function(group) {
             var chosen = group.color === that.monitoringColor;
             var who = group.players.length > 1 ? " (" + group.players.join(", ") + ")" : "";
@@ -282,26 +280,30 @@ var Counter = (function() {
         this.renderCountActions();
     };
 
-    // A goal with no count: the same strip, with a ✔ in the middle. Click
-    // anywhere on it to count the goal complete (the bar fills, as when a
-    // count reaches its total) without marking it for the player.
+    // A goal with no count: the same strip, with a ✔ button across it that
+    // counts the goal complete (the bar fills, as when a count reaches its
+    // total) without marking it for the player. Like the +/- buttons, only
+    // the button is live; the strip and the dead zone above it ignore clicks.
     Counter.prototype.completeStrip = function(slot) {
         var that = this;
         var done = this.tally.completed.indexOf(slot) !== -1;
         var $strip = $('<div class="goal-count goal-complete"></div>')
             .toggleClass('done', done)
-            .attr('title', done ? "You counted this complete (only you see this). Click to undo"
-                                : "Count this complete (only you see this)")
-            .on('click', function(ev) {
-                // Not a click on the goal itself
-                ev.stopPropagation();
-                that.sendCount({action: 'complete', slot: slot});
-            });
+            // Clicks off the button aren't clicks on the goal either
+            .on('click', function(ev) { ev.stopPropagation(); });
         $('<div class="goal-count-fill"></div>')
             .addClass(getSquareColorClass(this.monitoringColor))
             .css('width', done ? '100%' : '0')
             .appendTo($('<div class="goal-count-track"></div>').appendTo($strip));
-        $('<span class="goal-count-value"></span>').text('✔').appendTo($strip);
+        $('<button type="button" class="goal-complete-btn"></button>')
+            .attr('title', done ? "You counted this complete (only you see this). Click to undo"
+                                : "Count this complete (only you see this)")
+            .on('click', function(ev) {
+                ev.stopPropagation();
+                that.sendCount({action: 'complete', slot: slot});
+            })
+            .append($('<span class="goal-count-value"></span>').text('✔'))
+            .appendTo($strip);
         return $strip;
     };
 

@@ -224,12 +224,16 @@ class Room(models.Model):
 
         In a room run by a Gamemaster, only the Gamemaster and counters see it;
         players, spectators and anonymous viewers (stream overlay, Room
-        History) don't. Without a Gamemaster everyone does.
+        History) don't. Without a Gamemaster everyone does. Either way, only
+        the Gamemaster and counters see it while the board is still hidden.
         """
-        if not self.has_gamemaster:
-            return True
-        return player is not None and player.role in (
+        sees_early = player is not None and player.role in (
             Role.GAMEMASTER, Role.COUNTER)
+        if sees_early:
+            return True
+        if self.is_seed_hidden:
+            return False
+        return not self.has_gamemaster
 
     def settings_for(self, player, settings=None):
         """Room settings as `player` may see them (seed removed if hidden).
@@ -636,6 +640,13 @@ class CompletedLine(models.Model):
         unique_together = (("game", "player", "line"),)
 
 
+# Goals that count how many linked goals have reached their own number
+# ("X different Challenge Stars from each spell challenge": +1 for each spell
+# challenge whose Challenge Stars goal reaches X, X being the linked goal's
+# unique amount) instead of following every step.
+MILESTONE_GOALS = {"stars-5"}
+
+
 class CounterTally(models.Model):
     """A counter's goal counts for one color in a game ("3/6 Gnomes").
 
@@ -693,11 +704,20 @@ class CounterTally(models.Model):
         if not 0 <= new_count <= square.amount:
             raise CounterTally.Invalid(
                 "That goal is already at {}.".format(self.count(slot)))
+        old_count = self.count(slot)
         self.counts[str(slot)] = new_count
         for linked in squares:
             if linked.slot == slot or not linked.goal_key:
                 continue
-            if linked.goal_key in square.triggers:
+            if linked.goal_key in MILESTONE_GOALS:
+                # Counts goals reaching a number, not each step toward it
+                if linked.goal_key in square.triggers and (
+                        old_count < linked.unique_amount <= new_count
+                        or new_count < linked.unique_amount <= old_count):
+                    linked_count = self.count(linked.slot) + delta
+                    if 0 <= linked_count <= linked.amount:
+                        self.counts[str(linked.slot)] = linked_count
+            elif linked.goal_key in square.triggers:
                 linked_count = self.count(linked.slot) + delta
                 if 0 <= linked_count <= linked.unique_amount:
                     self.counts[str(linked.slot)] = linked_count

@@ -27,3 +27,4 @@ var ROOM_SETTINGS = null;
 var refreshBoard = function () {};
 var hideBoard = function() {};
 var revealBoard = function() {};
+var refreshSeed = function() {};

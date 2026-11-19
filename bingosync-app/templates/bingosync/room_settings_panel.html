@@ -20,7 +20,7 @@
                 </td></tr>
                 <tr><td><b>Seed:</b></td><td>
                     <span id="the-seed">
-                        {% if room.settings.hide_card or not seed_visible %}
+                        {% if not seed_visible %}
                             <strong>Hidden</strong>
                         {% else %}
                             {{ game.seed }}

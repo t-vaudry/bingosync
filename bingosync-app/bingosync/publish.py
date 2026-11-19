@@ -39,7 +39,7 @@ def publish_new_card_event(new_card_event):
     # Broadcasts reach everyone in the room. Under a Gamemaster, players and
     # spectators mustn't get the seed; the Gamemaster and counters fetch it
     # from the room settings endpoint, which the new card triggers a reload of.
-    if room.has_gamemaster:
+    if room.has_gamemaster or room.is_seed_hidden:
         data["seed"] = None
     _publish_json(data, room)
 

@@ -93,8 +93,6 @@
         "name": "23 Bronze Wizard Cards",
         "tier": 0,
         "triggers": [
-            "cards-23",
-            "cards-37",
             "bronze-30"
         ],
         "unique_amount": 23
@@ -131,9 +129,7 @@
         "goal_key": "gnome-star",
         "name": "Finish a Spell Challenge with a Gnome in your hand",
         "tier": 3,
-        "triggers": [
-            "completion-stars"
-        ],
+        "triggers": [],
         "unique_amount": 1
     },
     {
@@ -222,4 +218,4 @@
         "triggers": [],
         "unique_amount": 2
     }
-]
+]

@@ -249,7 +249,7 @@ bingoGenerator = function(bingoListR, opts) {
                 var high = parseInt(p2);
                 var v = parseInt(Math.random() * (high - low + 1));
                 let val = low + v;
-                amount *= val;
+                if (!minSynObj.value.fixedAmount) amount *= val;
                 bingoBoard[i].uniqueAmount = val;
                 return "" + val;
             });
@@ -261,6 +261,7 @@ bingoGenerator = function(bingoListR, opts) {
             bingoBoard[i].name = name;
             bingoBoard[i].synergy = minSynObj.synergy;
             bingoBoard[i].amount = amount;
+            bingoBoard[i].fixedAmount = !!minSynObj.value.fixedAmount;
             bingoBoard[i].triggers = minSynObj.value.triggers || null;
         }
         if (MODE == "lockout") {

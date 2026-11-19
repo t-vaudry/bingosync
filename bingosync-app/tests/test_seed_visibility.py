@@ -73,6 +73,25 @@ class SeedVisibilityTests(TestCase):
             self.assertEqual(self._settings(viewer)["settings"]["seed"], SEED,
                              viewer.name)
 
+    def test_hidden_board_hides_seed_from_players_and_spectators_only(self):
+        self.room.hide_card = True
+        self.room.save()
+        for viewer in (self.player, self.spectator):
+            self.assertIsNone(self._settings(viewer)["settings"]["seed"])
+            self.assertNotIn(str(SEED), self._page(viewer))
+        for viewer in (self.counter, self.gm):
+            self.assertEqual(self._settings(viewer)["settings"]["seed"], SEED)
+            self.assertIn(str(SEED), self._page(viewer))
+
+    def test_hidden_board_hides_seed_without_a_gamemaster_too(self):
+        self.gm.role = Role.PLAYER
+        self.gm.save()
+        self.room.hide_card = True
+        self.room.save()
+        self.assertIsNone(self._settings(self.player)["settings"]["seed"])
+        self.assertEqual(
+            self._settings(self.counter)["settings"]["seed"], SEED)
+
     def test_everyone_gets_the_seed_without_a_gamemaster(self):
         self.gm.role = Role.PLAYER
         self.gm.save()

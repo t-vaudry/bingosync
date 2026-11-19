@@ -68,6 +68,8 @@ var ChatSocket = (function(){
             // The Gamemaster revealed the card for the room: uncover it here
             // too (a no-op on pages that have no cover).
             revealBoard();
+            // Players and spectators only get the seed once it's revealed
+            refreshSeed();
         }
         else if(json["type"] === "connection") {
             if (!this.playersPanel) {

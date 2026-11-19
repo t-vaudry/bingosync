@@ -34,7 +34,12 @@ var RoomSettingsPanel = (function(){
                 var $seedInChat = $("#bingo-chat .new-card-message .seed-wait").removeClass('seed-wait');
                 if (ROOM_SETTINGS.hide_card) {
                     hideBoard();
-                    $seedInChat.text("Hidden").addClass('seed-hidden');
+                    // The Gamemaster and counters get the seed before the reveal
+                    if (ROOM_SETTINGS.seed === null || ROOM_SETTINGS.seed === undefined) {
+                        $seedInChat.text("Hidden").addClass('seed-hidden');
+                    } else {
+                        $seedInChat.text(seedText(ROOM_SETTINGS.seed)).addClass('seed');
+                    }
                 } else {
                     revealBoard();
                     $seedInChat.text(seedText(ROOM_SETTINGS.seed)).addClass('seed');
