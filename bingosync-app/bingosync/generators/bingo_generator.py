@@ -144,7 +144,9 @@ def goal_counting_fields(goal):
         amount = 1
     unique_amount = goal.get("uniqueAmount")
     if (not isinstance(unique_amount, int) or isinstance(unique_amount, bool)
-            or not 1 <= unique_amount <= amount):
+            or unique_amount < 1):
+        unique_amount = amount
+    elif not goal.get("fixedAmount") and unique_amount > amount:
         unique_amount = amount
     triggers = goal.get("triggers")
     if not isinstance(triggers, list):

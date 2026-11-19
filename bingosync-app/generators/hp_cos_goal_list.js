@@ -113,7 +113,7 @@ var bingoList = {
                 "selfsynergy": 0
             },
             "weight": 0,
-            "triggers": ["completion-stars"]
+            "triggers": null
         }, {
             "difficulty": 2,
             "id": "fireplace",
@@ -352,7 +352,7 @@ var bingoList = {
                 "selfsynergy": 0
             },
             "weight": 0,
-            "triggers": ["stars-17", "stars-31", "stars-5"]
+            "triggers": ["stars-17", "stars-31"]
         }, {
             "difficulty": 5,
             "id": "boom-secrets",
@@ -462,7 +462,7 @@ var bingoList = {
                 "selfsynergy": 0
             },
             "weight": 0,
-            "triggers": ["diffindo-stars-13"]
+            "triggers": null
         }, {
             "difficulty": 6,
             "id": "gnomes-clip",
@@ -1397,7 +1397,7 @@ var bingoList = {
                 "selfsynergy": 0
             },
             "weight": 0,
-            "triggers": ["buy-8"]
+            "triggers": null
         }, ],
         "19": [{
             "difficulty": 19,
@@ -1787,6 +1787,7 @@ var bingoList = {
             "difficulty": 24,
             "id": "stars-5",
             "amount": 4,
+            "fixedAmount": true,
             "name": "{4-7} different Challenge Stars from each spell challenge",
             "rowtypes": {
                 "card": 0,
@@ -1800,7 +1801,7 @@ var bingoList = {
                 "selfsynergy": -2
             },
             "weight": 0,
-            "triggers": ["stars-17", "stars-31"]
+            "triggers": null
         }, {
             "difficulty": 24,
             "id": "bark",
@@ -1836,7 +1837,7 @@ var bingoList = {
                 "selfsynergy": -1
             },
             "weight": 0,
-            "triggers": ["cards-23", "cards-37", "bronze-30"]
+            "triggers": ["bronze-30"]
         }, ],
         "25": [{
             "difficulty": 25,
@@ -1855,7 +1856,7 @@ var bingoList = {
                 "selfsynergy": -1.5
             },
             "weight": 0,
-            "triggers": ["cards-23", "cards-37", "bronze-20"]
+            "triggers": ["bronze-20"]
         }, {
             "difficulty": 25,
             "id": "cards-37",

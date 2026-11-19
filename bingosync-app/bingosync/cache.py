@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 ROOM_SETTINGS_PREFIX = 'room_settings'
 PLAYER_LIST_PREFIX = 'player_list'
 # v2: boards carry each goal's counting fields (amount, triggers, ...)
-BOARD_SEED_PREFIX = 'board_v2'
+# v3: counting links changed (goal list); stale cached boards are dropped
+BOARD_SEED_PREFIX = 'board_v3'
 
 # Cache timeouts (in seconds)
 ROOM_SETTINGS_TIMEOUT = 300  # 5 minutes

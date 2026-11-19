@@ -58,14 +58,11 @@
         "unique_amount": 3
     },
     {
-        "amount": 24,
+        "amount": 4,
         "goal_key": "stars-5",
         "name": "6 different Challenge Stars from each spell challenge",
         "tier": 25,
-        "triggers": [
-            "stars-17",
-            "stars-31"
-        ],
+        "triggers": [],
         "unique_amount": 6
     },
     {
@@ -223,4 +220,4 @@
         ],
         "unique_amount": 3
     }
-]
+]

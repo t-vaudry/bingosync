@@ -196,6 +196,15 @@
             $seedHidden.text(seedText(ROOM_SETTINGS.seed)).removeClass('seed-hidden').addClass('seed');
             board.refitGoalText();
         };
+        // The seed comes with the room reveal for players and spectators
+        refreshSeed = function() {
+            $.get(roomSettingsUrl).done(function(result) {
+                ROOM_SETTINGS.seed = result.settings.seed;
+                $("#the-seed").text(seedText(ROOM_SETTINGS.seed));
+                $("#bingo-chat .new-card-message .seed-hidden")
+                    .text(seedText(ROOM_SETTINGS.seed)).removeClass('seed-hidden').addClass('seed');
+            });
+        };
         window.addEventListener('resize', function() { board.refitGoalText(); }, false);
 
         // Load in all of the actual data

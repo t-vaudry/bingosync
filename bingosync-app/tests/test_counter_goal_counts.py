@@ -372,3 +372,57 @@ class CompletedWithoutCountTest(CounterGoalCountsTestBase):
     def test_reset_clears_it(self):
         self._ok('complete', slot=5)
         self.assertEqual(self._ok('reset')['completed'], [])
+
+
+class MilestoneLinkTest(TestCase):
+    """"X different Challenge Stars from each spell challenge" (0/4) goes up
+    by one when a spell challenge's stars goal reaches X."""
+
+    def _squares(self):
+        def sq(slot, key, amount, unique, triggers):
+            return mock.Mock(slot=slot, goal_key=key, amount=amount,
+                             unique_amount=unique, triggers=triggers)
+        return [sq(1, "rictu-stars", 9, 9, ["stars-17", "stars-5"]),
+                sq(2, "stars-17", 20, 20, []),
+                sq(3, "stars-5", 4, 5, [])]
+
+    def test_goes_up_when_a_spell_goal_reaches_x_and_back_down(self):
+        squares = self._squares()
+        tally = CounterTally()
+        for _ in range(4):
+            tally.change(squares, 1, 1)
+        self.assertEqual(tally.count(3), 0)
+        self.assertEqual(tally.count(2), 4)
+        tally.change(squares, 1, 1)  # reaches X = 5
+        self.assertEqual(tally.count(3), 1)
+        tally.change(squares, 1, 1)
+        self.assertEqual(tally.count(3), 1)
+        tally.change(squares, 1, -1)
+        tally.change(squares, 1, -1)  # back below X
+        self.assertEqual(tally.count(3), 0)
+
+
+class HpCosGoalListLinksTest(TestCase):
+
+    def _goals(self):
+        import re
+        from pathlib import Path
+        text = (Path(__file__).resolve().parent.parent / "generators"
+                / "hp_cos_goal_list.js").read_text(encoding="utf-8")
+        text = text[text.index("{"):text.rindex("}") + 1]
+        text = re.sub(r",(\s*[\]}])", r"\1", text)
+        data = json.loads(text)
+        return {g["id"]: g for tier in data["normal"].values()
+                if isinstance(tier, list) for g in tier}
+
+    def test_changed_links(self):
+        goals = self._goals()
+        for key in ("gnome-star", "gnome-potion", "bronze-4", "stars-5"):
+            self.assertFalse(goals[key]["triggers"], key)
+        for key in ("bronze-20", "bronze-30"):
+            self.assertFalse(
+                {"cards-23", "cards-37", "buy-8"} & set(goals[key]["triggers"]))
+        self.assertNotIn("stars-5", goals["gryff-stars"]["triggers"])
+        self.assertIn("stars-5", goals["rictu-stars"]["triggers"])
+        self.assertEqual(goals["stars-5"]["amount"], 4)
+        self.assertTrue(goals["stars-5"]["fixedAmount"])

@@ -653,7 +653,10 @@ var PlayersPanel = (function(){
         var counterPlayer = assignmentJson["counter_player"];
         var color = assignmentJson["monitored_color"];
 
-        // Update the counter player's entry
+        // Counters are always listed, whether or not they're counting yet
+        if (this.$playersPanel.find("#" + counterPlayer["uuid"]).length === 0) {
+            this.setPlayer(counterPlayer);
+        }
         var $counterEntry = this.$playersPanel.find("#" + counterPlayer["uuid"]);
         if (color) {
             $counterEntry.attr('data-monitoring-color', color);
