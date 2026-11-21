@@ -5,7 +5,7 @@ var ColorChooser = (function(){
         this.$chooserPanel = $chooserPanel;
         this.$choosers = $chooserPanel.find(".color-chooser");
         this.$collapseButton = $chooserPanel.find(".collapse-button");
-        this.isSpectator = playerJson.is_spectator;
+        this.isSpectator = playerJson.is_spectator || playerJson.is_commentator;
         this.colorSelectedUrl = colorSelectedUrl;
         this.defaultColor = playerJson.color;
 

@@ -37,6 +37,12 @@ ROLE_PERMISSIONS = {
         'view_board': True,
         'chat': True,
     },
+    # A spectator who also sees every counter's goal counts; still can't mark
+    Role.COMMENTATOR: {
+        'view_board': True,
+        'view_counts': True,
+        'chat': True,
+    },
 }
 
 

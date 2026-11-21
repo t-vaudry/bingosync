@@ -388,7 +388,7 @@ def room_view(request, encoded_room_uuid):
             player = _get_session_player(request.session, room)
             
             # Prevent spectators from accessing inactive rooms
-            if player.is_spectator and not room.active:
+            if player.is_observer and not room.active:
                 # Clear their session and redirect to landing
                 _clear_session_player(request.session, room)
                 return redirect_params('landing', params={'error': 'room_inactive'})
@@ -402,7 +402,8 @@ def room_view(request, encoded_room_uuid):
                 "can_change_own_role": _can_change_own_role(player),
                 "can_generate_board": can_generate_board(player),
                 "role_choices": [(Role.PLAYER, "Player"), (Role.COUNTER, "Counter"),
-                                 (Role.SPECTATOR, "Spectator")],
+                                 (Role.SPECTATOR, "Spectator"),
+                                 (Role.COMMENTATOR, "Commentator")],
                 "sockets_url": SOCKETS_URL,
                 "new_card_form": new_card_form,
                 "temporary_socket_key": _create_temporary_socket_key(player)
@@ -1277,7 +1278,7 @@ def check_and_record_bingos(game, player):
     Increments the player's total_bingos_completed. Applies in both lockout
     and non-lockout. Returns the number of newly completed lines.
     """
-    if not player or player.is_spectator:
+    if not player or player.is_observer:
         return 0
 
     player_color = player.color
@@ -1466,7 +1467,8 @@ def assign_role(request):
             Role.GAMEMASTER: "Gamemaster",
             Role.PLAYER: "Player",
             Role.COUNTER: "Counter",
-            Role.SPECTATOR: "Spectator"
+            Role.SPECTATOR: "Spectator",
+            Role.COMMENTATOR: "Commentator",
         }
         role_name = role_display_names.get(new_role, new_role)
         if changing_own_role:
@@ -1828,6 +1830,53 @@ def counter_counts(request):
     except CounterTally.Invalid as e:
         return HttpResponseBadRequest(str(e))
     return JsonResponse(tally.to_json(squares))
+
+
+@handle_ratelimit
+def commentator_counts(request):
+    """Every counter's goal counts, for a commentator (GET).
+
+    One entry per counter tally of the current game, each labelled with the
+    player whose color it counts, so the commentator sees per player how far
+    along each counted goal is. Read-only; counters' saved snapshots and
+    dismissed alerts stay private. Counts aren't broadcast (they'd reach
+    players too), so the page polls this.
+    """
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    if "room" not in request.GET:
+        return HttpResponseBadRequest("Missing room")
+
+    room = Room.get_for_encoded_uuid_or_404(request.GET["room"])
+    commentator = _get_session_player(request.session, room)
+    if not check_permission(commentator, 'view_counts'):
+        return HttpResponseForbidden("Only commentators can view the counts.")
+
+    game = room.current_game
+    squares = list(game.squares)
+    tallies = []
+    for tally in (CounterTally.objects.filter(
+            game=game, counter__room=room, counter__role=Role.COUNTER)
+            .select_related('counter').order_by('color_value', 'counter__name')):
+        # A counter who moved on to another color leaves an empty tally behind
+        if not (tally.counts or tally.completed
+                or tally.color_value == tally.counter.monitoring_color_value):
+            continue
+        color = Color.for_value(tally.color_value)
+        tallies.append({
+            "color": color.name,
+            "label": room.color_label(color),
+            "counter": tally.counter.name,
+            "counts": tally.counts,
+            "completed": tally.completed,
+        })
+    return JsonResponse({
+        "goals": {
+            str(square.slot): {"amount": square.amount}
+            for square in squares if square.is_counted
+        },
+        "tallies": tallies,
+    })
 
 
 @handle_ratelimit

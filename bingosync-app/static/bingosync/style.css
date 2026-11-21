@@ -635,6 +635,7 @@
 }
 
 .counters-section,
+.commentators-section,
 .spectators-section {
     margin-top: 15px;
     padding-top: 10px;
@@ -642,6 +643,7 @@
 }
 
 .counters-header,
+.commentators-header,
 .spectators-header {
     font-size: 0.9em;
     color: #888;
@@ -649,10 +651,12 @@
     font-weight: bold;
 }
 
-.spectator-entry {
+.spectator-entry,
+.commentator-entry {
     opacity: 0.8;
 }
 
+.commentator-entry .playername,
 .spectator-entry .playername {
     color: #999;
 }
@@ -1089,4 +1093,75 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
 }
 .room-layout-fullwidth .board-container {
     display: block;
+}
+
+/* Commentator: every counter's goal counts under the board */
+#commentator-counts {
+    margin-top: 10px;
+}
+
+/* The goal names stay hidden while the card is covered */
+.board-container.hidden-card + #commentator-counts {
+    display: none;
+}
+
+.commentator-counts-body {
+    max-height: 320px;
+    overflow: auto;
+    padding: 0;
+}
+
+.commentator-counts-empty {
+    padding: 10px 15px;
+    color: #888;
+}
+
+.commentator-counts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.commentator-counts-table th,
+.commentator-counts-table td {
+    padding: 3px 8px;
+    border-bottom: 1px solid #444;
+}
+
+.commentator-counts-table th {
+    position: sticky;
+    top: 0;
+    background: #222;
+    text-align: center;
+}
+
+.commentator-counts-table .commentator-goal-col {
+    text-align: left;
+}
+
+.commentator-player-name {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 3px;
+    color: #fff;
+    text-shadow: 0 0 2px #000;
+}
+
+.commentator-counter-name {
+    font-size: 0.8em;
+    color: #888;
+}
+
+.commentator-count {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.commentator-count-zero {
+    color: #777;
+}
+
+.commentator-count-done {
+    font-weight: bold;
+    color: #5cb85c;
 }

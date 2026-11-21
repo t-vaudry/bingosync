@@ -8,6 +8,8 @@ var ChatPanel = (function(){
         var playerName = playerJson["name"];
         if (playerJson["is_spectator"]) {
             playerName += " (spectator)";
+        } else if (playerJson["is_commentator"]) {
+            playerName += " (commentator)";
         }
         var name = $("<span>", {"class": "chat-name " + playerColor, text: playerName}).toHtml();
         return name;
@@ -32,6 +34,8 @@ var ChatPanel = (function(){
             var connectionPlayerName = json["player"]["name"];
             if (json["player"]["is_spectator"]) {
                 connectionPlayerName += " (spectator)";
+            } else if (json["player"]["is_commentator"]) {
+                connectionPlayerName += " (commentator)";
             }
 
             var connectionMessage = $("<span>", {text: connectionPlayerName + " " + json["event_type"]}).toHtml();

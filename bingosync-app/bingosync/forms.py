@@ -308,6 +308,7 @@ class JoinRoomForm(forms.Form):
             (Role.PLAYER, 'Player'),
             (Role.SPECTATOR, 'Spectator'),
             (Role.COUNTER, 'Counter'),
+            (Role.COMMENTATOR, 'Commentator'),
         ],
         initial=Role.PLAYER,
         required=True
@@ -361,10 +362,11 @@ class JoinRoomForm(forms.Form):
                     passphrase, room.passphrase):
                 raise ValidationError("Incorrect Password")
         
-        # Prevent spectators from joining inactive rooms
-        if room and role == Role.SPECTATOR and not room.active:
+        # Prevent spectators and commentators from joining inactive rooms
+        if room and role in (Role.SPECTATOR, Role.COMMENTATOR) and not room.active:
             raise ValidationError(
-                "This room is no longer active. Spectators cannot join inactive rooms."
+                "This room is no longer active. Spectators and commentators "
+                "cannot join inactive rooms."
             )
         
         return cleaned_data

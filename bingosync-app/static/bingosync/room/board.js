@@ -157,7 +157,8 @@ var Board = (function(){
     var Board = function($board, playerJson, colorChooser, getBoardUrl, selectGoalUrl, fogOfWar) {
         this.$board = $board;
         this.size = 0;
-        this.isSpectator = playerJson.is_spectator;
+        // Spectators and commentators watch without marking
+        this.isSpectator = playerJson.is_spectator || playerJson.is_commentator;
         this.colorChooser = colorChooser;
         this.getBoardUrl = getBoardUrl;
         this.selectGoalUrl = selectGoalUrl;

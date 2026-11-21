@@ -129,6 +129,11 @@ class Room(models.Model):
         return [player for player in self.connected_players if player.is_spectator]
 
     @property
+    def connected_commentators(self):
+        return [player for player in self.connected_players
+                if player.role == Role.COMMENTATOR]
+
+    @property
     def connected_counters(self):
         return [player for player in self.connected_players if player.role == 'counter']
 
@@ -156,14 +161,15 @@ class Room(models.Model):
         """
         Update room active status.
 
-        A room is active if it has at least one connected non-spectator
-        (gamemaster, player, or counter). Spectators alone don't keep a room active.
+        A room is active if it has at least one connected participant
+        (gamemaster, player, or counter). Spectators and commentators alone
+        don't keep a room active.
 
         When a room becomes inactive, all remaining spectators are disconnected.
         """
         non_spectator_players = [
             player for player in self.connected_players 
-            if not player.is_spectator
+            if not player.is_observer
         ]
         was_active = self.active
         self.active = len(non_spectator_players) > 0
@@ -175,7 +181,8 @@ class Room(models.Model):
             from bingosync.models.events import ConnectionEvent
             from bingosync.publish import publish_connection_event
 
-            for spectator in self.connected_spectators:
+            for spectator in (self.connected_spectators
+                              + self.connected_commentators):
                 # Create and publish disconnect event for each spectator
                 disconnected_event = ConnectionEvent.make_disconnected_event(spectator)
                 disconnected_event.save()
@@ -571,8 +578,17 @@ class Player(models.Model):
         return self.role == Role.SPECTATOR
 
     @property
+    def is_commentator(self):
+        return self.role == Role.COMMENTATOR
+
+    @property
+    def is_observer(self):
+        """Watches without taking part: no color, can't mark."""
+        return self.is_spectator or self.is_commentator
+
+    @property
     def color(self):
-        if self.is_spectator:
+        if self.is_observer:
             return Color.blank
         return Color.for_value(self.color_value)
 
@@ -613,6 +629,7 @@ class Player(models.Model):
             "name": self.name,
             "color": self.color.name,
             "is_spectator": self.is_spectator,
+            "is_commentator": self.is_commentator,
             "role": self.role,
             "monitoring_color": monitoring_color.name if monitoring_color else None,
             "is_logged_in": self.user is not None
