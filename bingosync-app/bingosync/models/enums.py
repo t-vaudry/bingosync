@@ -7,3 +7,4 @@ class Role(models.TextChoices):
     PLAYER = 'player', 'Player'
     COUNTER = 'counter', 'Counter'
     SPECTATOR = 'spectator', 'Spectator'
+    COMMENTATOR = 'commentator', 'Commentator'

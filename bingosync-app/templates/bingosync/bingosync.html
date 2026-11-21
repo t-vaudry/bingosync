@@ -17,6 +17,8 @@
                 Counter as: {{ player.name }}
             {% elif player.role == 'spectator' %}
                 Spectating as: {{ player.name }}
+            {% elif player.role == 'commentator' %}
+                Commentating as: {{ player.name }}
             {% else %}
                 Playing as: {{ player.name }}
             {% endif %}
@@ -44,8 +46,8 @@
             {% if player.role == 'counter' %}
                 {% include 'bingosync/counter_target_chooser.html' %}
                 {% include 'bingosync/counter_count_actions.html' %}
-            {% elif not player.is_spectator %}
-                {# Spectators don't mark, so they get no color chooser #}
+            {% elif not player.is_observer %}
+                {# Spectators and commentators don't mark, so they get no color chooser #}
                 {% include 'bingosync/color_chooser.html' %}
             {% endif %}
             <div class="board-container{{ board_hidden|yesno:" hidden-card," }}">
@@ -56,6 +58,10 @@
                     </div>
                 </div>
             </div>
+            {% if player.role == 'commentator' %}
+                {# Must directly follow .board-container: it hides with the covered card #}
+                {% include 'bingosync/commentator_counts.html' %}
+            {% endif %}
         </div>
         <div class="room-col room-chat-col">
             {% include 'bingosync/chat_panel.html' %}
@@ -65,9 +71,9 @@
                 <div class="flex-col-content m-b-l">
                     {% include 'bingosync/players_panel.html' %}
                 </div>
-                {# Spectators get no Room Settings panel; the room settings still #}
-                {# load for them (hidden card, fog of war) without one.           #}
-                {% if not player.is_spectator %}
+                {# Spectators and commentators get no Room Settings panel; the room #}
+                {# settings still load for them (hidden card, fog of war) without one. #}
+                {% if not player.is_observer %}
                 <div class="flex-col-footer m-b-l" id="room-settings-container">
                     {% include 'bingosync/room_settings_panel.html' %}
                 </div>
@@ -110,6 +116,7 @@
 <script src="{% static "bingosync/room/chat_panel.js" %}"></script>
 <script src="{% static "bingosync/room/chat_socket.js" %}"></script>
 <script src="{% static "bingosync/room/counter.js" %}"></script>
+<script src="{% static "bingosync/room/commentator.js" %}"></script>
 <script src="{% static "bingosync/room/win_celebration.js" %}"></script>
 <script src="{% static "bingosync/bingosync.js" %}"></script>
 <script>
@@ -153,6 +160,11 @@
             window.counterUI = new Counter("{{ room.encoded_uuid }}", player, board, colorChooser, playersPanel);
         }
 
+        // The commentator sees every counter's counts
+        if (player.role === 'commentator') {
+            window.commentatorUI = new Commentator("{{ room.encoded_uuid }}", board);
+        }
+
         // Without a Gamemaster, players pick their own role. The page is
         // laid out per role, so it reloads once the change is broadcast.
         $("#own-role-select").on("change", function() {
@@ -178,6 +190,9 @@
             playersPanel.updateGoalCounters(board);
             if (window.counterUI) {
                 window.counterUI.onBoardChanged();
+            }
+            if (window.commentatorUI) {
+                window.commentatorUI.onBoardChanged();
             }
         }
 

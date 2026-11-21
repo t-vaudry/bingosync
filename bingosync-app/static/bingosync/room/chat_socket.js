@@ -46,6 +46,9 @@ var ChatSocket = (function(){
             if (window.counterUI) {
                 window.counterUI.onBoardChanged();
             }
+            if (window.commentatorUI) {
+                window.commentatorUI.load();
+            }
         }
         else if(json["type"] === "color") {
             if (this.playersPanel) {
@@ -116,6 +119,9 @@ var ChatSocket = (function(){
 
             if (window.counterUI) {
                 window.counterUI.onBoardChanged();
+            }
+            if (window.commentatorUI) {
+                window.commentatorUI.load();
             }
         }
         else if(json["type"] === "game_won") {

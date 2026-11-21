@@ -1,0 +1,13 @@
+{% comment %}
+Commentator: every counter's goal counts, per player, under the board. Counts
+aren't broadcast, so commentator.js polls for them. Hidden while the board is
+covered (see the .hidden-card rule in style.css).
+{% endcomment %}
+<div id="commentator-counts" class="panel panel-default">
+    <div class="panel-heading">
+        <span>Counters' Counts</span>
+    </div>
+    <div class="panel-body commentator-counts-body">
+        <div class="commentator-counts-empty">No counts yet.</div>
+    </div>
+</div>

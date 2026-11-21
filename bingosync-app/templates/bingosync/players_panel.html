@@ -7,7 +7,7 @@
     <div class="panel-body panel-body-overflow-container">
         <div id="players-panel">
             {% for player in room.connected_players %}
-                {% if player.role != 'spectator' and player.role != 'counter' %}
+                {% if player.role != 'spectator' and player.role != 'counter' and player.role != 'commentator' %}
                 <div id="{{ player.encoded_uuid }}" class="player-panel-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}" data-role="{{ player.role }}">
                     <span class="goalcounter {{ player.color.goal_class }}">
                         <span class="squarecounter" title="Squares with color.">0</span>
@@ -34,6 +34,19 @@
                             → {{ room|color_label:player.monitoring_color }}
                         </span>
                         {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if room.connected_commentators %}
+            <div class="commentators-section">
+                <div class="commentators-header">Commentators</div>
+                {% for player in room.connected_commentators %}
+                    <div id="{{ player.encoded_uuid }}" class="player-panel-entry commentator-entry" data-is-logged-in="{% if player.user %}true{% else %}false{% endif %}" data-role="commentator">
+                        <span class="playername">
+                            {{ player.name }}
+                        </span>
                     </div>
                 {% endfor %}
             </div>

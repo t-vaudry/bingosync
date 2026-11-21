@@ -105,6 +105,7 @@ var PlayersPanel = (function(){
     PlayersPanel.prototype.setPlayer = function(playerJson) {
         var isSpectator = playerJson["role"] === "spectator";
         var isCounter = playerJson["role"] === "counter";
+        var isCommentator = playerJson["role"] === "commentator";
 
         if(this.$playersPanel.find("#" + playerJson["uuid"]).length === 0) {
             // Player doesn't exist, insert them
@@ -122,17 +123,18 @@ var PlayersPanel = (function(){
                 $playerEntry.removeAttr('data-monitoring-color');
             }
             
-            // Players, counters and spectators each have their own section, so
-            // a change between them means moving the entry
+            // Players, counters, commentators and spectators each have their
+            // own section, so a change between them means moving the entry
             var wasSpectator = $playerEntry.hasClass("spectator-entry");
             var wasCounter = $playerEntry.hasClass("counter-entry");
-            if (isSpectator !== wasSpectator || isCounter !== wasCounter) {
+            var wasCommentator = $playerEntry.hasClass("commentator-entry");
+            if (isSpectator !== wasSpectator || isCounter !== wasCounter || isCommentator !== wasCommentator) {
                 $playerEntry.remove();
                 this._removeEmptySections();
                 this._addEntry(playerJson);
             } else {
                 // Just update the existing entry
-                if (!isSpectator && !isCounter) {
+                if (!isSpectator && !isCounter && !isCommentator) {
                     // Update color for non-spectators
                     var $playerGoalCounter = $playerEntry.find(".goalcounter");
                     COLORS.forEach(function(color) {
@@ -142,7 +144,7 @@ var PlayersPanel = (function(){
                 }
                 
                 // Update role badge
-                if (!isSpectator && !isCounter) {
+                if (!isSpectator && !isCounter && !isCommentator) {
                     $playerEntry.find(".player-role-badge").replaceWith(this._createRoleBadge(playerJson));
                 }
             }
@@ -155,22 +157,34 @@ var PlayersPanel = (function(){
             this._addSpectator(playerJson);
         } else if (playerJson["role"] === "counter") {
             this._addCounter(playerJson);
+        } else if (playerJson["role"] === "commentator") {
+            this._addCommentator(playerJson);
         } else {
             this._addPlayer(playerJson);
         }
     };
 
-    // Counters and spectators are listed in their own sections below the
-    // players. Returns the section for the given kind, creating it if needed.
+    // Counters, commentators and spectators are listed in their own sections
+    // below the players, in that order. Returns the section for the given
+    // kind, creating it if needed.
+    var SECTION_KINDS = ["counter", "commentator", "spectator"];
+    var SECTION_TITLES = {counter: "Counters", commentator: "Commentators", spectator: "Spectators"};
+
     PlayersPanel.prototype._ensureSection = function(kind) {
         var $section = this.$playersPanel.find("." + kind + "s-section");
         if ($section.length === 0) {
             $section = $("<div>", {"class": kind + "s-section"});
-            $section.append($("<div>", {"class": kind + "s-header", text: kind === "counter" ? "Counters" : "Spectators"}));
-            var $spectators = this.$playersPanel.find(".spectators-section");
-            if (kind === "counter" && $spectators.length > 0) {
-                // Counters sit above spectators
-                $spectators.before($section);
+            $section.append($("<div>", {"class": kind + "s-header", text: SECTION_TITLES[kind]}));
+            // Goes above the first section that comes after it
+            var $later = $();
+            for (var i = SECTION_KINDS.indexOf(kind) + 1; i < SECTION_KINDS.length; i++) {
+                $later = this.$playersPanel.find("." + SECTION_KINDS[i] + "s-section");
+                if ($later.length > 0) {
+                    break;
+                }
+            }
+            if ($later.length > 0) {
+                $later.first().before($section);
             } else {
                 this.$playersPanel.append($section);
             }
@@ -179,7 +193,7 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype._removeEmptySections = function() {
-        this.$playersPanel.find(".counters-section, .spectators-section").each(function() {
+        this.$playersPanel.find(".counters-section, .commentators-section, .spectators-section").each(function() {
             if ($(this).find(".player-panel-entry").length === 0) {
                 $(this).remove();
             }
@@ -245,12 +259,26 @@ var PlayersPanel = (function(){
         this._appendManagementButtons(playerDiv, playerJson);
 
         // Players go above the counters and spectators sections
-        var $firstSection = this.$playersPanel.find(".counters-section, .spectators-section").first();
+        var $firstSection = this.$playersPanel.find(".counters-section, .commentators-section, .spectators-section").first();
         if ($firstSection.length > 0) {
             $firstSection.before(playerDiv);
         } else {
             this.$playersPanel.append(playerDiv);
         }
+    };
+
+    PlayersPanel.prototype._addCommentator = function(playerJson) {
+        var playerName = $("<span>", {"class": "playername", text: " " + playerJson["name"]});
+        var commentatorDiv = $("<div>", {"id": playerJson["uuid"], "class": "player-panel-entry commentator-entry"});
+
+        commentatorDiv.attr('data-role', 'commentator');
+        commentatorDiv.attr('data-is-logged-in', playerJson["is_logged_in"] ? 'true' : 'false');
+
+        commentatorDiv.append(playerName);
+
+        this._appendManagementButtons(commentatorDiv, playerJson);
+
+        this._ensureSection("commentator").append(commentatorDiv);
     };
 
     PlayersPanel.prototype._addSpectator = function(playerJson) {
@@ -323,9 +351,10 @@ var PlayersPanel = (function(){
         }
         
         // RULE: Cannot assign Gamemaster role to anyone (only at room creation)
-        // Normal role changes: Player <-> Counter <-> Spectator
+        // Normal role changes: Player <-> Counter <-> Commentator <-> Spectator
         roles.push({value: "player", label: "Player"});
         roles.push({value: "counter", label: "Counter"});
+        roles.push({value: "commentator", label: "Commentator"});
         roles.push({value: "spectator", label: "Spectator"});
         
         var dialogHtml = '<div class="role-change-dialog">';
@@ -719,7 +748,7 @@ var PlayersPanel = (function(){
     PlayersPanel.prototype.removePlayer = function(playerJson) {
         var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
         $playerEntry.remove();
-        // Drop the Counters / Spectators section once it's empty
+        // Drop the Counters / Commentators / Spectators section once it's empty
         this._removeEmptySections();
         this._notifyChange();
     };
