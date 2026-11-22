@@ -151,9 +151,9 @@ var AdditionalSettingsPanel = (function(){
         }
     };
 
-    // Full width board: the cells are as tall as fit the visible window below
-    // the top of the board, so the board never needs scrolling. Their width
-    // is whatever the full-width table gives them.
+    // Full width board: the cells are as tall as the board needs to be for the
+    // whole board to be as tall as the browser window. Their width is whatever
+    // the full-width table gives them.
     AdditionalSettingsPanel.prototype.fitBoard = function() {
         if (!this.$layout.hasClass("room-layout-fullwidth")) { return; }
         var cell = $("#bingo .square")[0];
@@ -164,10 +164,10 @@ var AdditionalSettingsPanel = (function(){
         var perColumn = this.board.size || 5;
         // The label row and column and the cell spacing: measured, not hardcoded
         var chromeHeight = table.offsetHeight - perColumn * cell.offsetHeight;
-        // Document position, not the viewport's: the fit doesn't change as the
-        // page scrolls, and the header and controls above stay on screen
-        var boardTop = $(boardContainer).offset().top;
-        var availableHeight = window.innerHeight - boardTop - BOARD_BOTTOM_GAP - chromeHeight;
+        // The board is as tall as the browser window. Whatever sits above it
+        // (header, counter controls) pushes it down, and the user scrolls to
+        // bring the rest into view.
+        var availableHeight = window.innerHeight - BOARD_BOTTOM_GAP - chromeHeight;
 
         var cellHeight = Math.max(MIN_CELL_HEIGHT, Math.floor(availableHeight / perColumn));
         this.$layout[0].style.setProperty("--board-cell-h", cellHeight + "px");
