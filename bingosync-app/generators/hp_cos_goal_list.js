@@ -1397,7 +1397,7 @@ var bingoList = {
                 "selfsynergy": 0
             },
             "weight": 0,
-            "triggers": null
+            "triggers": ["buy-8"]
         }, ],
         "19": [{
             "difficulty": 19,

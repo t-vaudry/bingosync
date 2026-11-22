@@ -417,8 +417,10 @@ class HpCosGoalListLinksTest(TestCase):
 
     def test_changed_links(self):
         goals = self._goals()
-        for key in ("gnome-star", "gnome-potion", "bronze-4", "stars-5"):
+        for key in ("gnome-star", "gnome-potion", "stars-5"):
             self.assertFalse(goals[key]["triggers"], key)
+        for key in ("silver-3", "bronze-4"):
+            self.assertIn("buy-8", goals[key]["triggers"], key)
         for key in ("bronze-20", "bronze-30"):
             self.assertFalse(
                 {"cards-23", "cards-37", "buy-8"} & set(goals[key]["triggers"]))
