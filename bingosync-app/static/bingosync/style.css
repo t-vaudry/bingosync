@@ -1067,26 +1067,28 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
     }
 }
 
-/* Full Width Board (Additional Settings): the board takes the whole row and
-   its squares grow with the window; chat and the side panels move below. */
+/* Full Width Board (Additional Settings): the board takes the whole row, but
+   its squares are sized so the whole board fits the window, both across and
+   down (the board is centred when the width is the limit). The square's side
+   is --board-square, which room/additional_settings_panel.js sets in px; the
+   clamp() is only the fallback before that runs. Chat and the side panels
+   move below the board. */
 .room-layout-fullwidth {
     flex-wrap: wrap;
+    --board-square: clamp(95px, 12vw, 190px);
 }
 .room-layout-fullwidth .room-board-col {
     flex: 1 1 100%;
 }
-.room-layout-fullwidth .room-board-col #bingo {
-    width: 100%;
-}
 .room-layout-fullwidth .square {
-    width: auto;
-    height: clamp(95px, 12vw, 190px);
+    width: var(--board-square);
+    height: var(--board-square);
 }
 /* Bigger goal text to match the bigger squares. refitGoalText sets the text's
    size as a percentage of this, shrinking any goal that doesn't fit. Not on
    .hiddentext squares, which hide their text with font-size: 0 */
 .room-layout-fullwidth .square:not(.hiddentext) {
-    font-size: clamp(16px, 1.9vw, 30px);
+    font-size: max(12px, calc(var(--board-square) * 0.16));
 }
 .room-layout-fullwidth #bingo td:first-child {
     width: 31px;
@@ -1096,9 +1098,6 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
 }
 .room-layout-fullwidth .room-chat-col {
     flex-grow: 1;
-}
-.room-layout-fullwidth .board-container {
-    display: block;
 }
 
 /* Commentator: every counter's goal counts under the board */
