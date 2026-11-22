@@ -59,7 +59,7 @@ class ReconcileConnectionsTests(TestCase):
     def test_players_without_a_live_socket_are_disconnected(self):
         result, publish = self._reconcile([self.live.encoded_uuid])
         self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json(), {"disconnected": 2})
+        self.assertEqual(result.json(), {"disconnected": 2, "reconnected": 0})
 
         for player in (self.stale, self.never_opened_socket):
             player.refresh_from_db()
@@ -77,7 +77,8 @@ class ReconcileConnectionsTests(TestCase):
         # The websocket server's grace-period report and a reconcile can
         # both arrive for the same player
         headers = {"HTTP_X_INTERNAL_SECRET": settings.INTERNAL_API_SECRET}
-        with patch("bingosync.views.publish_connection_event") as publish:
+        with patch("bingosync.views._live_player_uuids", return_value={}), \
+                patch("bingosync.views.publish_connection_event") as publish:
             for _ in range(2):
                 self.client.get(
                     f"/api/disconnected/{self.stale.encoded_uuid}", **headers)

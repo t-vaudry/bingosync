@@ -8,8 +8,175 @@ var PlayersPanel = (function(){
         // (the counter's "Counting for" buttons listen to this).
         this.onChange = null;
 
+        // Where to fetch the room's players from, and the board whose square
+        // counts the entries show (both set by the page)
+        this.syncUrl = null;
+        this.board = null;
+        // The panel follows socket events, but the server is the authority:
+        // reload() re-syncs from it. These keep a slow response from
+        // overwriting a newer event.
+        this._mutations = 0;
+        this._syncToken = 0;
+        this._reloadTimer = null;
+        // What the entries were last built from, so a re-sync that finds
+        // nothing changed leaves them alone (and a click in progress on one
+        // isn't lost to a redraw). Cleared whenever an event edits the panel.
+        this._builtFrom = null;
+        // The page's own color chooser: the panel keeps it true to the server
+        this.colorChooser = null;
+        // After the page changes its own color or counting target, the server
+        // may take a moment to catch up; until then a re-sync mustn't
+        // "correct" the choice back
+        this._selfCorrectAfter = 0;
+
         // Initialize buttons for existing players in the DOM
         this._initializeExistingPlayers();
+    };
+
+    // Re-sync the whole panel from the server. Safe to call at any time and
+    // as often as needed.
+    PlayersPanel.prototype.reload = function() {
+        var self = this;
+        if (!this.syncUrl) {
+            return $.Deferred().resolve().promise();
+        }
+        var token = ++this._syncToken;
+        var mutationsAtStart = this._mutations;
+        return $.ajax({url: this.syncUrl, dataType: 'json', cache: false}).done(function(result) {
+            if (token !== self._syncToken) {
+                return; // a newer request is on its way
+            }
+            if (self._mutations !== mutationsAtStart) {
+                // An event changed the panel while this was in flight, so it
+                // may be older than the panel; that event already asked for
+                // a fresh reload
+                self.scheduleReload();
+                return;
+            }
+            self._applySnapshot(result["players"] || []);
+        });
+    };
+
+    // Ask for a re-sync shortly; several events close together share one
+    PlayersPanel.prototype.scheduleReload = function(delay) {
+        var self = this;
+        if (!this.syncUrl) {
+            return;
+        }
+        clearTimeout(this._reloadTimer);
+        this._reloadTimer = setTimeout(function() {
+            self._reloadTimer = null;
+            self.reload();
+        }, delay === undefined ? 300 : delay);
+    };
+
+    // Keep the panel true even when no event arrives (a dead socket, a lost
+    // broadcast): re-sync on a timer, and as soon as the tab is looked at again
+    PlayersPanel.prototype.startAutoSync = function(intervalMs) {
+        var self = this;
+        setInterval(function() {
+            if (!document.hidden) {
+                self.reload();
+            }
+        }, intervalMs || 20000);
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                self.reload();
+            }
+        });
+        window.addEventListener('online', function() { self.reload(); });
+    };
+
+    PlayersPanel.prototype._applySnapshot = function(players) {
+        var me = null;
+        var self = this;
+        players.forEach(function(playerJson) {
+            if (self.currentPlayer && playerJson["uuid"] === self.currentPlayer.uuid) {
+                me = playerJson;
+            }
+        });
+        // The room page is laid out per role: if ours changed while we
+        // weren't listening, load it again as the new role
+        if (me && me["role"] !== this.currentPlayer.role) {
+            window.location.reload();
+            return;
+        }
+
+        if (me) {
+            this._correctSelf(me);
+        }
+
+        var builtFrom = JSON.stringify(players);
+        if (builtFrom === this._builtFrom) {
+            return;
+        }
+        this._builtFrom = builtFrom;
+
+        this.$playersPanel.empty();
+        players.forEach(function(playerJson) {
+            self._addEntry(playerJson);
+        });
+        if (this.board) {
+            this.updateGoalCounters(this.board);
+        }
+        this._notifyChange();
+    };
+
+    // The page itself acts on this player's color (the chooser marks with it)
+    // and, for a counter, on who they count. A change made while no socket
+    // was listening (a Gamemaster's, say) has to reach those too, not only
+    // the list.
+    PlayersPanel.prototype._correctSelf = function(me) {
+        var self = this;
+        var wait = this._selfCorrectAfter - Date.now();
+        if (wait > 0) {
+            // We just changed it ourselves: let the server catch up, then check
+            this.scheduleReload(wait + 300);
+            return;
+        }
+
+        if (me["role"] === "counter") {
+            var counterUI = window.counterUI;
+            var counting = me["monitoring_color"] || null;
+            if (counterUI && counterUI.monitoringColor !== counting) {
+                counterUI.handleCounterAssignment({
+                    counter_player: {uuid: me["uuid"]},
+                    monitored_color: counting
+                });
+            }
+        } else if (this.colorChooser && !this.colorChooser.isSpectator &&
+                   me["role"] !== "spectator" && me["role"] !== "commentator") {
+            if (me["color"] && this.colorChooser.getChosenColor() !== me["color"]) {
+                this.currentPlayer.color = me["color"];
+                this.colorChooser.defaultColor = me["color"];
+                this.colorChooser.setChosenColor(me["color"]);
+                if (this.board) {
+                    this.board.hideSquares();
+                }
+            }
+        }
+    };
+
+    // The page is about to change its own color or counting target
+    PlayersPanel.prototype.noteLocalChange = function() {
+        this._mutations++;
+        this._builtFrom = null;
+        this._selfCorrectAfter = Date.now() + 4000;
+        this.scheduleReload(4300);
+    };
+
+    // A counter's badge names the color they count after whoever uses it, so
+    // it changes whenever players join, leave or change color or role
+    PlayersPanel.prototype._refreshCounterBadges = function() {
+        var self = this;
+        this.$playersPanel.find('.counter-entry').each(function() {
+            var $entry = $(this);
+            var color = $entry.attr('data-monitoring-color');
+            $entry.find('.counter-assignment-badge').remove();
+            if (color) {
+                $entry.find('.playername').after(self._counterBadge(self.colorLabel(color)));
+            }
+        });
     };
 
     // Everyone with the Player role who's in the panel, with their color.
@@ -58,6 +225,7 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype._notifyChange = function() {
+        this._refreshCounterBadges();
         if (this.onChange) {
             this.onChange();
         }
@@ -103,6 +271,11 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype.setPlayer = function(playerJson) {
+        // An event changed the panel: any re-sync already in flight may be
+        // older than this, and the server gets asked again to confirm it
+        this._mutations++;
+        this.scheduleReload();
+        this._builtFrom = null;
         var isSpectator = playerJson["role"] === "spectator";
         var isCounter = playerJson["role"] === "counter";
         var isCommentator = playerJson["role"] === "commentator";
@@ -678,7 +851,10 @@ var PlayersPanel = (function(){
 
     PlayersPanel.prototype.handleCounterAssignment = function(assignmentJson) {
         console.log("handleCounterAssignment called", assignmentJson);
-        
+        this._mutations++;
+        this.scheduleReload();
+        this._builtFrom = null;
+
         var counterPlayer = assignmentJson["counter_player"];
         var color = assignmentJson["monitored_color"];
 
@@ -746,6 +922,9 @@ var PlayersPanel = (function(){
     };
 
     PlayersPanel.prototype.removePlayer = function(playerJson) {
+        this._mutations++;
+        this.scheduleReload();
+        this._builtFrom = null;
         var $playerEntry = this.$playersPanel.find("#" + playerJson["uuid"]);
         $playerEntry.remove();
         // Drop the Counters / Commentators / Spectators section once it's empty

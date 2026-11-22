@@ -51,6 +51,11 @@ var ColorChooser = (function(){
         }
 
         this.setChosenColor(newChosenColor);
+        // Tell the players panel this is our own change, so a re-sync that
+        // runs before the server has it doesn't put the old color back
+        if (this.onLocalChange) {
+            this.onLocalChange();
+        }
         this.reportChosenColor(newChosenColor).then(response => this.$board.hideSquares());
     };
 

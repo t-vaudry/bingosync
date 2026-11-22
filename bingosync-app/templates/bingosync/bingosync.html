@@ -136,6 +136,8 @@
         var boardRevealedUrl = "{% url 'board_revealed' %}";
         var cardRevealedUrl = "{% url 'card_revealed' %}";
         var roomSettingsUrl = "{% url 'room_settings' room.encoded_uuid %}";
+        var playersUrl = "{% url 'room_players' room.encoded_uuid %}";
+        var socketKeyUrl = "{% url 'get_socket_key' room.encoded_uuid %}";
         var temporarySocketKey = "{{ temporary_socket_key }}";
 
         // Construct all of the UI components
@@ -146,6 +148,10 @@
         board.setStars(JSON.parse('{{ starred_slots|jsonify|escapejs }}'));
         var boardCover = new BoardCover($(".board-container"), {{ board_hidden|yesno:"true,false" }}, boardRevealedUrl, cardRevealedUrl);
         var playersPanel = new PlayersPanel($("#players-panel"), player);
+        playersPanel.syncUrl = playersUrl;
+        playersPanel.board = board;
+        playersPanel.colorChooser = colorChooser;
+        colorChooser.onLocalChange = function() { playersPanel.noteLocalChange(); };
         var roomSettingsPanel = new RoomSettingsPanel($("#room-settings-container"), roomSettingsUrl, board);
 
         new AdditionalSettingsPanel($("#additional-settings"), $(".room-layout"), board, colorChooser);
@@ -154,6 +160,18 @@
         initializeChatSettings($("#chat-settings"), $("#bingo-chat"), ROOM_SETTINGS.fog_of_war);
 
         var chatSocket = new ChatSocket(chatPanel, board, playersPanel, socketsUrl, player);
+        chatSocket.socketKeyUrl = socketKeyUrl;
+        // The socket is up: fetch what happened while there was none. The
+        // players list is always re-read from the server (the page only
+        // rendered it once, and events in between are lost); after a
+        // reconnect the board and settings are too.
+        chatSocket.onRegistered = function(isReconnect) {
+            playersPanel.reload();
+            if (isReconnect) {
+                refreshBoard();
+            }
+        };
+        playersPanel.startAutoSync();
 
         // Initialize counter UI if player is a counter
         if (player.role === 'counter') {

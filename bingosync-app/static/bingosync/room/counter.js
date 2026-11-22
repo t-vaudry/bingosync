@@ -95,6 +95,8 @@ var Counter = (function() {
         if (color === this.monitoringColor) {
             return;
         }
+        // Our own change: a re-sync before the server has it mustn't undo it
+        this.playersPanel.noteLocalChange();
         $.ajax({
             url: "/api/assign-counter",
             type: "POST",

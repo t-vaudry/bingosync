@@ -70,7 +70,7 @@ RECONCILE_URL = BASE_API_URL + "reconcile"
 # Ask Django to drop players with no live socket: shortly after startup (a
 # restart forgets every connection) and then periodically.
 RECONCILE_STARTUP_DELAY_SECONDS = 15
-RECONCILE_PERIOD_SECONDS = 60
+RECONCILE_PERIOD_SECONDS = 30
 
 PING_PERIOD_SECONDS = 5
 PING_PERIOD_MILLIS = PING_PERIOD_SECONDS * 1000
@@ -505,6 +505,9 @@ class BroadcastWebSocket(tornado.websocket.WebSocketHandler):
             socket_key = message_dict["socket_key"]
             room_uuid, player_uuid = load_player_data(socket_key)
             ROUTER.register(room_uuid, player_uuid, self)
+            # Tell the page it is live: it re-syncs what it may have missed
+            # while it had no socket
+            self.send(json.dumps({"type": "registered"}))
         except Exception as e:
             traceback.print_exc()
             self.send(json.dumps({"type": "error",

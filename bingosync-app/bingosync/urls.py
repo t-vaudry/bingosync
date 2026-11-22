@@ -71,6 +71,8 @@ urlpatterns = [
         views.room_disconnect, name='room_disconnect'),
     url(r'^room/(?P<encoded_room_uuid>.+)/room-settings$',
         views.room_settings, name='room_settings'),
+    url(r'^room/(?P<encoded_room_uuid>.+)/players$',
+        views.room_players, name='room_players'),
     url(r'^room/(?P<encoded_room_uuid>.+)/stream$',
         views.room_stream, name='room_stream'),
     url(r'^room/(?P<encoded_room_uuid>.+)$', views.room_view, name='room_view'),
