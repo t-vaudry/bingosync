@@ -8,8 +8,9 @@ var AdditionalSettingsPanel = (function(){
 
     var STORAGE_PREFIX = "bingosync.";
     // Full width board: space left under the board, and the shortest cell (px)
-    // it is shrunk to in a very short window
-    var BOARD_BOTTOM_GAP = 16;
+    // it is shrunk to in a very short window. The gap is only a sliver for
+    // the commentator's Counts panel, which sits below the board.
+    var BOARD_BOTTOM_GAP = 8;
     var MIN_CELL_HEIGHT = 40;
 
     function load(key) {
