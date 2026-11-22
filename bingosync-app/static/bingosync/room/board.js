@@ -537,20 +537,11 @@ var Board = (function(){
             var room = maxHeight - ($thisText.siblings('.goal-count').outerHeight() || 0);
             $thisText.css('font-size', '100%');
             var currentPercent = 100;
-            // The floor stops the loop when a tiny square leaves no room
-            while($thisText.height() > room && currentPercent > 10) {
+            while($thisText.height() > room) {
                 currentPercent -= 2;
                 $thisText.css('font-size', currentPercent + "%" );
             }
         });
-    };
-
-    // The squares changed size (full width board fit): redo their color
-    // offsets and fit the goal text to them.
-    Board.prototype.refreshSquareLayout = function() {
-        if (!this.$squares) { return; }
-        this.$squares.each(function () { updateColorOffsets($(this)); });
-        this.refitGoalText();
     };
 
     return Board;
