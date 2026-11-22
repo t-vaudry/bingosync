@@ -1447,9 +1447,9 @@ def assign_role(request):
 
 
 def _can_change_own_role(player):
-    """In a room without a Gamemaster nobody can assign roles, so everyone
-    picks their own (Player and Counter still need an account)."""
-    return player.role != Role.GAMEMASTER and not player.room.has_gamemaster
+    """Everyone but the Gamemaster picks their own role, with or without a
+    Gamemaster in the room, so the Gamemaster doesn't have to do it for them."""
+    return player.role != Role.GAMEMASTER
 
 
 

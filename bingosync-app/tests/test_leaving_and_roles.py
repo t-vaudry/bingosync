@@ -134,11 +134,13 @@ class OwnRoleTests(RoomTestCase):
         self.assertTrue(ChatEvent.objects.filter(
             body="harry switched to the Counter role").exists())
 
-    def test_with_a_gamemaster_only_they_assign_roles(self):
+    def test_with_a_gamemaster_you_still_pick_your_own_role(self):
         self._player(role=Role.GAMEMASTER, name="gm")
         player = self._player(self.user)
         response = self._change_own_role(player, Role.COUNTER)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        player.refresh_from_db()
+        self.assertEqual(player.role, Role.COUNTER)
 
     def test_cannot_change_someone_elses_role(self):
         player = self._player(self.user)
@@ -161,7 +163,7 @@ class OwnRoleTests(RoomTestCase):
         response = self._change_own_role(player, Role.GAMEMASTER)
         self.assertEqual(response.status_code, 400)
 
-    def test_role_picker_only_shown_without_a_gamemaster(self):
+    def test_role_picker_shown_with_or_without_a_gamemaster(self):
         player = self._player(self.user)
         self.client.force_login(self.user)
         self._sit_in_room(player)
@@ -169,4 +171,4 @@ class OwnRoleTests(RoomTestCase):
         self.assertContains(self.client.get(url), 'id="own-role-select"')
 
         self._player(role=Role.GAMEMASTER, name="gm")
-        self.assertNotContains(self.client.get(url), 'id="own-role-select"')
+        self.assertContains(self.client.get(url), 'id="own-role-select"')
