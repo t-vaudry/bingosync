@@ -95,6 +95,8 @@ var Counter = (function() {
         if (color === this.monitoringColor) {
             return;
         }
+        // Our own change: a re-sync before the server has it mustn't undo it
+        this.playersPanel.noteLocalChange();
         $.ajax({
             url: "/api/assign-counter",
             type: "POST",
@@ -250,17 +252,19 @@ var Counter = (function() {
         var hadStrips = this.board.$board.find('.goal-count').length;
         this.board.squares.forEach(function(square, i) {
             var slot = i + 1;
-            square.$square.children('.goal-count, .count-alert, .goal-complete').remove();
+            square.$square.children('.goal-count, .goal-count-deadzone, .count-alert, .goal-complete').remove();
             square.$square.removeClass('has-goal-count');
             var goal = that.tally && that.tally.goals[slot];
             if (!goal) {
                 if (that.tally) {
                     square.$square.addClass('has-goal-count');
+                    that.deadZone().appendTo(square.$square);
                     that.completeStrip(slot).appendTo(square.$square);
                 }
                 return;
             }
             square.$square.addClass('has-goal-count');
+            that.deadZone().appendTo(square.$square);
             that.countStrip(slot, goal).appendTo(square.$square);
             if (that.needsAlert(square, slot, goal)) {
                 $('<div class="count-alert">⚠</div>')
@@ -278,6 +282,14 @@ var Counter = (function() {
             this.board.refitGoalText();
         }
         this.renderCountActions();
+    };
+
+    // The bottom half of a goal swallows clicks, so a click that misses a
+    // count button doesn't mark or unmark the goal. Added before the strip so
+    // the strip's buttons sit on top of it.
+    Counter.prototype.deadZone = function() {
+        return $('<div class="goal-count-deadzone"></div>')
+            .on('click', function(ev) { ev.stopPropagation(); });
     };
 
     // A goal with no count: the same strip, with a ✔ button across it that

@@ -57,16 +57,17 @@
     font-size: 12px;
     cursor: default;
 }
-/* A thin dead zone just above the strip: a click that narrowly misses a
-   count button lands here (part of the strip, which ignores clicks) instead
-   of marking or unmarking the goal */
-.square .goal-count::before {
-    content: '';
+/* Dead zone: the whole bottom half of the goal. A click that misses a count
+   button lands here (it swallows clicks) instead of marking or unmarking the
+   goal. Sits under the strip, so the buttons stay live. */
+.square .goal-count-deadzone {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 100%;
-    height: 6px;
+    bottom: 0;
+    height: 50%;
+    z-index: 2;
+    cursor: default;
 }
 /* Progress bar: the counted color, inset from the edges of the dark strip
    and brightened and outlined, so it stands out on a square already
@@ -195,9 +196,6 @@
 .room-layout-fullwidth .square .goal-count {
     height: var(--gc-h);
     font-size: calc(var(--gc-h) * 0.5);
-}
-.room-layout-fullwidth .square .goal-count::before {
-    height: 10px;
 }
 .room-layout-fullwidth .square .goal-count-track {
     top: 3px;

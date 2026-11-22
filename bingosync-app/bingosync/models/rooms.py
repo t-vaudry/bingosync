@@ -165,33 +165,19 @@ class Room(models.Model):
         (gamemaster, player, or counter). Spectators and commentators alone
         don't keep a room active.
 
-        When a room becomes inactive, all remaining spectators are disconnected.
+        An inactive room takes no new spectators or commentators, but the ones
+        already watching stay listed for as long as their pages are open: the
+        websocket server reports when a page really closes. (Disconnecting
+        them here removed people who were still there from everyone's player
+        list, and nothing brought them back.)
         """
         non_spectator_players = [
             player for player in self.connected_players 
             if not player.is_observer
         ]
-        was_active = self.active
         self.active = len(non_spectator_players) > 0
 
         self.save()
-
-        # If room just became inactive, disconnect all remaining spectators
-        if was_active and not self.active:
-            from bingosync.models.events import ConnectionEvent
-            from bingosync.publish import publish_connection_event
-
-            for spectator in (self.connected_spectators
-                              + self.connected_commentators):
-                # Create and publish disconnect event for each spectator
-                disconnected_event = ConnectionEvent.make_disconnected_event(spectator)
-                disconnected_event.save()
-                publish_connection_event(disconnected_event)
-
-                # Clear current_room for authenticated spectators to allow joining other rooms
-                if spectator.user and spectator.user.current_room == self:
-                    spectator.user.current_room = None
-                    spectator.user.save()
 
     @property
     def creator(self):

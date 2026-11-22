@@ -68,6 +68,10 @@ logger = logging.getLogger(__name__)
 # reconcile_connections leaves alone players who joined or (re)connected
 # within this long, since their socket may not be registered yet.
 RECONCILE_GRACE = datetime.timedelta(seconds=30)
+# A live socket whose player is marked disconnected is put right sooner: the
+# socket is proof they're there. Only a moment's grace, so someone who just
+# left (their old socket closing) isn't brought back.
+RECONCILE_REPAIR_GRACE = datetime.timedelta(seconds=10)
 
 
 def redirect_params(url, params=None, **kwargs):
@@ -721,6 +725,43 @@ def room_settings(request, encoded_room_uuid):
     settings = room.settings_for(viewer, get_room_settings(room))
 
     return JsonResponse({"panel": panel, "settings": settings})
+
+
+def room_players(request, encoded_room_uuid):
+    """The room's connected players, as the players panel lists them.
+
+    The page renders the panel once and then follows socket events, so an
+    event it misses (a reload, a dropped socket) would stay wrong. The panel
+    re-syncs from this, which is the authority, on every (re)connect, after
+    every player event and on a timer.
+    """
+    room = Room.get_for_encoded_uuid_or_404(encoded_room_uuid)
+    try:
+        _get_session_player(request.session, room)
+    except NotAuthenticatedError:
+        return HttpResponseForbidden("Join the room to see its players.")
+
+    connected = room.connected_players
+    # A color is labelled with its player's name when exactly one player uses
+    # it (the same rule as Room.color_label, from one query's worth of data)
+    users_of = {}
+    for player in connected:
+        if player.role == Role.PLAYER:
+            users_of.setdefault(player.color, []).append(player.name)
+
+    players = []
+    for player in connected:
+        data = player.to_json()
+        color = player.monitoring_color
+        if color:
+            names = users_of.get(color, [])
+            data["monitored_label"] = names[0] if len(names) == 1 else color.name
+        else:
+            data["monitored_label"] = None
+        players.append(data)
+    response = JsonResponse({"players": players})
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @handle_ratelimit
@@ -1944,16 +1985,41 @@ def user_connected(request, encoded_player_uuid):
 def user_disconnected(request, encoded_player_uuid):
     player = Player.get_for_encoded_uuid(encoded_player_uuid)
     if player is not ANON_PLAYER:
-        _disconnect_player(player)
+        # The websocket server's connect and disconnect reports are separate
+        # requests (and a failed one is retried), so a stale disconnect can
+        # arrive after the player's page has already reconnected
+        _disconnect_player(player, unless_live=True)
         # Note: Room can continue without Gamemaster until all players/counters disconnect
 
     return HttpResponse()
 
 
-def _disconnect_player(player):
+def _live_player_uuids():
+    """room uuid -> encoded uuids of players with an open socket (or inside
+    the websocket server's disconnect grace period), or None when the
+    websocket server can't be asked."""
+    from bingosync.util import get_internal_api_headers
+    try:
+        response = requests.get(
+            SOCKETS_PUBLISH_URL + "/connected",
+            headers=get_internal_api_headers(), timeout=3)
+        response.raise_for_status()
+        return response.json()
+    except (requests.exceptions.RequestException, ValueError):
+        return None
+
+
+def _disconnect_player(player, unless_live=False):
     """Record that `player` left, tell the room, and free their account to
     join other rooms. Does nothing if they're already disconnected: the
-    websocket server's report and a reconcile can arrive together."""
+    websocket server's report and a reconcile can arrive together. With
+    `unless_live`, also does nothing if the websocket server says they have
+    a socket open right now."""
+    if unless_live:
+        live = _live_player_uuids()
+        if live is not None and player.encoded_uuid in live.get(
+                player.room.encoded_uuid, []):
+            return
     with transaction.atomic():
         # Serialise concurrent disconnects of the same player
         Player.objects.select_for_update().filter(pk=player.pk).first()
@@ -2009,22 +2075,53 @@ def reconcile_connections(request):
     # Leave alone anyone who joined or (re)connected moments ago: their page
     # may still be loading, or their socket only just opened.
     cutoff = checked_at - RECONCILE_GRACE
+    repair_cutoff = checked_at - RECONCILE_REPAIR_GRACE
+
+    def last_change(player):
+        last_event = (ConnectionEvent.objects.filter(player=player)
+                      .order_by("timestamp").last())
+        return last_event.timestamp if last_event else player.created_date
+
+    # Rooms with anyone in them, active or not (an inactive room can still
+    # have spectators watching)
+    rooms = list(Room.objects.filter(active=True))
+    known = {room.pk for room in rooms}
+    for encoded in connected_rooms:
+        try:
+            room = Room.get_for_encoded_uuid(encoded)
+        except (Room.DoesNotExist, ValueError):
+            continue
+        if room.pk not in known:
+            rooms.append(room)
+            known.add(room.pk)
+
     disconnected = 0
-    for room in Room.objects.filter(active=True):
+    reconnected = 0
+    for room in rooms:
         live_players = set(connected_rooms.get(room.encoded_uuid, []))
         for player in room.connected_players:
             if player.encoded_uuid in live_players:
                 continue
-            last_event = (ConnectionEvent.objects.filter(player=player)
-                          .order_by("timestamp").last())
-            since = last_event.timestamp if last_event else player.created_date
-            if since > cutoff:
+            if last_change(player) > cutoff:
                 continue
             _disconnect_player(player)
             disconnected += 1
+        # The other way round: a live socket whose player is marked
+        # disconnected (a connect report that was lost, or came before a late
+        # disconnect). Without this they stay missing from every player list
+        # until they reload.
+        for player in room.players:
+            if player.encoded_uuid not in live_players or player.connected:
+                continue
+            if last_change(player) > repair_cutoff:
+                continue
+            connection_event = ConnectionEvent.atomically_connect(player)
+            publish_connection_event(connection_event)
+            reconnected += 1
         room.update_active()
 
-    return JsonResponse({"disconnected": disconnected})
+    return JsonResponse({"disconnected": disconnected,
+                         "reconnected": reconnected})
 
 
 def health(request):
@@ -2061,7 +2158,9 @@ def _get_session_player(session, room):
     try:
         encoded_player_uuid = session[AUTHORIZED_ROOMS][room.encoded_uuid]
         return Player.get_for_encoded_uuid(encoded_player_uuid)
-    except KeyError:
+    except (KeyError, Player.DoesNotExist):
+        # No player in this session, or one that has been removed (kicked):
+        # either way it isn't someone in the room
         raise NotAuthenticatedError()
 
 
