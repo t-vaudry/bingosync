@@ -110,11 +110,12 @@ var AdditionalSettingsPanel = (function(){
         this.setFullWidth(this.$fullwidth.prop("checked"), /*persist=*/false);
         this.applyBlackoutView();
 
-        // Refit when the window changes, when late loads (fonts, the page
-        // itself) move the header and so the board, and when what sits above
-        // the board or the cells change. The fit is cheap and idempotent, so
-        // it runs synchronously. It only changes styles, never the children
-        // the observer watches, so it can't loop.
+        // Refit when the window changes, when the page finishes loading, and
+        // when the board is rebuilt (a new card). The height depends only on
+        // the window, but the goal text fit depends on the fonts, so refit
+        // once they are ready too. The fit is cheap and idempotent, and it
+        // only changes styles, never the children the observer watches, so it
+        // can't loop.
         var fit = function() { that.fitBoard(); };
         $(window).on("resize", fit);
         $(window).on("load", fit);
@@ -122,19 +123,10 @@ var AdditionalSettingsPanel = (function(){
             document.fonts.ready.then(fit);
         }
         if (window.MutationObserver) {
-            var observer = new MutationObserver(fit);
-            // The board's own children (cards, strips) come in through
-            // .board-container's subtree. The board column is watched only for
-            // children added or removed directly (counter controls), so the
-            // commentator's Counts panel polling doesn't refit the board.
-            var watched = [
-                [$(".board-container")[0], true],
-                [$(".room-board-col")[0], false],
-                [$(".room-header")[0], true]
-            ];
-            watched.forEach(function(pair) {
-                if (pair[0]) { observer.observe(pair[0], {childList: true, subtree: pair[1]}); }
-            });
+            var boardContainer = $(".board-container")[0];
+            if (boardContainer) {
+                new MutationObserver(fit).observe(boardContainer, {childList: true, subtree: true});
+            }
         }
     };
 
