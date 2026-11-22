@@ -8,8 +8,9 @@ var AdditionalSettingsPanel = (function(){
 
     var STORAGE_PREFIX = "bingosync.";
     // Full width board: space left under the board, and the shortest cell (px)
-    // it is shrunk to in a very short window
-    var BOARD_BOTTOM_GAP = 16;
+    // it is shrunk to in a very short window. The gap is only a sliver for
+    // the commentator's Counts panel, which sits below the board.
+    var BOARD_BOTTOM_GAP = 48;
     var MIN_CELL_HEIGHT = 40;
 
     function load(key) {
@@ -109,11 +110,12 @@ var AdditionalSettingsPanel = (function(){
         this.setFullWidth(this.$fullwidth.prop("checked"), /*persist=*/false);
         this.applyBlackoutView();
 
-        // Refit when the window changes, when late loads (fonts, the page
-        // itself) move the header and so the board, and when what sits above
-        // the board or the cells change. The fit is cheap and idempotent, so
-        // it runs synchronously. It only changes styles, never the children
-        // the observer watches, so it can't loop.
+        // Refit when the window changes, when the page finishes loading, and
+        // when the board is rebuilt (a new card). The height depends only on
+        // the window, but the goal text fit depends on the fonts, so refit
+        // once they are ready too. The fit is cheap and idempotent, and it
+        // only changes styles, never the children the observer watches, so it
+        // can't loop.
         var fit = function() { that.fitBoard(); };
         $(window).on("resize", fit);
         $(window).on("load", fit);
@@ -121,11 +123,10 @@ var AdditionalSettingsPanel = (function(){
             document.fonts.ready.then(fit);
         }
         if (window.MutationObserver) {
-            var observer = new MutationObserver(fit);
-            var watched = [$(".board-container")[0], $(".room-board-col")[0], $(".room-header")[0]];
-            watched.forEach(function(el) {
-                if (el) { observer.observe(el, {childList: true, subtree: true}); }
-            });
+            var boardContainer = $(".board-container")[0];
+            if (boardContainer) {
+                new MutationObserver(fit).observe(boardContainer, {childList: true, subtree: true});
+            }
         }
     };
 
@@ -142,9 +143,9 @@ var AdditionalSettingsPanel = (function(){
         }
     };
 
-    // Full width board: the cells are as tall as fit the visible window below
-    // the top of the board, so the board never needs scrolling. Their width
-    // is whatever the full-width table gives them.
+    // Full width board: the cells are as tall as the board needs to be for the
+    // whole board to be as tall as the browser window. Their width is whatever
+    // the full-width table gives them.
     AdditionalSettingsPanel.prototype.fitBoard = function() {
         if (!this.$layout.hasClass("room-layout-fullwidth")) { return; }
         var cell = $("#bingo .square")[0];
@@ -155,10 +156,10 @@ var AdditionalSettingsPanel = (function(){
         var perColumn = this.board.size || 5;
         // The label row and column and the cell spacing: measured, not hardcoded
         var chromeHeight = table.offsetHeight - perColumn * cell.offsetHeight;
-        // Document position, not the viewport's: the fit doesn't change as the
-        // page scrolls, and the header and controls above stay on screen
-        var boardTop = $(boardContainer).offset().top;
-        var availableHeight = window.innerHeight - boardTop - BOARD_BOTTOM_GAP - chromeHeight;
+        // The board is as tall as the browser window. Whatever sits above it
+        // (header, counter controls) pushes it down, and the user scrolls to
+        // bring the rest into view.
+        var availableHeight = window.innerHeight - BOARD_BOTTOM_GAP - chromeHeight;
 
         var cellHeight = Math.max(MIN_CELL_HEIGHT, Math.floor(availableHeight / perColumn));
         this.$layout[0].style.setProperty("--board-cell-h", cellHeight + "px");
