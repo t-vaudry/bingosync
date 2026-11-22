@@ -10,7 +10,7 @@ var AdditionalSettingsPanel = (function(){
     // Full width board: space left under the board, and the shortest cell (px)
     // it is shrunk to in a very short window. The gap is only a sliver for
     // the commentator's Counts panel, which sits below the board.
-    var BOARD_BOTTOM_GAP = 8;
+    var BOARD_BOTTOM_GAP = 48;
     var MIN_CELL_HEIGHT = 40;
 
     function load(key) {
