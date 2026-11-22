@@ -185,10 +185,11 @@
 .square .goal-count-btn:disabled { pointer-events: none; }
 
 /* Counter + Full Width Board: the squares are big, so the strip and its
-   buttons grow with them (--gc-h tracks the square height, 12vw clamped).
-   Count strips only exist for the Counter, so no extra selector is needed. */
+   buttons grow with them (--gc-h tracks the cell height, which is fitted to
+   the window). Count strips only exist for the Counter, so no extra selector
+   is needed. */
 .room-layout-fullwidth {
-    --gc-h: clamp(32px, 4vw, 60px);
+    --gc-h: calc(var(--board-cell-h) * 0.3);
 }
 .room-layout-fullwidth .square.has-goal-count .text-container {
     margin-top: calc(var(--gc-h) / -2);
