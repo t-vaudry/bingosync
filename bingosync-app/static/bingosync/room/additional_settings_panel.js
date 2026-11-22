@@ -123,9 +123,17 @@ var AdditionalSettingsPanel = (function(){
         }
         if (window.MutationObserver) {
             var observer = new MutationObserver(fit);
-            var watched = [$(".board-container")[0], $(".room-board-col")[0], $(".room-header")[0]];
-            watched.forEach(function(el) {
-                if (el) { observer.observe(el, {childList: true, subtree: true}); }
+            // The board's own children (cards, strips) come in through
+            // .board-container's subtree. The board column is watched only for
+            // children added or removed directly (counter controls), so the
+            // commentator's Counts panel polling doesn't refit the board.
+            var watched = [
+                [$(".board-container")[0], true],
+                [$(".room-board-col")[0], false],
+                [$(".room-header")[0], true]
+            ];
+            watched.forEach(function(pair) {
+                if (pair[0]) { observer.observe(pair[0], {childList: true, subtree: pair[1]}); }
             });
         }
     };
