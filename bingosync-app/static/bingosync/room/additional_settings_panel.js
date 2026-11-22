@@ -7,6 +7,10 @@ var AdditionalSettingsPanel = (function(){
     "use strict";
 
     var STORAGE_PREFIX = "bingosync.";
+    // Full width board: space left under the board, and the smallest square
+    // (px) it is shrunk to in a very short window
+    var BOARD_BOTTOM_GAP = 16;
+    var MIN_SQUARE_SIDE = 40;
 
     function load(key) {
         try {
@@ -104,13 +108,66 @@ var AdditionalSettingsPanel = (function(){
         this.$blackout.prop("checked", load("blackout"));
         this.setFullWidth(this.$fullwidth.prop("checked"), /*persist=*/false);
         this.applyBlackoutView();
+
+        // Refit when the window changes, when late loads (fonts, the page
+        // itself) move the header and so the board, and when what sits above
+        // the board or the board's squares change. The fit is cheap and
+        // idempotent, so it runs synchronously. It only changes styles, never
+        // the children the observer watches, so it can't loop.
+        var fit = function() { that.fitBoard(); };
+        $(window).on("resize", fit);
+        $(window).on("load", fit);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(fit);
+        }
+        if (window.MutationObserver) {
+            var observer = new MutationObserver(fit);
+            var watched = [$(".board-container")[0], $(".room-board-col")[0], $(".room-header")[0]];
+            watched.forEach(function(el) {
+                if (el) { observer.observe(el, {childList: true, subtree: true}); }
+            });
+        }
     };
 
     AdditionalSettingsPanel.prototype.setFullWidth = function(on, persist) {
         this.$layout.toggleClass("room-layout-fullwidth", on);
         if (persist !== false) { save("fullwidth", on); }
-        // Squares change size: recompute color skews and refit goal text.
-        $(window).trigger("resize");
+        if (on) {
+            this.fitBoard();
+        } else {
+            // Back to the standard square size: the layout's own size applies
+            this.$layout[0].style.removeProperty("--board-square");
+            this.board.refreshSquareLayout();
+        }
+    };
+
+    // Full width board: make the squares as big as fit both the width of the
+    // board column and the height of the window below the top of the board,
+    // so the whole board can be seen without scrolling or browser zoom.
+    AdditionalSettingsPanel.prototype.fitBoard = function() {
+        if (!this.$layout.hasClass("room-layout-fullwidth")) { return; }
+        var square = $("#bingo .square")[0];
+        var table = $("#bingo")[0];
+        var boardContainer = $(".board-container")[0];
+        if (!square || !table || !boardContainer || square.offsetHeight === 0) { return; }
+
+        var perRow = this.board.size || 5;
+        // Everything around the squares (the label row and column, cell
+        // spacing) is measured rather than hardcoded
+        var chromeWidth = table.offsetWidth - perRow * square.offsetWidth;
+        var chromeHeight = table.offsetHeight - perRow * square.offsetHeight;
+
+        var availableWidth = this.$layout.find(".room-board-col")[0].clientWidth - chromeWidth;
+        // Document position, not the viewport's: the fit doesn't change as
+        // the page scrolls, and the header and controls above stay on screen
+        var boardTop = $(boardContainer).offset().top;
+        var availableHeight = window.innerHeight - boardTop - BOARD_BOTTOM_GAP - chromeHeight;
+
+        var side = Math.floor(Math.min(availableWidth, availableHeight) / perRow);
+        side = Math.max(MIN_SQUARE_SIDE, side);
+
+        this.$layout[0].style.setProperty("--board-square", side + "px");
+        this.board.refreshSquareLayout();
     };
 
     AdditionalSettingsPanel.prototype.setBlackoutView = function(on) {
