@@ -7,10 +7,10 @@ var AdditionalSettingsPanel = (function(){
     "use strict";
 
     var STORAGE_PREFIX = "bingosync.";
-    // Full width board: space left under the board, and the smallest square
-    // (px) it is shrunk to in a very short window
+    // Full width board: space left under the board, and the shortest cell (px)
+    // it is shrunk to in a very short window
     var BOARD_BOTTOM_GAP = 16;
-    var MIN_SQUARE_SIDE = 40;
+    var MIN_CELL_HEIGHT = 40;
 
     function load(key) {
         try {
@@ -111,9 +111,9 @@ var AdditionalSettingsPanel = (function(){
 
         // Refit when the window changes, when late loads (fonts, the page
         // itself) move the header and so the board, and when what sits above
-        // the board or the board's squares change. The fit is cheap and
-        // idempotent, so it runs synchronously. It only changes styles, never
-        // the children the observer watches, so it can't loop.
+        // the board or the cells change. The fit is cheap and idempotent, so
+        // it runs synchronously. It only changes styles, never the children
+        // the observer watches, so it can't loop.
         var fit = function() { that.fitBoard(); };
         $(window).on("resize", fit);
         $(window).on("load", fit);
@@ -131,42 +131,37 @@ var AdditionalSettingsPanel = (function(){
 
     AdditionalSettingsPanel.prototype.setFullWidth = function(on, persist) {
         this.$layout.toggleClass("room-layout-fullwidth", on);
+        this.$layout.closest(".room-page").toggleClass("room-page-fullwidth", on);
         if (persist !== false) { save("fullwidth", on); }
         if (on) {
             this.fitBoard();
         } else {
-            // Back to the standard square size: the layout's own size applies
-            this.$layout[0].style.removeProperty("--board-square");
+            // Back to the standard cell size: the layout's own size applies
+            this.$layout[0].style.removeProperty("--board-cell-h");
             this.board.refreshSquareLayout();
         }
     };
 
-    // Full width board: make the squares as big as fit both the width of the
-    // board column and the height of the window below the top of the board,
-    // so the whole board can be seen without scrolling or browser zoom.
+    // Full width board: the cells are as tall as fit the visible window below
+    // the top of the board, so the board never needs scrolling. Their width
+    // is whatever the full-width table gives them.
     AdditionalSettingsPanel.prototype.fitBoard = function() {
         if (!this.$layout.hasClass("room-layout-fullwidth")) { return; }
-        var square = $("#bingo .square")[0];
+        var cell = $("#bingo .square")[0];
         var table = $("#bingo")[0];
         var boardContainer = $(".board-container")[0];
-        if (!square || !table || !boardContainer || square.offsetHeight === 0) { return; }
+        if (!cell || !table || !boardContainer || cell.offsetHeight === 0) { return; }
 
-        var perRow = this.board.size || 5;
-        // Everything around the squares (the label row and column, cell
-        // spacing) is measured rather than hardcoded
-        var chromeWidth = table.offsetWidth - perRow * square.offsetWidth;
-        var chromeHeight = table.offsetHeight - perRow * square.offsetHeight;
-
-        var availableWidth = this.$layout.find(".room-board-col")[0].clientWidth - chromeWidth;
-        // Document position, not the viewport's: the fit doesn't change as
-        // the page scrolls, and the header and controls above stay on screen
+        var perColumn = this.board.size || 5;
+        // The label row and column and the cell spacing: measured, not hardcoded
+        var chromeHeight = table.offsetHeight - perColumn * cell.offsetHeight;
+        // Document position, not the viewport's: the fit doesn't change as the
+        // page scrolls, and the header and controls above stay on screen
         var boardTop = $(boardContainer).offset().top;
         var availableHeight = window.innerHeight - boardTop - BOARD_BOTTOM_GAP - chromeHeight;
 
-        var side = Math.floor(Math.min(availableWidth, availableHeight) / perRow);
-        side = Math.max(MIN_SQUARE_SIDE, side);
-
-        this.$layout[0].style.setProperty("--board-square", side + "px");
+        var cellHeight = Math.max(MIN_CELL_HEIGHT, Math.floor(availableHeight / perColumn));
+        this.$layout[0].style.setProperty("--board-cell-h", cellHeight + "px");
         this.board.refreshSquareLayout();
     };
 

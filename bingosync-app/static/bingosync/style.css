@@ -1067,28 +1067,34 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
     }
 }
 
-/* Full Width Board (Additional Settings): the board takes the whole row, but
-   its squares are sized so the whole board fits the window, both across and
-   down (the board is centred when the width is the limit). The square's side
-   is --board-square, which room/additional_settings_panel.js sets in px; the
-   clamp() is only the fallback before that runs. Chat and the side panels
-   move below the board. */
+/* Full Width Board (Additional Settings): the board spans the browser window's
+   width, and its height is fitted to the visible window so the whole board can
+   be seen without scrolling. Cells are not square: their width comes from the
+   table filling the row, and their height is --board-cell-h, which
+   room/additional_settings_panel.js sets in px (the clamp() is the fallback
+   before that runs). Chat and the side panels move below the board. */
+.room-page-fullwidth {
+    max-width: none;
+}
 .room-layout-fullwidth {
     flex-wrap: wrap;
-    --board-square: clamp(95px, 12vw, 190px);
+    --board-cell-h: clamp(95px, 12vw, 190px);
 }
 .room-layout-fullwidth .room-board-col {
     flex: 1 1 100%;
 }
+.room-layout-fullwidth .room-board-col #bingo {
+    width: 100%;
+}
 .room-layout-fullwidth .square {
-    width: var(--board-square);
-    height: var(--board-square);
+    width: auto;
+    height: var(--board-cell-h);
 }
 /* Bigger goal text to match the bigger squares. refitGoalText sets the text's
    size as a percentage of this, shrinking any goal that doesn't fit. Not on
    .hiddentext squares, which hide their text with font-size: 0 */
 .room-layout-fullwidth .square:not(.hiddentext) {
-    font-size: max(12px, calc(var(--board-square) * 0.16));
+    font-size: clamp(16px, 1.9vw, 30px);
 }
 .room-layout-fullwidth #bingo td:first-child {
     width: 31px;
@@ -1098,6 +1104,9 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
 }
 .room-layout-fullwidth .room-chat-col {
     flex-grow: 1;
+}
+.room-layout-fullwidth .board-container {
+    display: block;
 }
 
 /* Commentator: every counter's goal counts under the board */
