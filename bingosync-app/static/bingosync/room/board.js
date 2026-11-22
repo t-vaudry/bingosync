@@ -537,8 +537,10 @@ var Board = (function(){
             var room = maxHeight - ($thisText.siblings('.goal-count').outerHeight() || 0);
             $thisText.css('font-size', '100%');
             var currentPercent = 100;
-            // The floor stops the loop when a short cell leaves no room
-            while($thisText.height() > room && currentPercent > 10) {
+            // Too tall, or a word too wide for the cell (a narrow cell). The
+            // floor stops the loop when a cell leaves no room at all.
+            var tooWide = function() { return this.scrollWidth > this.clientWidth + 1; };
+            while(($thisText.height() > room || tooWide.call($thisText[0])) && currentPercent > 10) {
                 currentPercent -= 2;
                 $thisText.css('font-size', currentPercent + "%" );
             }

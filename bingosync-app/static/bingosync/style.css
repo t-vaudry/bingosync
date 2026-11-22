@@ -1090,11 +1090,11 @@ h1, h2, h3, .panel-title { font-family: var(--cos-display); }
     width: auto;
     height: var(--board-cell-h);
 }
-/* Bigger goal text to match the bigger cells. refitGoalText sets the text's
+/* Bigger goal text to match the bigger squares. refitGoalText sets the text's
    size as a percentage of this, shrinking any goal that doesn't fit. Not on
    .hiddentext squares, which hide their text with font-size: 0 */
 .room-layout-fullwidth .square:not(.hiddentext) {
-    font-size: max(12px, calc(var(--board-cell-h) * 0.16));
+    font-size: clamp(16px, 1.9vw, 30px);
 }
 .room-layout-fullwidth #bingo td:first-child {
     width: 31px;
